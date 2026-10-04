@@ -17,6 +17,7 @@ import { isCameraSnapshotUrl } from "@/lib/picture"
 import { isSpeedBand } from "@/lib/speed"
 import { ferryBadge, ferryLeg } from "@/lib/ferry-routes"
 import { routesWithoutArrival } from "@/lib/stop-routes"
+import type { StopOperator } from "@/lib/stop-board"
 import type { ApproachPoint, HarbourJourney, LrtResponse, MtrCalling, MtrResponse, SpeedBand } from "@/lib/types"
 
 const TUNNEL_TC: Record<string, string> = {
@@ -210,23 +211,90 @@ export function lrtTrainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: L
   return card.root
 }
 
-function busStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages, title: string, empty: string): HTMLElement {
+const BOARD_MS = 60_000
+const seenBoards = new Map<string, { at: number; calls: KmbBoardCall[]; routes: string[] }>()
+
+function busStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages, title: string, empty: string, operator: StopOperator): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || title
   const card = openCard(heading)
-  const calls = kmbBoard(properties)
-  const quiet = routesWithoutArrival(routeList(properties), calls.map((call) => call.route))
-  const waiting = textProp(properties, "clock") === "waiting"
-  if (calls.length === 0 && quiet.length === 0) {
-    if (!waiting) card.body.append(paragraph("city-card-copy", empty))
+  const id = textProp(properties, "id")
+  const routes = routeList(properties)
+  if (!id) {
+    paintBoard(card.body, [], routes, m, empty)
     return card.root
+  }
+  mountStopBoard(card.body, operator, id, m, empty, routes)
+  return card.root
+}
+
+function mountStopBoard(body: HTMLElement, operator: StopOperator, id: string, m: Messages, empty: string, routes: string[]) {
+  const key = `${operator}:${id}`
+  const hit = seenBoards.get(key)
+  if (hit && Date.now() - hit.at < BOARD_MS) {
+    paintBoard(body, hit.calls, hit.routes, m, empty)
+    return
+  }
+  body.replaceChildren(paragraph("city-card-copy", m.boardLoading))
+  void fetch(`/api/board?op=${operator}&id=${encodeURIComponent(id)}`, { cache: "no-store" })
+    .then((response) => response.json())
+    .then((payload: unknown) => {
+      if (!body.isConnected) return
+      const stop = readStopBoard(payload)
+      if (!stop) {
+        paintBoard(body, [], routes, m, empty)
+        return
+      }
+      const nextRoutes = stop.routes.length > 0 ? stop.routes : routes
+      seenBoards.set(key, { at: Date.now(), calls: stop.calls, routes: nextRoutes })
+      paintBoard(body, stop.calls, nextRoutes, m, empty)
+    })
+    .catch(() => {
+      if (!body.isConnected) return
+      paintBoard(body, [], routes, m, empty)
+    })
+}
+
+function paintBoard(body: HTMLElement, calls: KmbBoardCall[], routes: string[], m: Messages, empty: string) {
+  body.replaceChildren()
+  const quiet = routesWithoutArrival(routes, calls.map((call) => call.route))
+  if (calls.length === 0 && quiet.length === 0) {
+    body.append(paragraph("city-card-copy", empty))
+    return
   }
   const board = document.createElement("div")
   board.className = "city-card-board"
   for (const call of calls) board.append(kmbCall(call, m))
   for (const route of quiet) board.append(routeOnly(route))
-  card.body.append(board)
-  if (calls.length === 0 && !waiting) card.body.append(paragraph("city-card-copy", empty))
-  return card.root
+  body.append(board)
+  if (calls.length === 0) body.append(paragraph("city-card-copy", empty))
+}
+
+function readStopBoard(payload: unknown): { calls: KmbBoardCall[]; routes: string[] } | null {
+  if (typeof payload !== "object" || payload === null || !("ok" in payload) || payload.ok !== true) return null
+  if (!("stop" in payload) || typeof payload.stop !== "object" || payload.stop === null) return null
+  const stop = payload.stop as { routes?: unknown; calls?: unknown }
+  const routes = Array.isArray(stop.routes) ? stop.routes.filter((item): item is string => typeof item === "string") : []
+  const calls = Array.isArray(stop.calls) ? stop.calls.flatMap((item) => {
+    if (typeof item !== "object" || item === null) return []
+    const row = item as Record<string, unknown>
+    const route = typeof row.route === "string" ? row.route : ""
+    if (!route) return []
+    return [{
+      route,
+      destTc: typeof row.destTc === "string" ? row.destTc : "",
+      destEn: typeof row.destEn === "string" ? row.destEn : "",
+      originTc: "",
+      originEn: "",
+      arriving: false,
+      eta: typeof row.eta === "string" ? row.eta : "",
+      minutes: typeof row.minutes === "number" ? row.minutes : null,
+      scheduled: row.scheduled === true,
+      remarkTc: typeof row.remarkTc === "string" ? row.remarkTc : "",
+      remarkEn: typeof row.remarkEn === "string" ? row.remarkEn : "",
+      company: row.company === "LWB" ? "LWB" as const : "KMB" as const,
+    }]
+  }) : []
+  return { calls, routes }
 }
 
 function routeOnly(route: string): HTMLElement {
@@ -249,19 +317,19 @@ function routeList(properties: GeoJSON.GeoJsonProperties): string[] {
 }
 
 export function citybusStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
-  return busStopPopup(properties, m, m.citybus, m.citybusNone)
+  return busStopPopup(properties, m, m.citybus, m.citybusNone, "citybus")
 }
 
 export function kmbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
-  return busStopPopup(properties, m, m.kmb, m.kmbNone)
+  return busStopPopup(properties, m, m.kmb, m.kmbNone, "kmb")
 }
 
 export function gmbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
-  return busStopPopup(properties, m, m.gmb, m.gmbNone)
+  return busStopPopup(properties, m, m.gmb, m.gmbNone, "gmb")
 }
 
 export function nlbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
-  return busStopPopup(properties, m, m.nlb, m.nlbNone)
+  return busStopPopup(properties, m, m.nlb, m.nlbNone, "nlb")
 }
 
 export function ferryStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {

@@ -1,21 +1,18 @@
-import { arrivalPairs } from "@/lib/arrival-pairs"
+import { cachedValue } from "@/lib/board-cache"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { nlbArrivalMs } from "@/lib/nlb-clock"
-import { nearestNlbStops, nlbStop } from "@/lib/nlb-network"
-import { arrivalFailure, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
-import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
+import { nearestNlbStops, nlbPoleIds, nlbStop } from "@/lib/nlb-network"
+import { ETA_FRESH_MS } from "@/lib/place-arrivals"
+import { etaQueue } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
-import type { ArrivalClock, NlbCall, NlbPlacesResponse, NlbResponse, NlbStopBoard } from "@/lib/types"
+import type { NlbCall, NlbPlacesResponse, NlbResponse, NlbStopBoard } from "@/lib/types"
 
 const STOP_LIMIT = 6
-const PAIR_BUDGET = 24
 const FETCH_LIMIT = 4
 const ETA_ROOT = "https://rt.data.gov.hk/v2/transport/nlb/stop.php?action=estimatedArrivals"
 
 type Arrival = { estimatedArrivalTime?: string }
-
-const remembered = new Map<string, HeldRows<Arrival>>()
 
 export function loadNlbPlaces(lng: number, lat: number): NlbPlacesResponse {
   const stops: NlbPlacesResponse["stops"] = []
@@ -34,66 +31,56 @@ export function loadNlbPlaces(lng: number, lat: number): NlbPlacesResponse {
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
-export async function loadNlbNear(lng: number, lat: number, now = Date.now(), known: ReadonlySet<string> = new Set()): Promise<NlbResponse> {
-  forgetStale(remembered, now)
-  const nearest = nearestNlbStops(lng, lat, STOP_LIMIT)
-  const pairs = arrivalPairs(nearest.map((stop) => {
-    const record = nlbStop(stop.id)
-    const services = record?.services.map((service) => service.id) ?? []
-    return { id: stop.id, routes: known.has(stop.id) ? [] : services.filter((route) => etaDue(remembered.get(`${stop.id}/${route}`), now)) }
-  }), PAIR_BUDGET)
-  const turn = await takeEtaTurn(async () => {
-    let missed = 0
-    const due = pairs.filter((pair) => etaDue(remembered.get(`${pair.stopId}/${pair.route}`), now))
-    await pool(due, FETCH_LIMIT, async (pair) => {
-      const key = `${pair.stopId}/${pair.route}`
-      const rows = await fetchEta(pair.route, pair.stopId)
-      if (rows) remembered.set(key, { at: now, rows })
-      else missed += 1
-    })
-    return missed
-  })
-  const missed = turn ?? 0
+export async function loadNlbNear(lng: number, lat: number): Promise<NlbResponse> {
+  const places = loadNlbPlaces(lng, lat)
+  return {
+    ok: places.ok,
+    observedAt: null,
+    stops: places.stops.map((stop) => ({ ...stop, calls: [], clock: "waiting" as const })),
+    cacheable: true,
+  }
+}
 
+export function loadNlbBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: NlbStopBoard } | { ok: false }> {
+  return cachedValue(`nlb:${id}`, ETA_FRESH_MS, () => readNlbBoard(id, now))
+}
+
+async function readNlbBoard(id: string, now: number): Promise<{ ok: true; stop: NlbStopBoard } | { ok: false }> {
+  const ids = nlbPoleIds(id)
+  if (ids.length === 0) return { ok: false }
   const stops: NlbStopBoard[] = []
-  for (const stop of nearest) {
-    const record = nlbStop(stop.id)
-    if (!record) continue
+  let missed = 0
+  for (const stopId of ids) {
+    const record = nlbStop(stopId)
+    if (!record) {
+      missed += 1
+      continue
+    }
     const calls: NlbCall[] = []
-    for (const service of record.services) {
-      const rows = heldRows(remembered.get(`${stop.id}/${service.id}`), now) ?? []
+    await pool(record.services, FETCH_LIMIT, async (service) => {
+      const rows = await fetchEta(service.id, stopId)
+      if (!rows) {
+        missed += 1
+        return
+      }
       const call = callAt(service.code, rows, now)
       if (call) calls.push(call)
-    }
+    })
     calls.sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999) || a.route.localeCompare(b.route, undefined, { numeric: true }))
     stops.push({
-      id: stop.id,
+      id: stopId,
       nameTc: record.tc,
       nameEn: record.en,
       lng: record.lng,
       lat: record.lat,
       routes: record.routes,
       calls,
-      clock: serviceClock(record.services.map((service) => service.id), stop.id, remembered, now),
+      clock: "ready",
     })
   }
-  const shown = mergeSamePoles(stops)
-  const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "New Lantao Bus arrivals failed")
-  return {
-    ok: nearest.length === 0 || shown.length > 0,
-    ...(error ? { error } : {}),
-    observedAt: nearest.length === 0 ? null : new Date(now).toISOString(),
-    stops: shown,
-    cacheable: turn !== null && missed === 0 && shown.every((stop) => stop.clock === "ready"),
-  }
-}
-
-function serviceClock(routes: readonly string[], stopId: string, remembered: Map<string, HeldRows<Arrival>>, now: number): ArrivalClock {
-  if (routes.length === 0) return "ready"
-  for (const route of routes) {
-    if (heldRows(remembered.get(`${stopId}/${route}`), now) == null) return "waiting"
-  }
-  return "ready"
+  const shown = mergeSamePoles(stops)[0]
+  if (!shown || missed > 0) return { ok: false }
+  return { ok: true, stop: shown }
 }
 
 function callAt(route: string, rows: Arrival[], now: number): NlbCall | null {

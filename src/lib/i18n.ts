@@ -189,6 +189,7 @@ export type Messages = {
   kmbFailed: string
   kmbScheduled: string
   kmbNone: string
+  boardLoading: string
   lrt: string
   lrtFailed: string
   lrtNone: string
@@ -365,6 +366,7 @@ const en: Messages = {
   kmbFailed: "KMB arrivals did not load.",
   kmbScheduled: "Scheduled",
   kmbNone: "No arrival on the board",
+  boardLoading: "Reading the published times.",
   lrt: "Light Rail",
   lrtFailed: "Light Rail arrivals did not load.",
   lrtNone: "No arrival on the board",
@@ -541,6 +543,7 @@ const zhHK: Messages = {
   kmbFailed: "未能取得九巴到站時間。",
   kmbScheduled: "原定班次",
   kmbNone: "班次表沒有到站時間",
+  boardLoading: "正在讀取已公布的到站時間。",
   lrt: "輕鐵",
   lrtFailed: "未能取得輕鐵到站時間。",
   lrtNone: "班次表沒有到站時間",
@@ -705,6 +708,7 @@ const zhCN: Messages = {
   kmbFailed: "未能取得九巴到站时间。",
   kmbScheduled: "原定班次",
   kmbNone: "班次表没有到站时间",
+  boardLoading: "正在读取已公布的到站时间。",
   kmbLwb: "九巴／龙运",
   lwb: "龙运",
   lrt: "轻铁",

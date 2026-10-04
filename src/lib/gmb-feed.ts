@@ -1,9 +1,10 @@
 import { gmbDestination } from "@/lib/gmb-destinations"
 import { mergeSamePoles } from "@/lib/kmb-pole"
-import { gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
+import { gmbPoleIds, gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { arrivalFailure, ETA_FRESH_MS, forgetStale, heldRows, nextStopFetch, type HeldRows } from "@/lib/place-arrivals"
-import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
+import { ETA_FRESH_MS } from "@/lib/place-arrivals"
+import { cachedValue } from "@/lib/board-cache"
+import { etaQueue } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
 import type { GmbCall, GmbPlacesResponse, GmbResponse, GmbStopBoard } from "@/lib/types"
@@ -27,8 +28,6 @@ type EtaRoute = {
   eta?: EtaEntry[] | null
 }
 
-const remembered = new Map<string, HeldRows<EtaRoute>>()
-
 export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom = Number.NaN): GmbPlacesResponse {
   const stops: GmbPlacesResponse["stops"] = []
   for (const stop of gmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), GMB_CAP)) {
@@ -46,46 +45,46 @@ export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom 
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
-export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN, known: ReadonlySet<string> = new Set()): Promise<GmbResponse> {
-  forgetStale(remembered, now)
-  const nearest = gmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), GMB_CAP)
-  const turn = await takeEtaTurn(async () => {
-    let missed = 0
-    const due = nextStopFetch(nearest.map((stop) => ({ id: stop.id, key: `${stop.lng.toFixed(6)},${stop.lat.toFixed(6)}` })), known, remembered, now)
-    await pool(due, FETCH_LIMIT, async (stopId) => {
-      const rows = await fetchStop(stopId)
-      if (rows) remembered.set(stopId, { at: now, rows })
-      else missed += 1
-    })
-    return missed
-  })
-  const missed = turn ?? 0
+export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<GmbResponse> {
+  const places = loadGmbPlaces(lng, lat, now, zoom)
+  return {
+    ok: places.ok,
+    observedAt: null,
+    stops: places.stops.map((stop) => ({ ...stop, calls: [], clock: "waiting" as const })),
+    cacheable: true,
+  }
+}
 
+export function loadGmbBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: GmbStopBoard } | { ok: false }> {
+  return cachedValue(`gmb:${id}`, ETA_FRESH_MS, () => readGmbBoard(id, now))
+}
+
+async function readGmbBoard(id: string, now: number): Promise<{ ok: true; stop: GmbStopBoard } | { ok: false }> {
+  const ids = gmbPoleIds(id)
+  if (ids.length === 0) return { ok: false }
   const stops: GmbStopBoard[] = []
-  for (const stop of nearest) {
-    const record = gmbStop(stop.id)
-    if (!record) continue
-    const held = heldRows(remembered.get(stop.id), now)
+  let missed = 0
+  await pool(ids, FETCH_LIMIT, async (stopId) => {
+    const record = gmbStop(stopId)
+    const rows = await fetchStop(stopId)
+    if (!record || !rows) {
+      missed += 1
+      return
+    }
     stops.push({
-      id: stop.id,
+      id: stopId,
       nameTc: record.tc,
       nameEn: record.en,
       lng: record.lng,
       lat: record.lat,
       routes: record.routes,
-      calls: callsAt(held ?? [], record.ids ?? {}, now),
-      clock: held == null ? "waiting" : "ready",
+      calls: callsAt(rows, record.ids ?? {}, now),
+      clock: "ready",
     })
-  }
-  const shown = mergeSamePoles(stops)
-  const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "Green minibus arrivals failed")
-  return {
-    ok: true,
-    ...(error ? { error } : {}),
-    observedAt: new Date(now).toISOString(),
-    stops: shown,
-    cacheable: turn !== null && missed === 0 && shown.every((stop) => stop.clock === "ready"),
-  }
+  })
+  const shown = mergeSamePoles(stops)[0]
+  if (!shown || missed > 0) return { ok: false }
+  return { ok: true, stop: shown }
 }
 
 function callsAt(rows: EtaRoute[], ids: Record<string, string>, now: number): GmbCall[] {

@@ -1,11 +1,12 @@
 import { busCompany } from "@/lib/bus-company"
 import { refreshKmbCatalogueSoon } from "@/lib/kmb-catalogue"
-import { kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
+import { kmbPoleIds, kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
-import { arrivalFailure, ETA_FRESH_MS, forgetStale, heldRows, nextStopFetch, type HeldRows } from "@/lib/place-arrivals"
-import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
+import { ETA_FRESH_MS } from "@/lib/place-arrivals"
+import { cachedValue } from "@/lib/board-cache"
+import { etaQueue } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
 import type { KmbCall, KmbPlacesResponse, KmbResponse, KmbStopBoard } from "@/lib/types"
@@ -23,8 +24,6 @@ type EtaRow = {
   rmk_en?: string
   rmk_tc?: string
 }
-
-const remembered = new Map<string, HeldRows<EtaRow>>()
 
 export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): KmbPlacesResponse {
   refreshKmbCatalogueSoon(now)
@@ -45,49 +44,46 @@ export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom =
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
-// Poles come from the catalogue. This only refreshes the arrival clock.
-export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN, known: ReadonlySet<string> = new Set()): Promise<KmbResponse> {
-  refreshKmbCatalogueSoon(now)
-  refreshKmbRoutesSoon(now)
-  forgetStale(remembered, now)
-  const nearest = kmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), STOP_CAP)
-  const turn = await takeEtaTurn(async () => {
-    let missed = 0
-    const due = nextStopFetch(nearest.map((stop) => ({ id: stop.id, key: `${stop.lng.toFixed(6)},${stop.lat.toFixed(6)}` })), known, remembered, now)
-    await pool(due, FETCH_LIMIT, async (stopId) => {
-      const rows = await fetchStop(stopId)
-      if (rows) remembered.set(stopId, { at: now, rows })
-      else missed += 1
-    })
-    return missed
-  })
-  const missed = turn ?? 0
+export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<KmbResponse> {
+  const places = loadKmbPlaces(lng, lat, now, zoom)
+  return {
+    ok: places.ok,
+    observedAt: null,
+    stops: places.stops.map((stop) => ({ ...stop, calls: [], clock: "waiting" as const })),
+    cacheable: true,
+  }
+}
 
+export function loadKmbBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: KmbStopBoard } | { ok: false }> {
+  return cachedValue(`kmb:${id}`, ETA_FRESH_MS, () => readKmbBoard(id, now))
+}
+
+async function readKmbBoard(id: string, now: number): Promise<{ ok: true; stop: KmbStopBoard } | { ok: false }> {
+  const ids = kmbPoleIds(id)
+  if (ids.length === 0) return { ok: false }
   const stops: KmbStopBoard[] = []
-  for (const stop of nearest) {
-    const record = kmbStop(stop.id)
-    if (!record) continue
-    const held = heldRows(remembered.get(stop.id), now)
+  let missed = 0
+  await pool(ids, FETCH_LIMIT, async (stopId) => {
+    const record = kmbStop(stopId)
+    const rows = await fetchStop(stopId)
+    if (!record || !rows) {
+      missed += 1
+      return
+    }
     stops.push({
-      id: stop.id,
+      id: stopId,
       nameTc: record.tc,
       nameEn: record.en,
       lng: record.lng,
       lat: record.lat,
-      routes: kmbRoutesAt(stop.id),
-      calls: callsAt(held ?? [], now),
-      clock: held == null ? "waiting" : "ready",
+      routes: kmbRoutesAt(stopId),
+      calls: callsAt(rows, now),
+      clock: "ready",
     })
-  }
-  const shown = mergeSamePoles(stops)
-  const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "KMB arrivals failed")
-  return {
-    ok: true,
-    ...(error ? { error } : {}),
-    observedAt: new Date(now).toISOString(),
-    stops: shown,
-    cacheable: turn !== null && missed === 0 && shown.every((stop) => stop.clock === "ready"),
-  }
+  })
+  const shown = mergeSamePoles(stops)[0]
+  if (!shown || missed > 0) return { ok: false }
+  return { ok: true, stop: shown }
 }
 
 function callsAt(rows: EtaRow[], now: number): KmbCall[] {

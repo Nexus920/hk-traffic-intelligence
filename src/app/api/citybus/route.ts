@@ -8,7 +8,7 @@ const empty = (error: string): CitybusResponse => ({ ok: false, error, observedA
 
 export const GET = viewCachedGet({
   freshMs: 60_000,
-  load: (lng, lat, now, _zoom, known) => loadCitybusNear(lng, lat, now, known),
+  load: loadCitybusNear,
   missing: () => empty("Citybus centre missing"),
   failed: (error) => empty(error instanceof Error ? error.message : "Citybus arrivals failed"),
 })

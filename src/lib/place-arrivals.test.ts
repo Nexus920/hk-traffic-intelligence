@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { arrivalFailure, clocksWaiting, dueIds, etaDue, forgetStale, heldRows, knownQuery, mergePlaceArrivals, nextStopFetch, retainReadyStops, ETA_FRESH_MS, ETA_KEEP_MS } from "./place-arrivals.ts"
+import { arrivalFailure, catalogueBoards, clocksWaiting, dueIds, etaDue, forgetStale, heldRows, mergePlaceArrivals, ETA_FRESH_MS, ETA_KEEP_MS } from "./place-arrivals.ts"
 import { readStopList } from "./stop-list.ts"
 
 const now = 1_700_000_000_000
@@ -52,39 +52,12 @@ assert.equal(mergePlaceArrivals(places, null)?.stops[1]?.id, "garden")
 assert.equal(mergePlaceArrivals(null, arrivals)?.stops.length, 1)
 assert.equal(mergePlaceArrivals(null, { ok: false, observedAt: null, stops: [] }), null)
 
-const batch = nextStopFetch([
-  { id: "b", key: "1" },
-  { id: "a", key: "1" },
-  { id: "c", key: "2" },
-  { id: "d", key: "3" },
-], new Set(), new Map(), now, 2)
-assert.deepEqual(batch, ["b", "a"])
-
-const continued = nextStopFetch([
-  { id: "b", key: "1" },
-  { id: "a", key: "1" },
-  { id: "c", key: "2" },
-], new Set(["a"]), new Map(), now, 8)
-assert.deepEqual(continued, ["c"])
-
-const kept = retainReadyStops(
-  { ok: true, observedAt: "t0", stops: [{ id: "hotel", calls: [{ route: "12", minutes: 4 }], clock: "ready" as const }] },
-  { ok: true, observedAt: "t1", stops: [{ id: "hotel", calls: [], clock: "waiting" as const }, { id: "garden", calls: [{ route: "1", minutes: 2 }], clock: "waiting" as const }] },
-)
-assert.equal(kept?.stops[0]?.clock, "ready")
-assert.equal(kept?.stops[0]?.calls[0]?.route, "12")
-assert.equal(kept?.stops[1]?.clock, "waiting")
-assert.equal(knownQuery(kept?.stops), "garden/1,hotel")
-
-const replaced = retainReadyStops(kept, {
-  ok: true,
-  observedAt: "t2",
-  stops: [
-    { id: "hotel", calls: [{ route: "12", minutes: 1 }], clock: "ready" as const },
-    { id: "garden", calls: [{ route: "1", minutes: 2 }], clock: "waiting" as const },
-  ],
-})
-assert.equal(replaced?.stops[0]?.calls[0]?.minutes, 1)
+const listedPins = catalogueBoards(places)
+assert.equal(listedPins?.stops.length, 2)
+assert.deepEqual(listedPins?.stops[0]?.calls, [])
+assert.equal(listedPins?.stops[0]?.clock, "waiting")
+assert.equal(listedPins?.stops[0]?.lng, 114.196)
+assert.equal(catalogueBoards(null), null)
 
 const listed = readStopList({
   data: [

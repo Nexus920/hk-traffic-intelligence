@@ -16,9 +16,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     id: "2026-10-04-stop-board",
     date: "2026-10-04",
     kind: "fixed",
-    en: "A stop card fills in where the bus is going and when it arrives.",
-    tc: "車站卡片會補上巴士前往的地點和到站時間。",
-    sc: "车站卡片会补上巴士前往的地点和到站时间。",
+    en: "Opening a stop reads that stop's published times, in any part of the city.",
+    tc: "打開任何一站，都會讀取該站已公布的到站時間。",
+    sc: "打开任何一站，都会读取该站已公布的到站时间。",
   },
   {
     id: "2026-10-04-shared-stop",
