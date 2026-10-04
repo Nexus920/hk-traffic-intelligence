@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { GMB_MIN_ZOOM, KMB_MIN_ZOOM } from "./kmb-view.ts"
+import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, kmbViewKey } from "./kmb-view.ts"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "./kmb-reach.ts"
 
 const close = kmbReachMetres(16.5, 22.38274)
@@ -11,6 +11,10 @@ assert.equal(kmbReachMetres(16, 22.305), 650)
 assert.ok(kmbReachMetres(GMB_MIN_ZOOM, 22.305) < 400)
 assert.equal(kmbReachMetres(Number.NaN, 22.38), 450)
 assert.equal(STOP_CAP, 40)
+assert.equal(kmbViewKey(114.168, 22.3, 12), "far")
+assert.equal(kmbViewKey(114.168, 22.3, 14), "114.168,22.300,wide")
+assert.equal(kmbViewKey(114.168, 22.3, 16.4), "114.168,22.300,street")
+assert.equal(kmbViewKey(114.168, 22.3, 18), "114.168,22.300,close")
 
 assert.equal(isListedKmbRow({ eta_seq: 1, route: "85A" }), true)
 assert.equal(isListedKmbRow({ eta_seq: 2, route: "85A" }), false)

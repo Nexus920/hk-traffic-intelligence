@@ -41,10 +41,13 @@ export function loadCitybusPlaces(lng: number, lat: number): CitybusPlacesRespon
 }
 
 // Poles and the routes on them come from the network file. This only refreshes arrival times.
-export async function loadCitybusNear(lng: number, lat: number, now = Date.now()): Promise<CitybusResponse> {
+export async function loadCitybusNear(lng: number, lat: number, now = Date.now(), known: ReadonlySet<string> = new Set()): Promise<CitybusResponse> {
   forgetStale(remembered, now)
   const nearest = nearestCitybusStops(lng, lat, STOP_LIMIT)
-  const pairs = arrivalPairs(nearest, PAIR_BUDGET)
+  const pairs = arrivalPairs(nearest.map((stop) => ({
+    id: stop.id,
+    routes: known.has(stop.id) ? [] : stop.routes.filter((route) => etaDue(remembered.get(`${stop.id}/${route}`), now)),
+  })), PAIR_BUDGET)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
     const due = pairs.filter((pair) => etaDue(remembered.get(`${pair.stopId}/${pair.route}`), now))
@@ -62,7 +65,6 @@ export async function loadCitybusNear(lng: number, lat: number, now = Date.now()
   for (const stop of nearest) {
     const record = citybusStop(stop.id)
     if (!record) continue
-    const asked = pairs.filter((pair) => pair.stopId === stop.id).map((pair) => pair.route)
     const rows: EtaRow[] = []
     for (const route of stop.routes) {
       const kept = heldRows(remembered.get(`${stop.id}/${route}`), now)
@@ -76,7 +78,7 @@ export async function loadCitybusNear(lng: number, lat: number, now = Date.now()
       lat: record.lat,
       routes: record.routes,
       calls: callsAt(rows, now),
-      clock: pairClock(asked, stop.id, remembered, now),
+      clock: pairClock(record.routes, stop.id, remembered, now),
     })
   }
   const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "Citybus arrivals failed")
@@ -89,9 +91,9 @@ export async function loadCitybusNear(lng: number, lat: number, now = Date.now()
   }
 }
 
-function pairClock(asked: readonly string[], stopId: string, remembered: Map<string, HeldRows<EtaRow>>, now: number): ArrivalClock {
-  if (asked.length === 0) return "ready"
-  for (const route of asked) {
+function pairClock(routes: readonly string[], stopId: string, remembered: Map<string, HeldRows<EtaRow>>, now: number): ArrivalClock {
+  if (routes.length === 0) return "ready"
+  for (const route of routes) {
     if (heldRows(remembered.get(`${stopId}/${route}`), now) == null) return "waiting"
   }
   return "ready"
@@ -119,7 +121,7 @@ function callsAt(rows: EtaRow[], now: number): CitybusCall[] {
     })
   }
   calls.sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999) || a.route.localeCompare(b.route, undefined, { numeric: true }))
-  return calls.slice(0, 12)
+  return calls
 }
 
 function isScheduled(row: EtaRow): boolean {

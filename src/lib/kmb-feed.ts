@@ -4,7 +4,7 @@ import { kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
-import { arrivalFailure, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, ETA_FRESH_MS, forgetStale, heldRows, nextStopFetch, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
@@ -46,14 +46,14 @@ export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom =
 }
 
 // Poles come from the catalogue. This only refreshes the arrival clock.
-export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<KmbResponse> {
+export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN, known: ReadonlySet<string> = new Set()): Promise<KmbResponse> {
   refreshKmbCatalogueSoon(now)
   refreshKmbRoutesSoon(now)
   forgetStale(remembered, now)
   const nearest = kmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), STOP_CAP)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, nearest.length)
+    const due = nextStopFetch(nearest.map((stop) => ({ id: stop.id, key: `${stop.lng.toFixed(6)},${stop.lat.toFixed(6)}` })), known, remembered, now)
     await pool(due, FETCH_LIMIT, async (stopId) => {
       const rows = await fetchStop(stopId)
       if (rows) remembered.set(stopId, { at: now, rows })
@@ -114,7 +114,7 @@ function callsAt(rows: EtaRow[], now: number): KmbCall[] {
     })
   }
   calls.sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999) || a.route.localeCompare(b.route))
-  return calls.slice(0, 12)
+  return calls
 }
 
 function isScheduled(row: EtaRow): boolean {

@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-stop-board",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "A stop card fills in where the bus is going and when it arrives.",
+    tc: "車站卡片會補上巴士前往的地點和到站時間。",
+    sc: "车站卡片会补上巴士前往的地点和到站时间。",
+  },
+  {
     id: "2026-10-04-shared-stop",
     date: "2026-10-04",
     kind: "fixed",

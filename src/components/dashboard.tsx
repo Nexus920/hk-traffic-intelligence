@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { CityMap } from "@/components/city-map"
 import { LayerDock } from "@/components/layer-dock"
@@ -11,7 +11,7 @@ import { decorateControlPoints } from "@/lib/control-points"
 import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, KMB_POLL_MS, PLACE_POLL_MS } from "@/lib/kmb-view"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
-import { clocksWaiting, mergePlaceArrivals } from "@/lib/place-arrivals"
+import { clocksWaiting, knownQuery, mergePlaceArrivals, retainReadyStops } from "@/lib/place-arrivals"
 import { hkoLang } from "@/lib/i18n"
 import type {
   ApproachesResponse,
@@ -84,22 +84,26 @@ export function Dashboard() {
     view && view.zoom >= KMB_MIN_ZOOM
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
+  const [kmbKnown, setKmbKnown] = useState("")
+  const [citybusKnown, setCitybusKnown] = useState("")
+  const [gmbKnown, setGmbKnown] = useState("")
+  const [nlbKnown, setNlbKnown] = useState("")
   const kmbPlacesUrl = layers.kmb && kmbQuery ? `/api/kmb/places?${kmbQuery}` : null
-  const kmbUrl = layers.kmb && kmbQuery ? `/api/kmb?${kmbQuery}` : null
+  const kmbUrl = withKnown(layers.kmb && kmbQuery ? `/api/kmb?${kmbQuery}` : null, kmbKnown)
   const citybusPlacesUrl = layers.citybus && citybusQuery ? `/api/citybus/places?${citybusQuery}` : null
-  const citybusUrl = layers.citybus && citybusQuery ? `/api/citybus?${citybusQuery}` : null
+  const citybusUrl = withKnown(layers.citybus && citybusQuery ? `/api/citybus?${citybusQuery}` : null, citybusKnown)
   const gmbQuery =
     view && view.zoom >= GMB_MIN_ZOOM
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
   const gmbPlacesUrl = layers.gmb && gmbQuery ? `/api/gmb/places?${gmbQuery}` : null
-  const gmbUrl = layers.gmb && gmbQuery ? `/api/gmb?${gmbQuery}` : null
+  const gmbUrl = withKnown(layers.gmb && gmbQuery ? `/api/gmb?${gmbQuery}` : null, gmbKnown)
   const nlbQuery =
     view && view.zoom >= KMB_MIN_ZOOM && inLantau(view.lng, view.lat)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
   const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
-  const nlbUrl = layers.nlb && nlbQuery ? `/api/nlb?${nlbQuery}` : null
+  const nlbUrl = withKnown(layers.nlb && nlbQuery ? `/api/nlb?${nlbQuery}` : null, nlbKnown)
   const mtrLive = useLiveJson<MtrResponse>("/api/mtr", 15_000)
   const kmbPlacesLive = useLiveJson<KmbPlacesResponse>(kmbPlacesUrl, PLACE_POLL_MS)
   const kmbLive = useLiveJson<KmbResponse>(kmbUrl, arrivalMs, true)
@@ -111,22 +115,30 @@ export function Dashboard() {
   const nlbPlacesLive = useLiveJson<NlbPlacesResponse>(nlbPlacesUrl, PLACE_POLL_MS)
   const nlbLive = useLiveJson<NlbResponse>(nlbUrl, arrivalMs, true)
   const ferryLive = useLiveJson<FerryResponse>(layers.ferry ? "/api/ferry" : null, 60_000, true)
-  const kmbMerged = useMemo(
-    () => mergePlaceArrivals(kmbPlacesLive.data, kmbLive.data),
-    [kmbLive.data, kmbPlacesLive.data],
-  )
-  const citybusMerged = useMemo(
-    () => mergePlaceArrivals(citybusPlacesLive.data, citybusLive.data),
-    [citybusLive.data, citybusPlacesLive.data],
-  )
-  const gmbMerged = useMemo(
-    () => mergePlaceArrivals(gmbPlacesLive.data, gmbLive.data),
-    [gmbLive.data, gmbPlacesLive.data],
-  )
-  const nlbMerged = useMemo(
-    () => mergePlaceArrivals(nlbPlacesLive.data, nlbLive.data),
-    [nlbLive.data, nlbPlacesLive.data],
-  )
+  const [kmbHeld, setKmbHeld] = useState<KmbResponse | null>(null)
+  const [citybusHeld, setCitybusHeld] = useState<CitybusResponse | null>(null)
+  const [gmbHeld, setGmbHeld] = useState<GmbResponse | null>(null)
+  const [nlbHeld, setNlbHeld] = useState<NlbResponse | null>(null)
+  const kmbNext = retainReadyStops(kmbHeld, mergePlaceArrivals(kmbPlacesLive.data, kmbLive.data))
+  const citybusNext = retainReadyStops(citybusHeld, mergePlaceArrivals(citybusPlacesLive.data, citybusLive.data))
+  const gmbNext = retainReadyStops(gmbHeld, mergePlaceArrivals(gmbPlacesLive.data, gmbLive.data))
+  const nlbNext = retainReadyStops(nlbHeld, mergePlaceArrivals(nlbPlacesLive.data, nlbLive.data))
+  const kmbMerged = sameBoard(kmbHeld, kmbNext) ? kmbHeld : kmbNext
+  const citybusMerged = sameBoard(citybusHeld, citybusNext) ? citybusHeld : citybusNext
+  const gmbMerged = sameBoard(gmbHeld, gmbNext) ? gmbHeld : gmbNext
+  const nlbMerged = sameBoard(nlbHeld, nlbNext) ? nlbHeld : nlbNext
+  if (kmbMerged !== kmbHeld) setKmbHeld(kmbMerged)
+  if (citybusMerged !== citybusHeld) setCitybusHeld(citybusMerged)
+  if (gmbMerged !== gmbHeld) setGmbHeld(gmbMerged)
+  if (nlbMerged !== nlbHeld) setNlbHeld(nlbMerged)
+  const nextKmbKnown = knownQuery(kmbMerged?.stops)
+  const nextCitybusKnown = knownQuery(citybusMerged?.stops)
+  const nextGmbKnown = knownQuery(gmbMerged?.stops)
+  const nextNlbKnown = knownQuery(nlbMerged?.stops)
+  if (nextKmbKnown !== kmbKnown) setKmbKnown(nextKmbKnown)
+  if (nextCitybusKnown !== citybusKnown) setCitybusKnown(nextCitybusKnown)
+  if (nextGmbKnown !== gmbKnown) setGmbKnown(nextGmbKnown)
+  if (nextNlbKnown !== nlbKnown) setNlbKnown(nextNlbKnown)
   const arrivalAsked = Boolean(kmbUrl || citybusUrl || gmbUrl || nlbUrl)
   const arrivalSeen = Boolean(kmbLive.data || citybusLive.data || gmbLive.data || nlbLive.data)
   const arrivalWait = (arrivalAsked && !arrivalSeen) || clocksWaiting(kmbMerged?.stops) || clocksWaiting(citybusMerged?.stops) || clocksWaiting(gmbMerged?.stops) || clocksWaiting(nlbMerged?.stops)
@@ -158,7 +170,24 @@ export function Dashboard() {
     setLayers((current) => ({ ...current, [layer]: !current[layer] }))
   }
 
-  function selectBasemap(next: Basemap) {
+  function withKnown(url: string | null, known: string): string | null {
+  if (!url || !known) return url
+  return `${url}&known=${encodeURIComponent(known)}`
+}
+
+function boardToken(board: { stops: { id: string; clock?: string; calls: { route: string; minutes?: number | null; destTc?: string }[] }[] } | null): string {
+  if (!board) return ""
+  return board.stops.map((stop) => `${stop.id}:${stop.clock ?? ""}:${stop.calls.map((call) => `${call.route}/${call.minutes ?? ""}/${call.destTc ?? ""}`).join(",")}`).join("|")
+}
+
+function sameBoard(
+  left: { stops: { id: string; clock?: string; calls: { route: string; minutes?: number | null; destTc?: string }[] }[] } | null,
+  right: { stops: { id: string; clock?: string; calls: { route: string; minutes?: number | null; destTc?: string }[] }[] } | null,
+): boolean {
+  return boardToken(left) === boardToken(right)
+}
+
+function selectBasemap(next: Basemap) {
     if (next === "buildings") {
       setBasemap((current) => (current === "buildings" ? ground : "buildings"))
       return

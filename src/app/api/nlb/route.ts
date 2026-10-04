@@ -8,7 +8,7 @@ const empty = (error: string): NlbResponse => ({ ok: false, error, observedAt: n
 
 export const GET = viewCachedGet({
   freshMs: 60_000,
-  load: (lng, lat, now) => loadNlbNear(lng, lat, now),
+  load: (lng, lat, now, _zoom, known) => loadNlbNear(lng, lat, now, known),
   missing: () => empty("New Lantao Bus centre missing"),
   failed: (error) => empty(error instanceof Error ? error.message : "New Lantao Bus arrivals failed"),
 })

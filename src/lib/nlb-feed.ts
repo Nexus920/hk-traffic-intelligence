@@ -34,12 +34,13 @@ export function loadNlbPlaces(lng: number, lat: number): NlbPlacesResponse {
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
-export async function loadNlbNear(lng: number, lat: number, now = Date.now()): Promise<NlbResponse> {
+export async function loadNlbNear(lng: number, lat: number, now = Date.now(), known: ReadonlySet<string> = new Set()): Promise<NlbResponse> {
   forgetStale(remembered, now)
   const nearest = nearestNlbStops(lng, lat, STOP_LIMIT)
   const pairs = arrivalPairs(nearest.map((stop) => {
     const record = nlbStop(stop.id)
-    return { id: stop.id, routes: record?.services.map((service) => service.id) ?? [] }
+    const services = record?.services.map((service) => service.id) ?? []
+    return { id: stop.id, routes: known.has(stop.id) ? [] : services.filter((route) => etaDue(remembered.get(`${stop.id}/${route}`), now)) }
   }), PAIR_BUDGET)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
@@ -58,7 +59,6 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
   for (const stop of nearest) {
     const record = nlbStop(stop.id)
     if (!record) continue
-    const asked = pairs.filter((pair) => pair.stopId === stop.id).map((pair) => pair.route)
     const calls: NlbCall[] = []
     for (const service of record.services) {
       const rows = heldRows(remembered.get(`${stop.id}/${service.id}`), now) ?? []
@@ -73,8 +73,8 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
       lng: record.lng,
       lat: record.lat,
       routes: record.routes,
-      calls: calls.slice(0, 12),
-      clock: serviceClock(asked, stop.id, remembered, now),
+      calls,
+      clock: serviceClock(record.services.map((service) => service.id), stop.id, remembered, now),
     })
   }
   const shown = mergeSamePoles(stops)
@@ -88,9 +88,9 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
   }
 }
 
-function serviceClock(asked: readonly string[], stopId: string, remembered: Map<string, HeldRows<Arrival>>, now: number): ArrivalClock {
-  if (asked.length === 0) return "ready"
-  for (const route of asked) {
+function serviceClock(routes: readonly string[], stopId: string, remembered: Map<string, HeldRows<Arrival>>, now: number): ArrivalClock {
+  if (routes.length === 0) return "ready"
+  for (const route of routes) {
     if (heldRows(remembered.get(`${stopId}/${route}`), now) == null) return "waiting"
   }
   return "ready"

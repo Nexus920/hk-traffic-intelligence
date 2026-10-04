@@ -257,6 +257,7 @@ export function CityMap({
   const basemapRef = useRef(basemap)
   const cancelFlyRef = useRef<(() => void) | null>(null)
   const closeCardRef = useRef<(() => void) | null>(null)
+  const refreshCardRef = useRef<(() => void) | null>(null)
   const approachesRef = useRef(approaches)
   const viewKeyRef = useRef<string | null>(null)
   const appliedBasemap = useRef<Basemap | null>(null)
@@ -414,6 +415,7 @@ export function CityMap({
 
     const cards = popupOpener(map)
     closeCardRef.current = cards.close
+    refreshCardRef.current = cards.refresh
     const restoreOverlays = () => {
       mountDataLayers(map)
       bindOverlayClicks(map, cards.show, copyRef, approachesRef, mtrRef, lrtRef)
@@ -543,6 +545,7 @@ export function CityMap({
       mapRef.current = null
       restoreOverlaysRef.current = null
       closeCardRef.current = null
+      refreshCardRef.current = null
     }
   }, [disabled])
 
@@ -687,6 +690,7 @@ export function CityMap({
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
         geoJsonSource(map, "ferry-vessels")?.setData(ferryMotionFeatures(ferryMotionRef.current, Date.now()))
       }
+      refreshCardRef.current?.()
     }
     paint()
     map.on("zoomend", paint)
@@ -1217,7 +1221,7 @@ function mountDataLayers(map: Map) {
 
 function bindOverlayClicks(
   map: Map,
-  showPopup: (lngLat: LngLat, content: HTMLElement) => void,
+  showPopup: (lngLat: LngLat, content: HTMLElement, track?: StopCardTrack) => void,
   copyRef: MutableRefObject<Messages>,
   approachesRef: MutableRefObject<ApproachPoint[]>,
   mtrRef: MutableRefObject<MtrResponse | null>,
@@ -1674,6 +1678,7 @@ function busStopCollection(map: Map, board: CitybusResponse, locale: Locale, lab
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [stop.lng, stop.lat] },
         properties: {
+          id: stop.id,
           nameTc: stop.nameTc,
           nameEn: stop.nameEn,
           board: JSON.stringify(stop.calls),
@@ -1730,6 +1735,7 @@ function kmbStopCollection(map: Map, kmb: KmbResponse, locale: Locale, labels: b
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [stop.lng, stop.lat] },
         properties: {
+          id: stop.id,
           nameTc: stop.nameTc,
           nameEn: stop.nameEn,
           board: JSON.stringify(stop.calls),
@@ -1802,20 +1808,49 @@ function layerIds(kind: WatchLayer): string[] {
   }
 }
 
+type StopCardTrack = {
+  id: string
+  render: (properties: GeoJSON.GeoJsonProperties) => HTMLElement
+}
+
+const STOP_CARD_SOURCES = ["kmb-stops", "citybus-stops", "gmb-stops", "nlb-stops"]
+
 function popupOpener(map: Map) {
   let active: Popup | null = null
+  let tracked: (StopCardTrack & { token: string }) | null = null
   return {
-    show(lngLat: LngLat, content: HTMLElement) {
+    show(lngLat: LngLat, content: HTMLElement, track?: StopCardTrack) {
       active?.remove()
       active = new Popup({ className: "city-popup", closeButton: true, maxWidth: "360px", offset: 16 })
         .setLngLat(lngLat)
         .setDOMContent(content)
         .addTo(map)
+      tracked = track ? { ...track, token: "" } : null
       keepCardInView(map, active)
+    },
+    refresh() {
+      if (!active?.isOpen() || !tracked) return
+      const card = tracked
+      try {
+        for (const source of STOP_CARD_SOURCES) {
+          if (!map.getSource(source)) continue
+          const match = map.querySourceFeatures(source).find((feature) => feature.properties?.id === card.id)
+          if (!match?.properties) continue
+          const token = `${match.properties.clock ?? ""}|${match.properties.board ?? ""}|${match.properties.routes ?? ""}|${match.properties.nameTc ?? ""}`
+          if (token === card.token) return
+          card.token = token
+          active.setDOMContent(card.render(match.properties))
+          keepCardInView(map, active)
+          return
+        }
+      } catch {
+        return
+      }
     },
     close() {
       active?.remove()
       active = null
+      tracked = null
     },
   }
 }
@@ -1983,12 +2018,13 @@ function cardLimits(map: Map): CardLimits {
 }
 
 function openFeature(
-  showPopup: (lngLat: LngLat, content: HTMLElement) => void,
+  showPopup: (lngLat: LngLat, content: HTMLElement, track?: StopCardTrack) => void,
   event: MapMouseEvent & { features?: MapGeoJSONFeature[] },
   render: (properties: GeoJSON.GeoJsonProperties) => HTMLElement,
 ) {
   const feature = event.features?.[0]
   if (!feature) return
-  showPopup(event.lngLat, render(feature.properties ?? null))
+  const id = typeof feature.properties?.id === "string" ? feature.properties.id : ""
+  showPopup(event.lngLat, render(feature.properties ?? null), id ? { id, render } : undefined)
 }
 

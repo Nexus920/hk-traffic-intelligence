@@ -2,7 +2,7 @@ import { gmbDestination } from "@/lib/gmb-destinations"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { arrivalFailure, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, ETA_FRESH_MS, forgetStale, heldRows, nextStopFetch, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
@@ -46,12 +46,12 @@ export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom 
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
-export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<GmbResponse> {
+export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN, known: ReadonlySet<string> = new Set()): Promise<GmbResponse> {
   forgetStale(remembered, now)
   const nearest = gmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), GMB_CAP)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, nearest.length)
+    const due = nextStopFetch(nearest.map((stop) => ({ id: stop.id, key: `${stop.lng.toFixed(6)},${stop.lat.toFixed(6)}` })), known, remembered, now)
     await pool(due, FETCH_LIMIT, async (stopId) => {
       const rows = await fetchStop(stopId)
       if (rows) remembered.set(stopId, { at: now, rows })
@@ -118,7 +118,7 @@ function callsAt(rows: EtaRoute[], ids: Record<string, string>, now: number): Gm
     const current = soonest.get(String(row.route_id))
     if (!current || (call.minutes ?? 999) < (current.minutes ?? 999)) soonest.set(String(row.route_id), call)
   }
-  return [...soonest.values()].sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999) || a.route.localeCompare(b.route, undefined, { numeric: true })).slice(0, 12)
+  return [...soonest.values()].sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999) || a.route.localeCompare(b.route, undefined, { numeric: true }))
 }
 
 function text(value: unknown): string {
