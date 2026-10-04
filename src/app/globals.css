@@ -388,9 +388,13 @@ html[data-locale="zh-CN"] .city-card {
   display: flex;
   flex-direction: column;
   max-height: min(42vh, 280px);
-  overflow: auto;
-  padding-inline-end: 2px;
-  scrollbar-color: rgb(16 32 51 / 45%) transparent;
+  margin-inline-end: -8px;
+  margin-bottom: -4px;
+  padding-inline-end: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgb(16 32 51 / 40%) transparent;
 }
 
 .city-card-board::-webkit-scrollbar {
