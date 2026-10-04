@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const store = await cookies()
   const headerList = await headers()
-  recordPageView(headerList, store.get("hk-visit")?.value)
+  recordPageView(headerList.get("x-hk-visit"))
   const locale = localeOf(store.get("locale")?.value)
   return (
     <html lang={htmlLang(locale)} data-locale={locale} className={`${outfit.variable} ${newsreader.variable} ${hud.variable} dark h-full antialiased`}>
