@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-heading-plate",
+    date: "2026-10-04",
+    kind: "added",
+    en: "At street zoom, an MTR train and a ferry show where they are heading, on the same kind of plate as a Light Rail train. MTR does not publish a train number.",
+    tc: "在街道比例下，港鐵列車和渡輪以與輕鐵相同的牌子顯示前往的地點。港鐵沒有公布車號。",
+    sc: "在街道比例下，港铁列车和渡轮以与轻铁相同的牌子显示前往的地点。港铁没有公布车号。",
+  },
+  {
     id: "2026-10-04-ranked-marquee",
     date: "2026-10-04",
     kind: "fixed",

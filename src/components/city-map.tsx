@@ -42,6 +42,7 @@ import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
 import { lineRecord, mtrStationCollection, mtrTrackCollection, stationPoint, stationRecord } from "@/lib/mtr-network"
 import { lrtColor, lrtPoint, lrtRoutesThrough, lrtStation, lrtStationCollection, lrtTrackCollection } from "@/lib/lrt-network"
 import { ferryPierFeatures } from "@/lib/ferry-network"
+import { ferryBadge } from "@/lib/ferry-routes"
 import { ferryMotionFeatures, syncFerryMotion, type FerryMotion } from "@/lib/ferry-run"
 import { beginPush, endPush, type PushGate } from "@/lib/frame-push"
 import { advanceRuns, mergeRuns, runCollection, runsFromTrains, type TrainRun } from "@/lib/mtr-run"
@@ -177,7 +178,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -450,18 +451,20 @@ export function CityMap({
       keep.className = "ios-frame-keep"
       document.body.appendChild(keep)
     }
-    const motionReady = { mtr: false, lrt: false, at: 0 }
+    const motionReady = { mtr: false, lrt: false, ferry: false, at: 0 }
     const refreshTrainLabels = (map: Map, now: number) => {
       const show = map.getZoom() >= LABEL_MIN_ZOOM
       if (!show) {
-        if (!motionReady.mtr && !motionReady.lrt) return
+        if (!motionReady.mtr && !motionReady.lrt && !motionReady.ferry) return
         if (motionReady.mtr) geoJsonSource(map, "mtr-train-labels")?.setData(emptyCollection())
         if (motionReady.lrt) geoJsonSource(map, "lrt-train-labels")?.setData(emptyCollection())
+        if (motionReady.ferry) geoJsonSource(map, "ferry-vessel-labels")?.setData(emptyCollection())
         motionReady.mtr = false
         motionReady.lrt = false
+        motionReady.ferry = false
         return
       }
-      if (now - motionReady.at < LABEL_REFRESH_MS && (motionReady.mtr || motionReady.lrt)) return
+      if (now - motionReady.at < LABEL_REFRESH_MS && (motionReady.mtr || motionReady.lrt || motionReady.ferry)) return
       motionReady.at = now
       const publish = (sourceId: string, layerId: string, mode: "mtr" | "lrt", runs: TrainRun[], locate: (code: string) => { lng: number; lat: number } | null) => {
         const source = geoJsonSource(map, sourceId)
@@ -476,6 +479,16 @@ export function CityMap({
       }
       publish("mtr-train-labels", "mtr-train-label", "mtr", runsRef.current, stationPoint)
       publish("lrt-train-labels", "lrt-train-label", "lrt", lrtRunsRef.current, lrtPoint)
+      const ferryLabels = geoJsonSource(map, "ferry-vessel-labels")
+      if (ferryLabels) {
+        if (!layerShown(map, "ferry-vessel-label")) {
+          if (motionReady.ferry) ferryLabels.setData(emptyCollection())
+          motionReady.ferry = false
+        } else {
+          ferryLabels.setData(withFerryMarks(map, ferryMotionFeatures(ferryMotionRef.current, Date.now()), localeRef.current))
+          motionReady.ferry = true
+        }
+      }
     }
     const step = () => {
       const now = performance.now()
@@ -865,7 +878,32 @@ function withTrainMarks(
     const name = record ? readablePlace(displayText(locale, record.tc, record.en)) : dest
     const route = mode === "lrt" && typeof properties.line === "string" ? properties.line : ""
     const stroke = typeof properties.color === "string" && properties.color ? properties.color : "#f7fbff"
-    const icon = placeStopPlate(map, name, route ? [route] : [], stroke)
+    const heading = name ? MESSAGES[locale].towards(name) : ""
+    const icon = placeStopPlate(map, heading, route ? [route] : [], stroke)
+    if (icon) properties.icon = icon
+  }
+  return collection
+}
+
+function withFerryMarks(map: Map, collection: GeoJSON.FeatureCollection, locale: Locale): GeoJSON.FeatureCollection {
+  const copy = MESSAGES[locale]
+  for (const feature of collection.features) {
+    const properties = feature.properties
+    if (!properties || typeof properties.board !== "string") continue
+    let call: { route?: unknown; destTc?: unknown; destEn?: unknown } | null = null
+    try {
+      const parsed: unknown = JSON.parse(properties.board)
+      call = Array.isArray(parsed) ? parsed[0] ?? null : null
+    } catch {
+      call = null
+    }
+    if (!call) continue
+    const place = readablePlace(displayText(locale, typeof call.destTc === "string" ? call.destTc : "", typeof call.destEn === "string" ? call.destEn : ""))
+    if (!place) continue
+    const route = typeof call.route === "string" ? call.route : ""
+    const badge = ferryBadge(route)
+    const service = displayText(locale, badge.tc, badge.en)
+    const icon = placeStopPlate(map, copy.towards(place), service ? [service] : [], "#0369a1")
     if (icon) properties.icon = icon
   }
   return collection
@@ -1142,6 +1180,7 @@ function mountDataLayers(map: Map) {
   map.addSource("nlb-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-piers", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
+  map.addSource("ferry-vessel-labels", { type: "geojson", data: emptyCollection() })
   map.addSource("approaches", { type: "geojson", data: emptyCollection() })
   map.addSource("corridors", {
     type: "geojson",
@@ -1263,6 +1302,7 @@ function bindOverlayClicks(
     "ferry-piers": ferryStopPopup,
     "ferry-pier-label": ferryStopPopup,
     "ferry-vessels": ferryStopPopup,
+    "ferry-vessel-label": ferryStopPopup,
   }
   map.on("click", "approach-times", (event) => {
     const raw = event.features?.[0]?.properties?.id
@@ -1569,6 +1609,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
+  addStopLabel(map, "ferry-vessel-label", "ferry-vessel-labels", before)
   addOverlay(map, {
     id: "approach-times",
     type: "symbol",
@@ -1796,7 +1837,7 @@ function layerIds(kind: WatchLayer): string[] {
     case "nlb":
       return ["nlb-stops", "nlb-stop-label"]
     case "ferry":
-      return ["ferry-piers", "ferry-pier-label", "ferry-vessels"]
+      return ["ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
     default: {
       const exhaustive: never = kind
       return exhaustive
