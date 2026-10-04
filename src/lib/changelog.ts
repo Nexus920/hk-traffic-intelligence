@@ -16,9 +16,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     id: "2026-10-04-title",
     date: "2026-10-04",
     kind: "improved",
-    en: "The site title is 香港智慧城市交通情報網 by Keith Li.",
-    tc: "網站標題是香港智慧城市交通情報網 by Keith Li。",
-    sc: "网站标题是香港智慧城市交通情报网 by Keith Li。",
+    en: "The browser tab title is 香港智慧城市交通情報網 by Keith Li.",
+    tc: "瀏覽器分頁標題是香港智慧城市交通情報網 by Keith Li。",
+    sc: "浏览器分页标题是香港智慧城市交通情报网 by Keith Li。",
   },
   {
     id: "2026-10-04-remember",

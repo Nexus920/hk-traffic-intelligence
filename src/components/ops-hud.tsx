@@ -239,8 +239,9 @@ export function OpsHud(props: OpsHudProps) {
         }`}
       >
         <div className="flex shrink-0 items-center gap-1 sm:min-w-0 sm:flex-wrap sm:gap-3">
-          <div className="shrink-0">
-            <p className="whitespace-nowrap font-[family-name:var(--font-hud)] text-sm leading-tight text-white">{m.productName}</p>
+          <div className="min-w-0 max-w-14 sm:max-w-none">
+            <p className="hidden font-[family-name:var(--font-hud)] text-[0.62rem] tracking-[0.18em] text-cyan-200/80 uppercase sm:block">{m.productMark}</p>
+            <p className="truncate font-[family-name:var(--font-hud)] text-sm leading-tight text-white">{m.productName}</p>
           </div>
           <div className="shrink-0">
             <p className="font-[family-name:var(--font-hud)] text-sm text-cyan-50 tabular-nums">{clock}</p>
