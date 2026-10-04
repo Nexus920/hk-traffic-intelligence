@@ -23,9 +23,7 @@ assert.ok(halfway)
 assert.ok(Math.abs(halfway.lng - 114.05) < 0.001)
 assert.equal(halfway.minutes, 10)
 
-const waiting = placeFerry(from, to, now + 12 * 60_000, null, now)
-assert.equal(waiting?.lng, from.lng)
-assert.equal(waiting?.lat, from.lat)
+assert.equal(placeFerry(from, to, now + 12 * 60_000, null, now), null)
 assert.equal(placeFerry(from, to, now + 50 * 60_000, null, now), null)
 
 const done = placeFerry(from, to, now - 30 * 60_000, now - 5 * 60_000, now)
@@ -69,9 +67,7 @@ const nextOnly = estimateFerryVessels(
   locate,
   now,
 )
-assert.equal(nextOnly.length, 1)
-assert.equal(nextOnly[0]?.lng, from.lng)
-assert.equal(nextOnly[0]?.minutes, 10)
+assert.equal(nextOnly.length, 0)
 
 const gps = {
   id: "CECC-1",

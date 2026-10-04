@@ -249,6 +249,8 @@ async function fetchSun(route: (typeof SUN_ROUTES)[number]): Promise<SunFix | nu
           route: route.code,
           eta: arrive || depart,
           minutes: null,
+          destTc: route.destTc,
+          destEn: route.destEn,
           fix: "gps",
         }
       : null

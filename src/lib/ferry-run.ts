@@ -47,17 +47,14 @@ export function placeOnPath(
   arriveAt: number | null,
   now: number,
 ): { lng: number; lat: number; minutes: number } | null {
-  const origin = path[0]
-  if (!origin) return null
   const length = pathMetres(path)
   const model = path.length >= 2 && length > 0 ? ferryCrossingMs(length) : null
   const window = sailingWindow(departAt, arriveAt, model)
   if (!window) return null
   if (now > window.end + 2 * 60_000) return null
-  // A later sailing stays on the pier card. The boat is drawn once it is due to leave.
-  if (now < window.start && window.start - now > 30 * 60_000) return null
+  // A sailing that has not left stays on the pier card. Several boats waiting at one pier would stack.
+  if (now < window.start || path.length < 2) return null
   const minutes = Math.max(0, Math.round((window.end - now) / 60_000))
-  if (now <= window.start || path.length < 2) return { lng: origin.lng, lat: origin.lat, minutes }
   const span = window.end - window.start
   const mix = span <= 0 ? 1 : Math.min(1, Math.max(0, (now - window.start) / span))
   const point = pointAlong(path, mix)

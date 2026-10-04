@@ -42,7 +42,7 @@ import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
 import { lineRecord, mtrStationCollection, mtrTrackCollection, stationPoint, stationRecord } from "@/lib/mtr-network"
 import { lrtColor, lrtPoint, lrtRoutesThrough, lrtStation, lrtStationCollection, lrtTrackCollection } from "@/lib/lrt-network"
 import { ferryPierFeatures } from "@/lib/ferry-network"
-import { ferryBadge } from "@/lib/ferry-routes"
+import { SUN_ROUTES, ferryBadge } from "@/lib/ferry-routes"
 import { ferryMotionFeatures, syncFerryMotion, type FerryMotion } from "@/lib/ferry-run"
 import { beginPush, endPush, type PushGate } from "@/lib/frame-push"
 import { advanceRuns, mergeRuns, runCollection, runsFromTrains, type TrainRun } from "@/lib/mtr-run"
@@ -898,9 +898,12 @@ function withFerryMarks(map: Map, collection: GeoJSON.FeatureCollection, locale:
       call = null
     }
     if (!call) continue
-    const place = readablePlace(displayText(locale, typeof call.destTc === "string" ? call.destTc : "", typeof call.destEn === "string" ? call.destEn : ""))
-    if (!place) continue
     const route = typeof call.route === "string" ? call.route : ""
+    const known = SUN_ROUTES.find((item) => item.code === route)
+    const destTc = typeof call.destTc === "string" && call.destTc ? call.destTc : known?.destTc ?? ""
+    const destEn = typeof call.destEn === "string" && call.destEn ? call.destEn : known?.destEn ?? ""
+    const place = readablePlace(displayText(locale, destTc, destEn))
+    if (!place) continue
     const badge = ferryBadge(route)
     const service = displayText(locale, badge.tc, badge.en)
     const icon = placeStopPlate(map, copy.towards(place), service ? [service] : [], "#0369a1")

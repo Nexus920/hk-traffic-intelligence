@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-ferry-plates",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "A ferry waiting at the pier stays on the pier card. A boat with a published position shows where it is heading.",
+    tc: "尚未開出的渡輪留在碼頭卡片。已公布船位的渡輪會顯示前往的地點。",
+    sc: "尚未开出的渡轮留在码头卡片。已公布船位的渡轮会显示前往的地点。",
+  },
+  {
     id: "2026-10-04-one-train",
     date: "2026-10-04",
     kind: "fixed",
