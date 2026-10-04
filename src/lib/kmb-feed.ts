@@ -2,6 +2,7 @@ import { busCompany } from "@/lib/bus-company"
 import { refreshKmbCatalogueSoon } from "@/lib/kmb-catalogue"
 import { kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
+import { mergeSamePoles } from "@/lib/kmb-pole"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
 import { arrivalFailure, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
@@ -41,7 +42,7 @@ export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom =
       routes: kmbRoutesAt(stop.id),
     })
   }
-  return { ok: true, stops }
+  return { ok: true, stops: mergeSamePoles(stops) }
 }
 
 // Poles come from the catalogue. This only refreshes the arrival clock.
@@ -78,13 +79,14 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
       clock: held == null ? "waiting" : "ready",
     })
   }
+  const shown = mergeSamePoles(stops)
   const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "KMB arrivals failed")
   return {
     ok: true,
     ...(error ? { error } : {}),
     observedAt: new Date(now).toISOString(),
-    stops,
-    cacheable: turn !== null && missed === 0 && stops.every((stop) => stop.clock === "ready"),
+    stops: shown,
+    cacheable: turn !== null && missed === 0 && shown.every((stop) => stop.clock === "ready"),
   }
 }
 
