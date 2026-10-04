@@ -21,7 +21,7 @@ const hud = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Traffic Intelligence · Hong Kong",
+  title: "香港智慧城市交通情報網 by Keith Li",
   description:
     "Live strategic-road speeds, harbour crossings, land control points, and weather warnings over Hong Kong.",
 }

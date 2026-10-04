@@ -34,7 +34,6 @@ export function htmlLang(locale: Locale): string {
 export type Messages = {
   locale: Locale
   documentTitle: string
-  productMark: string
   productName: string
   live: string
   sync: string
@@ -214,9 +213,8 @@ export type Messages = {
 
 const en: Messages = {
   locale: "en",
-  documentTitle: "Traffic Intelligence · Hong Kong",
-  productMark: "Hong Kong",
-  productName: "Traffic Intelligence",
+  documentTitle: "香港智慧城市交通情報網 by Keith Li",
+  productName: "香港智慧城市交通情報網 by Keith Li",
   live: "Live",
   sync: "Sync",
   fault: "Fault",
@@ -395,9 +393,8 @@ const en: Messages = {
 
 const zhHK: Messages = {
   locale: "zh-HK",
-  documentTitle: "交通情報 · 香港",
-  productMark: "香港",
-  productName: "交通情報",
+  documentTitle: "香港智慧城市交通情報網 by Keith Li",
+  productName: "香港智慧城市交通情報網 by Keith Li",
   live: "實時",
   sync: "同步",
   fault: "故障",
@@ -577,8 +574,8 @@ const zhHK: Messages = {
 const zhCN: Messages = {
   ...zhHK,
   locale: "zh-CN",
-  documentTitle: "交通情报 · 香港",
-  productName: "交通情报",
+  documentTitle: "香港智慧城市交通情报网 by Keith Li",
+  productName: "香港智慧城市交通情报网 by Keith Li",
   live: "实时",
   mapOff: "地图未显示",
   cross: "红隧",
