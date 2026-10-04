@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-shared-stop",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "Stops that share a point show every bus that uses that point.",
+    tc: "同一位置的車站，會在同一張卡片列出所有途經的班次。",
+    sc: "同一位置的车站，会在同一张卡片列出所有途经的班次。",
+  },
+  {
     id: "2026-10-04-stop-clocks",
     date: "2026-10-04",
     kind: "fixed",

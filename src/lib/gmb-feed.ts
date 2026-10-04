@@ -1,4 +1,5 @@
 import { gmbDestination } from "@/lib/gmb-destinations"
+import { mergeSamePoles } from "@/lib/kmb-pole"
 import { gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
 import { kmbReachMetres } from "@/lib/kmb-reach"
 import { arrivalFailure, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
@@ -42,7 +43,7 @@ export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom 
       routes: record.routes,
     })
   }
-  return { ok: true, stops }
+  return { ok: true, stops: mergeSamePoles(stops) }
 }
 
 export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<GmbResponse> {
@@ -76,13 +77,14 @@ export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zo
       clock: held == null ? "waiting" : "ready",
     })
   }
+  const shown = mergeSamePoles(stops)
   const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "Green minibus arrivals failed")
   return {
     ok: true,
     ...(error ? { error } : {}),
     observedAt: new Date(now).toISOString(),
-    stops,
-    cacheable: turn !== null && missed === 0 && stops.every((stop) => stop.clock === "ready"),
+    stops: shown,
+    cacheable: turn !== null && missed === 0 && shown.every((stop) => stop.clock === "ready"),
   }
 }
 

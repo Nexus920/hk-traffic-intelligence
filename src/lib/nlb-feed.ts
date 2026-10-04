@@ -1,4 +1,5 @@
 import { arrivalPairs } from "@/lib/arrival-pairs"
+import { mergeSamePoles } from "@/lib/kmb-pole"
 import { nlbArrivalMs } from "@/lib/nlb-clock"
 import { nearestNlbStops, nlbStop } from "@/lib/nlb-network"
 import { arrivalFailure, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
@@ -30,7 +31,7 @@ export function loadNlbPlaces(lng: number, lat: number): NlbPlacesResponse {
       routes: record.routes,
     })
   }
-  return { ok: true, stops }
+  return { ok: true, stops: mergeSamePoles(stops) }
 }
 
 export async function loadNlbNear(lng: number, lat: number, now = Date.now()): Promise<NlbResponse> {
@@ -76,13 +77,14 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
       clock: serviceClock(asked, stop.id, remembered, now),
     })
   }
+  const shown = mergeSamePoles(stops)
   const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "New Lantao Bus arrivals failed")
   return {
-    ok: nearest.length === 0 || stops.length > 0,
+    ok: nearest.length === 0 || shown.length > 0,
     ...(error ? { error } : {}),
     observedAt: nearest.length === 0 ? null : new Date(now).toISOString(),
-    stops,
-    cacheable: turn !== null && missed === 0 && stops.every((stop) => stop.clock === "ready"),
+    stops: shown,
+    cacheable: turn !== null && missed === 0 && shown.every((stop) => stop.clock === "ready"),
   }
 }
 
