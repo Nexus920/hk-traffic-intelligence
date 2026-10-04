@@ -19,6 +19,7 @@ export type TrainRun = {
 const MATCH_METRES = 1500
 const COAST_MS = 20_000
 const MAX_SPEED = 20
+const SAME_SPOT_M = 80
 
 let nextRunId = 1
 
@@ -115,27 +116,36 @@ export function runCollection(
   runs: TrainRun[],
   locate: (code: string) => GeoPoint | null,
 ): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = []
+  const drawn: { run: TrainRun; place: { lng: number; lat: number; from: string; to: string; minutes: number } }[] = []
   for (const run of runs) {
     const place = placeRun(run, locate)
     if (!place) continue
-    features.push({
-      type: "Feature",
-      properties: {
-        id: run.id,
-        color: run.color,
-        line: run.line,
-        dest: run.dest,
-        plat: run.plat,
-        delay: run.delay ? "Y" : "N",
-        timeType: run.timeType,
-        from: place.from,
-        to: place.to,
-        minutes: Math.round(place.minutes),
-      },
-      geometry: { type: "Point", coordinates: [place.lng, place.lat] },
-    })
+    const stacked = drawn.find((item) => item.run.line === run.line && item.run.dest === run.dest && metresBetween(item.place, place) < SAME_SPOT_M)
+    if (stacked) {
+      if (run.distance > stacked.run.distance) {
+        stacked.run = run
+        stacked.place = place
+      }
+      continue
+    }
+    drawn.push({ run, place })
   }
+  const features: GeoJSON.Feature[] = drawn.map(({ run, place }) => ({
+    type: "Feature",
+    properties: {
+      id: run.id,
+      color: run.color,
+      line: run.line,
+      dest: run.dest,
+      plat: run.plat,
+      delay: run.delay ? "Y" : "N",
+      timeType: run.timeType,
+      from: place.from,
+      to: place.to,
+      minutes: Math.round(place.minutes),
+    },
+    geometry: { type: "Point", coordinates: [place.lng, place.lat] },
+  }))
   return { type: "FeatureCollection", features }
 }
 

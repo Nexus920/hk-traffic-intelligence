@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-one-train",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "Two trains heading the same way no longer sit on one spot.",
+    tc: "同一方向的兩班列車不再疊在同一個位置。",
+    sc: "同一方向的两班列车不再叠在同一个位置。",
+  },
+  {
     id: "2026-10-04-heading-plate",
     date: "2026-10-04",
     kind: "added",

@@ -12,7 +12,7 @@ import {
   type EstimatedTrain,
   type TrainObservation,
 } from "./mtr-estimate.ts"
-import { advanceRuns, mergeRuns, type TrainRun } from "./mtr-run.ts"
+import { advanceRuns, mergeRuns, runCollection, type TrainRun } from "./mtr-run.ts"
 
 const now = Date.parse("2026-10-01T05:40:00Z")
 
@@ -187,6 +187,15 @@ assert.deepEqual(pathsToward(shaTin, "EAL", "RAC"), [
 const segment = segmentMinutes(metresBetween(places.A!, places.B!))
 assert.ok(Math.abs(segment - 2) < 0.05)
 
+const sameWay = runCollection([
+  spotRun("lead", 1400),
+  spotRun("rear", 0),
+  spotRun("mid", 30),
+  { ...spotRun("other", 0), dest: "A" },
+], locate)
+assert.equal(sameWay.features.length, 3)
+assert.deepEqual(sameWay.features.map((feature) => feature.properties?.id).sort(), ["lead", "mid", "other"])
+
 console.log("mtr estimate ok")
 
 function sampleRun(distance: number, speed: number): TrainRun {
@@ -245,6 +254,23 @@ function obs(
 
 function routes(lineCode: string, legs: [string, string[]][]): EstimateRoute[] {
   return legs.map(([direction, stations]) => ({ id: `${lineCode}-${direction}`, line: lineCode, stations }))
+}
+
+function spotRun(id: string, distance: number): TrainRun {
+  return {
+    id,
+    line: "TCL",
+    dest: "C",
+    path: ["A", "B", "C"],
+    distance,
+    speed: 12,
+    cruise: 12,
+    color: "#f80",
+    plat: "1",
+    delay: false,
+    timeType: "A",
+    seenAt: now,
+  }
 }
 
 function place(code: string, metresNorth: number) {
