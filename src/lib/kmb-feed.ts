@@ -4,14 +4,10 @@ import { kmbPoleIds, kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
-import { ETA_FRESH_MS } from "@/lib/place-arrivals"
-import { cachedValue } from "@/lib/board-cache"
-import { etaQueue } from "@/lib/polite-fetch"
-import { pool } from "@/lib/pool"
-import { fetchUpstream } from "@/lib/upstream"
+import { readEtaJson } from "@/lib/eta-read"
+import { loadPoleBoard } from "@/lib/pole-board"
 import type { KmbCall, KmbPlacesResponse, KmbResponse, KmbStopBoard } from "@/lib/types"
 
-const FETCH_LIMIT = 6
 const ETA_ROOT = "https://data.etabus.gov.hk/v1/transport/kmb/stop-eta"
 
 type EtaRow = {
@@ -55,35 +51,17 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
 }
 
 export function loadKmbBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: KmbStopBoard } | { ok: false }> {
-  return cachedValue(`kmb:${id}`, ETA_FRESH_MS, () => readKmbBoard(id, now))
-}
-
-async function readKmbBoard(id: string, now: number): Promise<{ ok: true; stop: KmbStopBoard } | { ok: false }> {
-  const ids = kmbPoleIds(id)
-  if (ids.length === 0) return { ok: false }
-  const stops: KmbStopBoard[] = []
-  let missed = 0
-  await pool(ids, FETCH_LIMIT, async (stopId) => {
-    const record = kmbStop(stopId)
-    const rows = await fetchStop(stopId)
-    if (!record || !rows) {
-      missed += 1
-      return
-    }
-    stops.push({
-      id: stopId,
-      nameTc: record.tc,
-      nameEn: record.en,
-      lng: record.lng,
-      lat: record.lat,
-      routes: kmbRoutesAt(stopId),
-      calls: callsAt(rows, now),
-      clock: "ready",
-    })
+  return loadPoleBoard(`kmb:${id}`, now, {
+    poleIds: () => kmbPoleIds(id),
+    pole: (stopId) => {
+      const record = kmbStop(stopId)
+      if (!record) return null
+      return { tc: record.tc, en: record.en, lng: record.lng, lat: record.lat, routes: kmbRoutesAt(stopId) }
+    },
+    jobs: (stopId) => [stopId],
+    rows: (stopId) => fetchStop(stopId),
+    calls: (_stopId, _job, rows, at) => callsAt(rows, at),
   })
-  const shown = mergeSamePoles(stops)[0]
-  if (!shown || missed > 0) return { ok: false }
-  return { ok: true, stop: shown }
 }
 
 function callsAt(rows: EtaRow[], now: number): KmbCall[] {
@@ -122,18 +100,7 @@ function text(value: unknown): string {
 }
 
 async function fetchStop(stopId: string): Promise<EtaRow[] | null> {
-  try {
-    const response = await etaQueue(() => fetchUpstream(`${ETA_ROOT}/${encodeURIComponent(stopId)}`, ETA_FRESH_MS, {
-      timeoutMs: 5_000,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; HKTrafficIntelligence/1.0; +https://hktraffic.keith-li.workers.dev)",
-      },
-    }))
-    if (response.status !== 200) return null
-    const body = JSON.parse(new TextDecoder().decode(response.body)) as { data?: EtaRow[] }
-    return Array.isArray(body.data) ? body.data : []
-  } catch {
-    return null
-  }
+  const body = await readEtaJson<{ data?: EtaRow[] }>(`${ETA_ROOT}/${encodeURIComponent(stopId)}`)
+  if (!body) return null
+  return Array.isArray(body.data) ? body.data : []
 }

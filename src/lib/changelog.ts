@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-one-stop-read",
+    date: "2026-10-04",
+    kind: "improved",
+    en: "Opening a stop shows every arrival time that operator published for that stop.",
+    tc: "打開一站，卡片顯示該營運商為該站公布的每一個到站時間。",
+    sc: "打开一站，卡片显示该营运商为该站公布的每一个到站时间。",
+  },
+  {
     id: "2026-10-04-board-fault",
     date: "2026-10-04",
     kind: "fixed",

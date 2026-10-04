@@ -2,15 +2,11 @@ import { gmbDestination } from "@/lib/gmb-destinations"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { gmbPoleIds, gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { ETA_FRESH_MS } from "@/lib/place-arrivals"
-import { cachedValue } from "@/lib/board-cache"
-import { etaQueue } from "@/lib/polite-fetch"
-import { pool } from "@/lib/pool"
-import { fetchUpstream } from "@/lib/upstream"
+import { readEtaJson } from "@/lib/eta-read"
+import { loadPoleBoard } from "@/lib/pole-board"
 import type { GmbCall, GmbPlacesResponse, GmbResponse, GmbStopBoard } from "@/lib/types"
 
 const GMB_CAP = 24
-const FETCH_LIMIT = 4
 const ETA_ROOT = "https://data.etagmb.gov.hk/eta/stop"
 
 type EtaEntry = {
@@ -56,35 +52,17 @@ export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zo
 }
 
 export function loadGmbBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: GmbStopBoard } | { ok: false }> {
-  return cachedValue(`gmb:${id}`, ETA_FRESH_MS, () => readGmbBoard(id, now))
-}
-
-async function readGmbBoard(id: string, now: number): Promise<{ ok: true; stop: GmbStopBoard } | { ok: false }> {
-  const ids = gmbPoleIds(id)
-  if (ids.length === 0) return { ok: false }
-  const stops: GmbStopBoard[] = []
-  let missed = 0
-  await pool(ids, FETCH_LIMIT, async (stopId) => {
-    const record = gmbStop(stopId)
-    const rows = await fetchStop(stopId)
-    if (!record || !rows) {
-      missed += 1
-      return
-    }
-    stops.push({
-      id: stopId,
-      nameTc: record.tc,
-      nameEn: record.en,
-      lng: record.lng,
-      lat: record.lat,
-      routes: record.routes,
-      calls: callsAt(rows, record.ids ?? {}, now),
-      clock: "ready",
-    })
+  return loadPoleBoard(`gmb:${id}`, now, {
+    poleIds: () => gmbPoleIds(id),
+    pole: (stopId) => {
+      const record = gmbStop(stopId)
+      if (!record) return null
+      return { tc: record.tc, en: record.en, lng: record.lng, lat: record.lat, routes: record.routes }
+    },
+    jobs: (stopId) => [stopId],
+    rows: (stopId) => fetchStop(stopId),
+    calls: (stopId, _job, rows, at) => callsAt(rows, gmbStop(stopId)?.ids ?? {}, at),
   })
-  const shown = mergeSamePoles(stops)[0]
-  if (!shown || missed > 0) return { ok: false }
-  return { ok: true, stop: shown }
 }
 
 function callsAt(rows: EtaRoute[], ids: Record<string, string>, now: number): GmbCall[] {
@@ -125,18 +103,7 @@ function text(value: unknown): string {
 }
 
 async function fetchStop(stopId: string): Promise<EtaRoute[] | null> {
-  try {
-    const response = await etaQueue(() => fetchUpstream(`${ETA_ROOT}/${encodeURIComponent(stopId)}`, ETA_FRESH_MS, {
-      timeoutMs: 5_000,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; HKTrafficIntelligence/1.0; +https://hktraffic.keith-li.workers.dev)",
-      },
-    }))
-    if (response.status !== 200) return null
-    const body = JSON.parse(new TextDecoder().decode(response.body)) as { data?: EtaRoute[] }
-    return Array.isArray(body.data) ? body.data : []
-  } catch {
-    return null
-  }
+  const body = await readEtaJson<{ data?: EtaRoute[] }>(`${ETA_ROOT}/${encodeURIComponent(stopId)}`)
+  if (!body) return null
+  return Array.isArray(body.data) ? body.data : []
 }

@@ -1,14 +1,9 @@
-import { cachedValue } from "@/lib/board-cache"
 import { citybusPoleIds, citybusStop, nearestCitybusStops } from "@/lib/citybus-network"
-import { mergeSamePoles } from "@/lib/kmb-pole"
-import { ETA_FRESH_MS } from "@/lib/place-arrivals"
-import { etaQueue } from "@/lib/polite-fetch"
-import { pool } from "@/lib/pool"
-import { fetchUpstream } from "@/lib/upstream"
+import { readEtaJson } from "@/lib/eta-read"
+import { loadPoleBoard } from "@/lib/pole-board"
 import type { CitybusCall, CitybusPlacesResponse, CitybusResponse, CitybusStopBoard } from "@/lib/types"
 
 const STOP_LIMIT = 6
-const FETCH_LIMIT = 4
 const ETA_ROOT = "https://rt.data.gov.hk/v2/transport/citybus/eta/CTB"
 
 type EtaRow = {
@@ -49,43 +44,17 @@ export async function loadCitybusNear(lng: number, lat: number): Promise<Citybus
 }
 
 export function loadCitybusBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: CitybusStopBoard } | { ok: false }> {
-  return cachedValue(`citybus:${id}`, ETA_FRESH_MS, () => readCitybusBoard(id, now))
-}
-
-async function readCitybusBoard(id: string, now: number): Promise<{ ok: true; stop: CitybusStopBoard } | { ok: false }> {
-  const ids = citybusPoleIds(id)
-  if (ids.length === 0) return { ok: false }
-  const stops: CitybusStopBoard[] = []
-  let missed = 0
-  for (const stopId of ids) {
-    const record = citybusStop(stopId)
-    if (!record) {
-      missed += 1
-      continue
-    }
-    const rows: EtaRow[] = []
-    await pool(record.routes, FETCH_LIMIT, async (route) => {
-      const got = await fetchEta(stopId, route)
-      if (!got) {
-        missed += 1
-        return
-      }
-      rows.push(...got)
-    })
-    stops.push({
-      id: stopId,
-      nameTc: record.tc,
-      nameEn: record.en,
-      lng: record.lng,
-      lat: record.lat,
-      routes: record.routes,
-      calls: callsAt(rows, now),
-      clock: "ready",
-    })
-  }
-  const shown = mergeSamePoles(stops)[0]
-  if (!shown || missed > 0) return { ok: false }
-  return { ok: true, stop: shown }
+  return loadPoleBoard(`citybus:${id}`, now, {
+    poleIds: () => citybusPoleIds(id),
+    pole: (stopId) => {
+      const record = citybusStop(stopId)
+      if (!record) return null
+      return { tc: record.tc, en: record.en, lng: record.lng, lat: record.lat, routes: record.routes }
+    },
+    jobs: (_stopId, record) => record.routes,
+    rows: (stopId, route) => fetchEta(stopId, route),
+    calls: (_stopId, _route, rows, at) => callsAt(rows, at),
+  })
 }
 
 function callsAt(rows: EtaRow[], now: number): CitybusCall[] {
@@ -122,18 +91,7 @@ function text(value: unknown): string {
 }
 
 async function fetchEta(stopId: string, route: string): Promise<EtaRow[] | null> {
-  try {
-    const response = await etaQueue(() => fetchUpstream(`${ETA_ROOT}/${encodeURIComponent(stopId)}/${encodeURIComponent(route)}`, ETA_FRESH_MS, {
-      timeoutMs: 5_000,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; HKTrafficIntelligence/1.0; +https://hktraffic.keith-li.workers.dev)",
-      },
-    }))
-    if (response.status !== 200) return null
-    const body = JSON.parse(new TextDecoder().decode(response.body)) as { data?: EtaRow[] }
-    return Array.isArray(body.data) ? body.data : []
-  } catch {
-    return null
-  }
+  const body = await readEtaJson<{ data?: EtaRow[] }>(`${ETA_ROOT}/${encodeURIComponent(stopId)}/${encodeURIComponent(route)}`)
+  if (!body) return null
+  return Array.isArray(body.data) ? body.data : []
 }

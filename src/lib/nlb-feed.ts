@@ -1,15 +1,11 @@
-import { cachedValue } from "@/lib/board-cache"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { nlbArrivalMs } from "@/lib/nlb-clock"
 import { nearestNlbStops, nlbPoleIds, nlbStop } from "@/lib/nlb-network"
-import { ETA_FRESH_MS } from "@/lib/place-arrivals"
-import { etaQueue } from "@/lib/polite-fetch"
-import { pool } from "@/lib/pool"
-import { fetchUpstream } from "@/lib/upstream"
+import { readEtaJson } from "@/lib/eta-read"
+import { loadPoleBoard } from "@/lib/pole-board"
 import type { NlbCall, NlbPlacesResponse, NlbResponse, NlbStopBoard } from "@/lib/types"
 
 const STOP_LIMIT = 6
-const FETCH_LIMIT = 4
 const ETA_ROOT = "https://rt.data.gov.hk/v2/transport/nlb/stop.php?action=estimatedArrivals"
 
 type Arrival = { estimatedArrivalTime?: string }
@@ -42,45 +38,20 @@ export async function loadNlbNear(lng: number, lat: number): Promise<NlbResponse
 }
 
 export function loadNlbBoard(id: string, now = Date.now()): Promise<{ ok: true; stop: NlbStopBoard } | { ok: false }> {
-  return cachedValue(`nlb:${id}`, ETA_FRESH_MS, () => readNlbBoard(id, now))
-}
-
-async function readNlbBoard(id: string, now: number): Promise<{ ok: true; stop: NlbStopBoard } | { ok: false }> {
-  const ids = nlbPoleIds(id)
-  if (ids.length === 0) return { ok: false }
-  const stops: NlbStopBoard[] = []
-  let missed = 0
-  for (const stopId of ids) {
-    const record = nlbStop(stopId)
-    if (!record) {
-      missed += 1
-      continue
-    }
-    const calls: NlbCall[] = []
-    await pool(record.services, FETCH_LIMIT, async (service) => {
-      const rows = await fetchEta(service.id, stopId)
-      if (!rows) {
-        missed += 1
-        return
-      }
-      const call = callAt(service.code, rows, now)
-      if (call) calls.push(call)
-    })
-    calls.sort((a, b) => (a.minutes ?? 999) - (b.minutes ?? 999) || a.route.localeCompare(b.route, undefined, { numeric: true }))
-    stops.push({
-      id: stopId,
-      nameTc: record.tc,
-      nameEn: record.en,
-      lng: record.lng,
-      lat: record.lat,
-      routes: record.routes,
-      calls,
-      clock: "ready",
-    })
-  }
-  const shown = mergeSamePoles(stops)[0]
-  if (!shown || missed > 0) return { ok: false }
-  return { ok: true, stop: shown }
+  return loadPoleBoard(`nlb:${id}`, now, {
+    poleIds: () => nlbPoleIds(id),
+    pole: (stopId) => {
+      const record = nlbStop(stopId)
+      if (!record) return null
+      return { tc: record.tc, en: record.en, lng: record.lng, lat: record.lat, routes: record.routes }
+    },
+    jobs: (stopId) => nlbStop(stopId)?.services ?? [],
+    rows: (stopId, service) => fetchEta(service.id, stopId),
+    calls: (_stopId, service, rows, at) => {
+      const call = callAt(service.code, rows, at)
+      return call ? [call] : []
+    },
+  })
 }
 
 function callAt(route: string, rows: Arrival[], now: number): NlbCall | null {
@@ -97,20 +68,7 @@ function callAt(route: string, rows: Arrival[], now: number): NlbCall | null {
 
 async function fetchEta(routeId: string, stopId: string): Promise<Arrival[] | null> {
   const url = `${ETA_ROOT}&routeId=${encodeURIComponent(routeId)}&stopId=${encodeURIComponent(stopId)}&lang=en`
-  try {
-    const response = await etaQueue(() => fetchUpstream(url, ETA_FRESH_MS, {
-      timeoutMs: 5_000,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible; HKTrafficIntelligence/1.0; +https://hktraffic.keith-li.workers.dev)",
-      },
-    }))
-    if (response.status !== 200) return null
-    const text = new TextDecoder().decode(response.body)
-    if (!text) return []
-    const body = JSON.parse(text) as { estimatedArrivals?: Arrival[] }
-    return Array.isArray(body.estimatedArrivals) ? body.estimatedArrivals : []
-  } catch {
-    return null
-  }
+  const body = await readEtaJson<{ estimatedArrivals?: Arrival[] }>(url, {})
+  if (!body) return null
+  return Array.isArray(body.estimatedArrivals) ? body.estimatedArrivals : []
 }

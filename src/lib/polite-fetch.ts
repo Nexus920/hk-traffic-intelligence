@@ -30,4 +30,6 @@ export async function takeEtaTurn<T>(task: () => Promise<T>): Promise<T | null> 
   }
 }
 
-export const etaQueue = politeQueue(6)
+export const ETA_QUEUE_LIMIT = 6
+
+export const etaQueue = politeQueue(ETA_QUEUE_LIMIT)
