@@ -1,7 +1,7 @@
 import { arrivalPairs } from "@/lib/arrival-pairs"
 import { nlbArrivalMs } from "@/lib/nlb-clock"
 import { nearestNlbStops, nlbStop } from "@/lib/nlb-network"
-import { arrivalFailure, ARRIVAL_SLICE, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
@@ -42,7 +42,7 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
   }), PAIR_BUDGET)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    const due = pairs.filter((pair) => etaDue(remembered.get(`${pair.stopId}/${pair.route}`), now)).slice(0, ARRIVAL_SLICE)
+    const due = pairs.filter((pair) => etaDue(remembered.get(`${pair.stopId}/${pair.route}`), now))
     await pool(due, FETCH_LIMIT, async (pair) => {
       const key = `${pair.stopId}/${pair.route}`
       const rows = await fetchEta(pair.route, pair.stopId)

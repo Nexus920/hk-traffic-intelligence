@@ -3,7 +3,7 @@ import { refreshKmbCatalogueSoon } from "@/lib/kmb-catalogue"
 import { kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
-import { arrivalFailure, ARRIVAL_SLICE, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
@@ -52,7 +52,7 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
   const nearest = kmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), STOP_CAP)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, ARRIVAL_SLICE)
+    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, nearest.length)
     await pool(due, FETCH_LIMIT, async (stopId) => {
       const rows = await fetchStop(stopId)
       if (rows) remembered.set(stopId, { at: now, rows })

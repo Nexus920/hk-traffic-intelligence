@@ -1,7 +1,7 @@
 import { gmbDestination } from "@/lib/gmb-destinations"
 import { gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { arrivalFailure, ARRIVAL_SLICE, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
@@ -50,7 +50,7 @@ export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zo
   const nearest = gmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), GMB_CAP)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, ARRIVAL_SLICE)
+    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, nearest.length)
     await pool(due, FETCH_LIMIT, async (stopId) => {
       const rows = await fetchStop(stopId)
       if (rows) remembered.set(stopId, { at: now, rows })
