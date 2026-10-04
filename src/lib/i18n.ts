@@ -71,7 +71,7 @@ export type Messages = {
   roads: string
   systems: string
   changelog: string
-  visitPeople: string
+  visitVisitors: string
   visitToday: (people: number, opens: number) => string
   changelogAdded: string
   changelogFixed: string
@@ -254,8 +254,8 @@ const en: Messages = {
   roads: "Roads",
   systems: "Systems",
   changelog: "Updates",
-  visitPeople: "People",
-  visitToday: (people, opens) => `${people} people, ${opens} opens`,
+  visitVisitors: "Visitors",
+  visitToday: (people, opens) => `${people} visitors, ${opens} opens`,
   changelogAdded: "Added",
   changelogFixed: "Fixed",
   changelogImproved: "Improved",
@@ -437,8 +437,8 @@ const zhHK: Messages = {
   roads: "道路",
   systems: "系統",
   changelog: "更新",
-  visitPeople: "人",
-  visitToday: (people, opens) => `${people} 人，打開 ${opens} 次`,
+  visitVisitors: "訪客",
+  visitToday: (people, opens) => `${people} 位訪客，打開 ${opens} 次`,
   changelogAdded: "新增",
   changelogFixed: "修正",
   changelogImproved: "改進",
@@ -617,8 +617,8 @@ const zhCN: Messages = {
   roads: "道路",
   systems: "系统",
   changelog: "更新",
-  visitPeople: "人",
-  visitToday: (people, opens) => `${people} 人，打开 ${opens} 次`,
+  visitVisitors: "访客",
+  visitToday: (people, opens) => `${people} 位访客，打开 ${opens} 次`,
   changelogAdded: "新增",
   changelogFixed: "修正",
   changelogImproved: "改进",

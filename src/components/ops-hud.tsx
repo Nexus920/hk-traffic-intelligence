@@ -351,7 +351,7 @@ export function OpsHud(props: OpsHudProps) {
           ) : null}
           {visits.data?.ok ? (
             <Metric
-              label={m.visitPeople}
+              label={m.visitVisitors}
               value={String(visits.data.people)}
               tone="#7DD3E8"
               hint={m.visitToday(visits.data.people, visits.data.opens)}
@@ -650,7 +650,7 @@ function ChangelogList(props: { days: readonly VisitDay[] }) {
     <ol className="flex flex-col gap-2">
       {props.days.length > 0 ? (
         <li className="border border-white/10 bg-black/20 px-2 py-1.5">
-          <p className="font-[family-name:var(--font-hud)] text-[0.62rem] tracking-[0.08em] text-cyan-100/80 uppercase">{m.visitPeople}</p>
+          <p className="font-[family-name:var(--font-hud)] text-[0.62rem] tracking-[0.08em] text-cyan-100/80 uppercase">{m.visitVisitors}</p>
           <ul className="mt-1 flex flex-col gap-1">
             {[...props.days].reverse().map((item) => (
               <li key={item.day} className="text-sm leading-5 text-zinc-100">
