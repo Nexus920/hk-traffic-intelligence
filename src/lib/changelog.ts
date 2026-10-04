@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-visits",
+    date: "2026-10-05",
+    kind: "added",
+    en: "The top bar shows how many people opened the site today.",
+    tc: "頂欄顯示今日打開網站的人數。",
+    sc: "顶栏显示今日打开网站的人数。",
+  },
+  {
     id: "2026-10-04-title",
     date: "2026-10-04",
     kind: "improved",
