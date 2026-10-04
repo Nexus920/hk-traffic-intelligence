@@ -87,11 +87,11 @@ function faultsOf(input: IntelInput, m: Messages): IntelItem[] {
   const feeds: { id: string; score: number; title: string; detail: string | null }[] = [
     { id: "fault-picture", score: 420_000, title: m.pictureFailed, detail: input.pictureError },
     { id: "fault-mtr", score: 400_000, title: m.mtrFailed, detail: input.mtrError },
-    { id: "fault-kmb", score: 390_000, title: m.kmbFailed, detail: input.kmbError },
+    { id: "fault-kmb", score: 390_000, title: m.kmbStopsFailed, detail: input.kmbError },
     { id: "fault-lrt", score: 380_000, title: m.lrtFailed, detail: input.lrtError },
-    { id: "fault-citybus", score: 370_000, title: m.citybusFailed, detail: input.citybusError },
-    { id: "fault-gmb", score: 360_000, title: m.gmbFailed, detail: input.gmbError },
-    { id: "fault-nlb", score: 350_000, title: m.nlbFailed, detail: input.nlbError },
+    { id: "fault-citybus", score: 370_000, title: m.citybusStopsFailed, detail: input.citybusError },
+    { id: "fault-gmb", score: 360_000, title: m.gmbStopsFailed, detail: input.gmbError },
+    { id: "fault-nlb", score: 350_000, title: m.nlbStopsFailed, detail: input.nlbError },
     { id: "fault-ferry", score: 340_000, title: m.ferryFailed, detail: input.ferryError },
     { id: "fault-map", score: 1_200_000, title: m.mapFailed, detail: input.mapError },
   ]

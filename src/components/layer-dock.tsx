@@ -188,17 +188,17 @@ export function LayerDock(props: LayerDockProps) {
       ) : null}
       {props.citybusError ? (
         <p className="basis-full text-xs text-red-100" role="alert">
-          {m.locale === "en" ? props.citybusError : m.citybusFailed}
+          {m.locale === "en" ? props.citybusError : m.citybusStopsFailed}
         </p>
       ) : null}
       {props.gmbError ? (
         <p className="basis-full text-xs text-red-100" role="alert">
-          {m.locale === "en" ? props.gmbError : m.gmbFailed}
+          {m.locale === "en" ? props.gmbError : m.gmbStopsFailed}
         </p>
       ) : null}
       {props.nlbError ? (
         <p className="basis-full text-xs text-red-100" role="alert">
-          {m.locale === "en" ? props.nlbError : m.nlbFailed}
+          {m.locale === "en" ? props.nlbError : m.nlbStopsFailed}
         </p>
       ) : null}
       {props.ferryError ? (
@@ -208,7 +208,7 @@ export function LayerDock(props: LayerDockProps) {
       ) : null}
       {props.kmbError ? (
         <p className="basis-full text-xs text-red-100" role="alert">
-          {m.locale === "en" ? props.kmbError : m.kmbFailed}
+          {m.locale === "en" ? props.kmbError : m.kmbStopsFailed}
         </p>
       ) : null}
     </div>

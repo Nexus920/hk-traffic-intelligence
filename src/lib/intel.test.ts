@@ -1,6 +1,20 @@
 import assert from "node:assert/strict"
+import { register } from "node:module"
 import { MESSAGES } from "./i18n.ts"
-import { firstOpenBoundary, intelBoard, type IntelInput } from "./intel.ts"
+import type { IntelInput } from "./intel.ts"
+
+const hook = `
+export async function resolve(specifier, context, nextResolve) {
+  if (specifier.startsWith("@/")) {
+    const target = new URL("../" + specifier.slice(2) + ".ts", ${JSON.stringify(import.meta.url)})
+    return nextResolve(target.href, context)
+  }
+  return nextResolve(specifier, context)
+}
+`
+register(`data:text/javascript,${encodeURIComponent(hook)}`)
+
+const { firstOpenBoundary, intelBoard } = await import("./intel.ts")
 
 const quiet: IntelInput = {
   trafficError: null,
@@ -39,7 +53,34 @@ assert.deepEqual(
   ["fault-map", "fault-kmb", "fault-ferry"],
 )
 assert.equal(failed.systems[0]?.title, MESSAGES.en.mapFailed)
+assert.equal(failed.systems[1]?.title, MESSAGES.en.kmbStopsFailed)
+assert.equal(failed.ranked.find((item) => item.id === "fault-kmb")?.title, MESSAGES.en.kmbStopsFailed)
 assert.equal(failed.systems[2]?.detail, "HTTP 502")
+
+const stopList = intelBoard(
+  {
+    ...quiet,
+    kmbError: "KMB stops failed",
+    citybusError: "Citybus stops failed",
+    gmbError: "Green minibus stops failed",
+    nlbError: "New Lantao Bus stops failed",
+  },
+  MESSAGES["zh-HK"],
+)
+assert.deepEqual(
+  stopList.ranked.map((item) => item.title),
+  [
+    MESSAGES["zh-HK"].kmbStopsFailed,
+    MESSAGES["zh-HK"].citybusStopsFailed,
+    MESSAGES["zh-HK"].gmbStopsFailed,
+    MESSAGES["zh-HK"].nlbStopsFailed,
+  ],
+)
+assert.equal(stopList.ranked.some((item) => item.title === MESSAGES["zh-HK"].kmbFailed), false)
+assert.equal(MESSAGES["zh-CN"].kmbStopsFailed, "未能载入九巴车站。")
+assert.equal(MESSAGES["zh-CN"].citybusStopsFailed, "未能载入城巴车站。")
+assert.equal(MESSAGES["zh-CN"].gmbStopsFailed, "未能载入绿色专线小巴车站。")
+assert.equal(MESSAGES["zh-CN"].nlbStopsFailed, "未能载入屿巴车站。")
 
 const missedStop = intelBoard(
   { ...quiet, boardFaults: [{ operator: "citybus", id: "002155", name: "保泰街" }] },

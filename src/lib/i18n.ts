@@ -187,6 +187,7 @@ export type Messages = {
   kmbLwb: string
   lwb: string
   kmbFailed: string
+  kmbStopsFailed: string
   kmbScheduled: string
   kmbNone: string
   boardLoading: string
@@ -196,12 +197,15 @@ export type Messages = {
   lrtArriving: string
   citybus: string
   citybusFailed: string
+  citybusStopsFailed: string
   citybusNone: string
   gmb: string
   gmbFailed: string
+  gmbStopsFailed: string
   gmbNone: string
   nlb: string
   nlbFailed: string
+  nlbStopsFailed: string
   nlbNone: string
   ferry: string
   ferryFailed: string
@@ -364,6 +368,7 @@ const en: Messages = {
   kmbLwb: "KMB / LWB",
   lwb: "LWB",
   kmbFailed: "KMB arrivals did not load.",
+  kmbStopsFailed: "KMB stops did not load.",
   kmbScheduled: "Scheduled",
   kmbNone: "No arrival on the board",
   boardLoading: "Reading the published times.",
@@ -373,12 +378,15 @@ const en: Messages = {
   lrtArriving: "Arriving",
   citybus: "Citybus",
   citybusFailed: "Citybus arrivals did not load.",
+  citybusStopsFailed: "Citybus stops did not load.",
   citybusNone: "No arrival on the board",
   gmb: "Green minibus",
   gmbFailed: "Green minibus arrivals did not load.",
+  gmbStopsFailed: "Green minibus stops did not load.",
   gmbNone: "No arrival on the board",
   nlb: "New Lantao Bus",
   nlbFailed: "New Lantao Bus arrivals did not load.",
+  nlbStopsFailed: "New Lantao Bus stops did not load.",
   nlbNone: "No arrival on the board",
   ferry: "Ferry",
   ferryFailed: "Ferry arrivals did not load.",
@@ -541,6 +549,7 @@ const zhHK: Messages = {
   kmbLwb: "九巴／龍運",
   lwb: "龍運",
   kmbFailed: "未能取得九巴到站時間。",
+  kmbStopsFailed: "未能載入九巴車站。",
   kmbScheduled: "原定班次",
   kmbNone: "班次表沒有到站時間",
   boardLoading: "正在讀取已公布的到站時間。",
@@ -550,12 +559,15 @@ const zhHK: Messages = {
   lrtArriving: "即將抵達",
   citybus: "城巴",
   citybusFailed: "未能取得城巴到站時間。",
+  citybusStopsFailed: "未能載入城巴車站。",
   citybusNone: "班次表沒有到站時間",
   gmb: "綠色專線小巴",
   gmbFailed: "未能取得綠色專線小巴到站時間。",
+  gmbStopsFailed: "未能載入綠色專線小巴車站。",
   gmbNone: "班次表沒有到站時間",
   nlb: "嶼巴",
   nlbFailed: "未能取得嶼巴到站時間。",
+  nlbStopsFailed: "未能載入嶼巴車站。",
   nlbNone: "班次表沒有到站時間",
   ferry: "渡輪",
   ferryFailed: "未能取得渡輪航班時間。",
@@ -706,6 +718,7 @@ const zhCN: Messages = {
   mtrDeparts: (n) => `${n} 分钟后开出`,
   mtrDue: (when, platform) => (platform ? `${when} · ${platform} 号站台` : when),
   kmbFailed: "未能取得九巴到站时间。",
+  kmbStopsFailed: "未能载入九巴车站。",
   kmbScheduled: "原定班次",
   kmbNone: "班次表没有到站时间",
   boardLoading: "正在读取已公布的到站时间。",
@@ -717,12 +730,15 @@ const zhCN: Messages = {
   lrtArriving: "即将抵达",
   citybus: "城巴",
   citybusFailed: "未能取得城巴到站时间。",
+  citybusStopsFailed: "未能载入城巴车站。",
   citybusNone: "班次表没有到站时间",
   gmb: "绿色专线小巴",
   gmbFailed: "未能取得绿色专线小巴到站时间。",
+  gmbStopsFailed: "未能载入绿色专线小巴车站。",
   gmbNone: "班次表没有到站时间",
   nlb: "屿巴",
   nlbFailed: "未能取得屿巴到站时间。",
+  nlbStopsFailed: "未能载入屿巴车站。",
   nlbNone: "班次表没有到站时间",
   ferry: "渡轮",
   ferryFailed: "未能取得渡轮航班时间。",

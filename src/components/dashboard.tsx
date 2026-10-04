@@ -159,11 +159,11 @@ export function Dashboard() {
         mapLive={mapLive}
         pictureError={pictureError}
         mtrError={mtrLive.error ?? (mtr && !mtr.ok ? mtr.error ?? "Next train feed failed" : null)}
-        kmbError={liveError(kmbPlacesLive.error, kmbPlacesLive.data, "KMB arrivals failed")}
+        kmbError={liveError(kmbPlacesLive.error, kmbPlacesLive.data, "KMB stops failed")}
         lrtError={lrtLive.error ?? (lrt && !lrt.ok ? lrt.error ?? "Light Rail arrivals failed" : null)}
-        citybusError={liveError(citybusPlacesLive.error, citybusPlacesLive.data, "Citybus arrivals failed")}
-        gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus arrivals failed")}
-        nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus arrivals failed")}
+        citybusError={liveError(citybusPlacesLive.error, citybusPlacesLive.data, "Citybus stops failed")}
+        gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus stops failed")}
+        nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         boardFaults={boardFaults}
         open={intelOpen}
@@ -218,11 +218,11 @@ export function Dashboard() {
         mapLive={mapLive}
         pictureError={pictureError}
         mtrError={mtrLive.error ?? (mtr && !mtr.ok ? mtr.error ?? "Next train feed failed" : null)}
-        kmbError={liveError(kmbPlacesLive.error, kmbPlacesLive.data, "KMB arrivals failed")}
+        kmbError={liveError(kmbPlacesLive.error, kmbPlacesLive.data, "KMB stops failed")}
         lrtError={lrtLive.error ?? (lrt && !lrt.ok ? lrt.error ?? "Light Rail arrivals failed" : null)}
-        citybusError={liveError(citybusPlacesLive.error, citybusPlacesLive.data, "Citybus arrivals failed")}
-        gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus arrivals failed")}
-        nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus arrivals failed")}
+        citybusError={liveError(citybusPlacesLive.error, citybusPlacesLive.data, "Citybus stops failed")}
+        gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus stops failed")}
+        nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         aboveMarquee={!intelOpen}
       />
