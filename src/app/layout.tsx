@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { IBM_Plex_Mono, Newsreader, Outfit } from "next/font/google"
 import { htmlLang, localeOf } from "@/lib/i18n"
+import { recordPageView } from "@/lib/visits"
 import "./globals.css"
 
 const outfit = Outfit({
@@ -28,6 +29,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const store = await cookies()
+  const headerList = await headers()
+  recordPageView(headerList, store.get("hk-visit")?.value)
   const locale = localeOf(store.get("locale")?.value)
   return (
     <html lang={htmlLang(locale)} data-locale={locale} className={`${outfit.variable} ${newsreader.variable} ${hud.variable} dark h-full antialiased`}>

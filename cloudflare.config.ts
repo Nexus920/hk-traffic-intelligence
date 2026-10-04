@@ -9,6 +9,7 @@ export default defineConfig({
     assets: { notFoundHandling: "none" },
     env: {
       ASSETS: bindings.assets(),
+      VISITS: bindings.analyticsEngineDataset({ name: "hktraffic_visits" }),
     },
   }),
 });
