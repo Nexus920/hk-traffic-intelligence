@@ -177,6 +177,8 @@ export type KmbCall = {
   company: "KMB" | "LWB"
 }
 
+export type ArrivalClock = "ready" | "waiting"
+
 export type KmbStopBoard = {
   id: string
   nameTc: string
@@ -185,12 +187,13 @@ export type KmbStopBoard = {
   lat: number
   routes: string[]
   calls: KmbCall[]
+  clock: ArrivalClock
 }
 
 export type KmbPlacesResponse = {
   ok: boolean
   error?: string
-  stops: Omit<KmbStopBoard, "calls">[]
+  stops: Omit<KmbStopBoard, "calls" | "clock">[]
 }
 
 export type KmbResponse = {
@@ -243,12 +246,13 @@ export type CitybusStopBoard = {
   lat: number
   routes: string[]
   calls: CitybusCall[]
+  clock: ArrivalClock
 }
 
 export type CitybusPlacesResponse = {
   ok: boolean
   error?: string
-  stops: Omit<CitybusStopBoard, "calls">[]
+  stops: Omit<CitybusStopBoard, "calls" | "clock">[]
 }
 
 export type CitybusResponse = {

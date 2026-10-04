@@ -33,14 +33,14 @@ assert.deepEqual(finished, [true, true, true])
 let ran = 0
 const held = takeEtaTurn(async () => {
   ran += 1
-  await new Promise((resolve) => setTimeout(resolve, 400))
+  await new Promise((resolve) => setTimeout(resolve, 80))
   return "held"
 })
-await new Promise((resolve) => setTimeout(resolve, 30))
-const skipped = await takeEtaTurn(async () => {
+await new Promise((resolve) => setTimeout(resolve, 20))
+const second = await takeEtaTurn(async () => {
   ran += 1
   return "second"
 })
-assert.equal(skipped, null)
-assert.equal(ran, 1)
+assert.equal(second, "second")
+assert.equal(ran, 2)
 assert.equal(await held, "held")

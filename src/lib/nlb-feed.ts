@@ -1,11 +1,11 @@
 import { arrivalPairs } from "@/lib/arrival-pairs"
 import { nlbArrivalMs } from "@/lib/nlb-clock"
 import { nearestNlbStops, nlbStop } from "@/lib/nlb-network"
-import { arrivalFailure, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, ARRIVAL_SLICE, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
-import type { NlbCall, NlbPlacesResponse, NlbResponse, NlbStopBoard } from "@/lib/types"
+import type { ArrivalClock, NlbCall, NlbPlacesResponse, NlbResponse, NlbStopBoard } from "@/lib/types"
 
 const STOP_LIMIT = 6
 const PAIR_BUDGET = 24
@@ -42,10 +42,9 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
   }), PAIR_BUDGET)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    await pool(pairs, FETCH_LIMIT, async (pair) => {
+    const due = pairs.filter((pair) => etaDue(remembered.get(`${pair.stopId}/${pair.route}`), now)).slice(0, ARRIVAL_SLICE)
+    await pool(due, FETCH_LIMIT, async (pair) => {
       const key = `${pair.stopId}/${pair.route}`
-      const cached = remembered.get(key)
-      if (!etaDue(cached, now)) return
       const rows = await fetchEta(pair.route, pair.stopId)
       if (rows) remembered.set(key, { at: now, rows })
       else missed += 1
@@ -58,6 +57,7 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
   for (const stop of nearest) {
     const record = nlbStop(stop.id)
     if (!record) continue
+    const asked = pairs.filter((pair) => pair.stopId === stop.id).map((pair) => pair.route)
     const calls: NlbCall[] = []
     for (const service of record.services) {
       const rows = heldRows(remembered.get(`${stop.id}/${service.id}`), now) ?? []
@@ -73,6 +73,7 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
       lat: record.lat,
       routes: record.routes,
       calls: calls.slice(0, 12),
+      clock: serviceClock(asked, stop.id, remembered, now),
     })
   }
   const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "New Lantao Bus arrivals failed")
@@ -81,8 +82,16 @@ export async function loadNlbNear(lng: number, lat: number, now = Date.now()): P
     ...(error ? { error } : {}),
     observedAt: nearest.length === 0 ? null : new Date(now).toISOString(),
     stops,
-    cacheable: turn !== null && missed === 0,
+    cacheable: turn !== null && missed === 0 && stops.every((stop) => stop.clock === "ready"),
   }
+}
+
+function serviceClock(asked: readonly string[], stopId: string, remembered: Map<string, HeldRows<Arrival>>, now: number): ArrivalClock {
+  if (asked.length === 0) return "ready"
+  for (const route of asked) {
+    if (heldRows(remembered.get(`${stopId}/${route}`), now) == null) return "waiting"
+  }
+  return "ready"
 }
 
 function callAt(route: string, rows: Arrival[], now: number): NlbCall | null {

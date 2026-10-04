@@ -16,11 +16,11 @@ export function politeQueue(limit: number) {
 }
 
 let refreshing = false
+const TURN_WAIT_MS = 12_000
 
-// One arrival refresh in an isolate. A second view answers from memory instead of opening another burst.
 export async function takeEtaTurn<T>(task: () => Promise<T>): Promise<T | null> {
   const started = Date.now()
-  while (refreshing && Date.now() - started < 200) await pause(40)
+  while (refreshing && Date.now() - started < TURN_WAIT_MS) await pause(40)
   if (refreshing) return null
   refreshing = true
   try {

@@ -1678,6 +1678,7 @@ function busStopCollection(map: Map, board: CitybusResponse, locale: Locale, lab
           nameEn: stop.nameEn,
           board: JSON.stringify(stop.calls),
           routes: JSON.stringify(stop.routes),
+          clock: stop.clock,
           ...(icon ? { icon } : {}),
         },
       }
@@ -1733,6 +1734,7 @@ function kmbStopCollection(map: Map, kmb: KmbResponse, locale: Locale, labels: b
           nameEn: stop.nameEn,
           board: JSON.stringify(stop.calls),
           routes: JSON.stringify(stop.routes),
+          clock: stop.clock,
           ...(icon ? { icon } : {}),
         },
       }

@@ -215,8 +215,9 @@ function busStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages, title:
   const card = openCard(heading)
   const calls = kmbBoard(properties)
   const quiet = routesWithoutArrival(routeList(properties), calls.map((call) => call.route))
+  const waiting = textProp(properties, "clock") === "waiting"
   if (calls.length === 0 && quiet.length === 0) {
-    card.body.append(paragraph("city-card-copy", empty))
+    if (!waiting) card.body.append(paragraph("city-card-copy", empty))
     return card.root
   }
   const board = document.createElement("div")
@@ -224,7 +225,7 @@ function busStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages, title:
   for (const call of calls) board.append(kmbCall(call, m))
   for (const route of quiet) board.append(routeOnly(route))
   card.body.append(board)
-  if (calls.length === 0) card.body.append(paragraph("city-card-copy", empty))
+  if (calls.length === 0 && !waiting) card.body.append(paragraph("city-card-copy", empty))
   return card.root
 }
 

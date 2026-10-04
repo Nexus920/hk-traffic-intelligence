@@ -3,7 +3,7 @@ import { refreshKmbCatalogueSoon } from "@/lib/kmb-catalogue"
 import { kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
-import { arrivalFailure, etaDue, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
+import { arrivalFailure, ARRIVAL_SLICE, dueIds, ETA_FRESH_MS, forgetStale, heldRows, type HeldRows } from "@/lib/place-arrivals"
 import { etaQueue, takeEtaTurn } from "@/lib/polite-fetch"
 import { pool } from "@/lib/pool"
 import { fetchUpstream } from "@/lib/upstream"
@@ -52,9 +52,8 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
   const nearest = kmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), STOP_CAP)
   const turn = await takeEtaTurn(async () => {
     let missed = 0
-    await pool(nearest.map((stop) => stop.id), FETCH_LIMIT, async (stopId) => {
-      const cached = remembered.get(stopId)
-      if (!etaDue(cached, now)) return
+    const due = dueIds(nearest.map((stop) => stop.id), remembered, now, ARRIVAL_SLICE)
+    await pool(due, FETCH_LIMIT, async (stopId) => {
       const rows = await fetchStop(stopId)
       if (rows) remembered.set(stopId, { at: now, rows })
       else missed += 1
@@ -67,7 +66,7 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
   for (const stop of nearest) {
     const record = kmbStop(stop.id)
     if (!record) continue
-    const rows = heldRows(remembered.get(stop.id), now) ?? []
+    const held = heldRows(remembered.get(stop.id), now)
     stops.push({
       id: stop.id,
       nameTc: record.tc,
@@ -75,7 +74,8 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
       lng: record.lng,
       lat: record.lat,
       routes: kmbRoutesAt(stop.id),
-      calls: callsAt(rows, now),
+      calls: callsAt(held ?? [], now),
+      clock: held == null ? "waiting" : "ready",
     })
   }
   const error = arrivalFailure(missed, stops.map((stop) => stop.calls.length), "KMB arrivals failed")
@@ -84,7 +84,7 @@ export async function loadKmbNear(lng: number, lat: number, now = Date.now(), zo
     ...(error ? { error } : {}),
     observedAt: new Date(now).toISOString(),
     stops,
-    cacheable: turn !== null && missed === 0,
+    cacheable: turn !== null && missed === 0 && stops.every((stop) => stop.clock === "ready"),
   }
 }
 

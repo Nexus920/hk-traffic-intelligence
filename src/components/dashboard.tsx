@@ -11,7 +11,7 @@ import { decorateControlPoints } from "@/lib/control-points"
 import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, KMB_POLL_MS, PLACE_POLL_MS } from "@/lib/kmb-view"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
-import { mergePlaceArrivals } from "@/lib/place-arrivals"
+import { clocksWaiting, mergePlaceArrivals } from "@/lib/place-arrivals"
 import { hkoLang } from "@/lib/i18n"
 import type {
   ApproachesResponse,
@@ -75,6 +75,7 @@ export function Dashboard() {
   const controlLive = useLiveJson<ControlPointsResponse>("/api/control-points")
   const warningsLive = useLiveJson<WarningsResponse>(`/api/warnings?lang=${hkoLang(locale)}`)
   const [view, setView] = useState<{ lng: number; lat: number; zoom: number } | null>(null)
+  const [arrivalMs, setArrivalMs] = useState(4_000)
   const kmbQuery =
     view && view.zoom >= KMB_MIN_ZOOM
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
@@ -101,14 +102,14 @@ export function Dashboard() {
   const nlbUrl = layers.nlb && nlbQuery ? `/api/nlb?${nlbQuery}` : null
   const mtrLive = useLiveJson<MtrResponse>("/api/mtr", 15_000)
   const kmbPlacesLive = useLiveJson<KmbPlacesResponse>(kmbPlacesUrl, PLACE_POLL_MS)
-  const kmbLive = useLiveJson<KmbResponse>(kmbUrl, KMB_POLL_MS, true)
+  const kmbLive = useLiveJson<KmbResponse>(kmbUrl, arrivalMs, true)
   const lrtLive = useLiveJson<LrtResponse>(layers.lrt ? "/api/lrt" : null, 15_000)
   const citybusPlacesLive = useLiveJson<CitybusPlacesResponse>(citybusPlacesUrl, PLACE_POLL_MS)
-  const citybusLive = useLiveJson<CitybusResponse>(citybusUrl, 60_000, true)
+  const citybusLive = useLiveJson<CitybusResponse>(citybusUrl, arrivalMs, true)
   const gmbPlacesLive = useLiveJson<GmbPlacesResponse>(gmbPlacesUrl, PLACE_POLL_MS)
-  const gmbLive = useLiveJson<GmbResponse>(gmbUrl, KMB_POLL_MS, true)
+  const gmbLive = useLiveJson<GmbResponse>(gmbUrl, arrivalMs, true)
   const nlbPlacesLive = useLiveJson<NlbPlacesResponse>(nlbPlacesUrl, PLACE_POLL_MS)
-  const nlbLive = useLiveJson<NlbResponse>(nlbUrl, 60_000, true)
+  const nlbLive = useLiveJson<NlbResponse>(nlbUrl, arrivalMs, true)
   const ferryLive = useLiveJson<FerryResponse>(layers.ferry ? "/api/ferry" : null, 60_000, true)
   const kmbMerged = useMemo(
     () => mergePlaceArrivals(kmbPlacesLive.data, kmbLive.data),
@@ -126,6 +127,11 @@ export function Dashboard() {
     () => mergePlaceArrivals(nlbPlacesLive.data, nlbLive.data),
     [nlbLive.data, nlbPlacesLive.data],
   )
+  const arrivalAsked = Boolean(kmbUrl || citybusUrl || gmbUrl || nlbUrl)
+  const arrivalSeen = Boolean(kmbLive.data || citybusLive.data || gmbLive.data || nlbLive.data)
+  const arrivalWait = (arrivalAsked && !arrivalSeen) || clocksWaiting(kmbMerged?.stops) || clocksWaiting(citybusMerged?.stops) || clocksWaiting(gmbMerged?.stops) || clocksWaiting(nlbMerged?.stops)
+  const nextArrivalMs = arrivalWait ? 4_000 : KMB_POLL_MS
+  if (nextArrivalMs !== arrivalMs) setArrivalMs(nextArrivalMs)
   const traffic = trafficLive.data
   const approaches = approachesLive.data
   const picture = pictureLive.data
