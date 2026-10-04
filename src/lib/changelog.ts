@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-open-boundary",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "Choosing Boundary opens the first control point that is open. A closed hall is not treated as traffic.",
+    tc: "選擇管制站時，會前往第一個開放的管制站。關閉的大堂不當作交通情況。",
+    sc: "选择管制站时，会前往第一个开放的管制站。关闭的大堂不当作交通情况。",
+  },
+  {
     id: "2026-10-04-ferry-plates",
     date: "2026-10-04",
     kind: "fixed",

@@ -8,7 +8,7 @@ import { crossingsFrom, nearestApproach } from "@/lib/crossings"
 import { displayText, formatClock, LOCALE_MARK, LOCALES, type Messages } from "@/lib/i18n"
 import { CHANGELOG, changelogText } from "@/lib/changelog"
 import type { BoardFault } from "@/lib/board-status"
-import { INTEL_TABS, intelBoard, type IntelItem, type IntelTab } from "@/lib/intel"
+import { firstOpenBoundary, INTEL_TABS, intelBoard, type IntelItem, type IntelTab } from "@/lib/intel"
 import { formatSpeed } from "@/lib/speed"
 import type { ApproachPoint, ApproachesResponse, HarbourJourney, TrafficResponse, WeatherConditions, WeatherWarning } from "@/lib/types"
 import { weatherBar } from "@/lib/warnings"
@@ -108,7 +108,7 @@ export function OpsHud(props: OpsHudProps) {
   const incidentCount = props.incidents?.features.length ?? 0
   const firstIncident = board.roads.find((item) => item.kind === "incident" && item.coordinates)
   const worstRoad = board.roads.find((item) => item.coordinates && (item.kind === "jam" || item.kind === "slow" || item.kind === "incident"))
-  const worstHall = board.boundary.find((item) => item.coordinates)
+  const worstHall = firstOpenBoundary(board.boundary)
   const changeOpen = (next: boolean) => {
     if (next === open) return
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches

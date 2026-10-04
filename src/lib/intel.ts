@@ -148,6 +148,7 @@ function controlPointsOf(collection: GeoJSON.FeatureCollection | null, limit: nu
   if (!collection) return []
   const rows = collection.features.flatMap((feature) => {
     const worst = numberProp(feature.properties, "worst")
+    if (hallClosed(worst)) return []
     const vehicleBand = textProp(feature.properties, "vehicleBand")
     const passengerHot = worst === 1 || worst === 2
     const vehicleHot = vehicleBand === "congested" || vehicleBand === "slow"
@@ -158,6 +159,10 @@ function controlPointsOf(collection: GeoJSON.FeatureCollection | null, limit: nu
   return rows.slice(0, limit)
 }
 
+export function firstOpenBoundary(items: readonly IntelItem[]): IntelItem | undefined {
+  return items.find((item) => item.kind === "control" && item.coordinates && !hallClosedScore(item.score))
+}
+
 function boundaryOf(input: IntelInput, m: Messages): IntelItem[] {
   if (input.controlError) return [fault("fault-boundary", 580_000, m.faultBoundary, input.controlError, m)]
   if (!input.controlPoints) return []
@@ -166,12 +171,32 @@ function boundaryOf(input: IntelInput, m: Messages): IntelItem[] {
     .sort(byScore)
 }
 
+const CLOSED_HALL = 500
+
+function hallClosed(worst: number | null): boolean {
+  return worst === 99 || worst === 4
+}
+
+function hallClosedScore(score: number): boolean {
+  return score === CLOSED_HALL
+}
+
 function controlItem(feature: GeoJSON.Feature, worst: number | null, vehicleBand: string, m: Messages): IntelItem {
   const code = textProp(feature.properties, "code")
   const name = controlTitle(feature, m)
-  const veryBusy = worst === 2 || vehicleBand === "congested"
-  const score =
-    worst === 2 ? 750_000 : vehicleBand === "congested" ? 420_000 : worst === 1 ? 230_000 : worst === 99 || worst === 4 ? 180_000 : vehicleBand === "slow" ? 60_000 : 1_000
+  const closed = hallClosed(worst)
+  const veryBusy = !closed && (worst === 2 || vehicleBand === "congested")
+  const score = closed
+    ? CLOSED_HALL
+    : worst === 2
+      ? 750_000
+      : vehicleBand === "congested"
+        ? 420_000
+        : worst === 1
+          ? 230_000
+          : vehicleBand === "slow"
+            ? 60_000
+            : 1_000
   return {
     id: `control-${code || name}`,
     kind: "control",
@@ -180,7 +205,7 @@ function controlItem(feature: GeoJSON.Feature, worst: number | null, vehicleBand
     label: hallStatus(worst, vehicleBand, m),
     title: name,
     detail: controlDetail(feature, m),
-    tone: veryBusy ? "red" : worst === 1 || worst === 99 || worst === 4 || vehicleBand === "slow" ? "amber" : "green",
+    tone: veryBusy ? "red" : worst === 1 || closed || vehicleBand === "slow" ? "amber" : "green",
     coordinates: pointOf(feature),
   }
 }
@@ -203,6 +228,7 @@ function controlDetail(feature: GeoJSON.Feature, m: Messages): string {
     ] as const
   ).flatMap(([name, code]): [string, number][] => (code == null ? [] : [[name, code]]))
   const summary = rows.length > 0 ? hallSummary(rows, m) : ""
+  if (hallClosed(numberProp(properties, "worst"))) return summary
   const road = displayText(m.locale, textProp(properties, "vehicleRoadTc"), textProp(properties, "vehicleRoadEn"))
   const vehicle = vehicleSentence(road, numberProp(properties, "vehicleKmh"), textProp(properties, "vehicleBand"), m)
   return [summary, vehicle].filter(Boolean).join(" · ")

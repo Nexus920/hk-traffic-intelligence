@@ -860,11 +860,11 @@ export function queueText(code: number, visitor: boolean, m: Messages): string {
 }
 
 export function hallStatus(worst: number | null, vehicleBand: string, m: Messages): string {
+  if (worst === 99) return m.hallClosed
+  if (worst === 4) return m.hallMaintenance
   if (worst === 2) return m.hallVeryBusy
   if (vehicleBand === "congested") return m.hallBadApproach
   if (worst === 1) return m.hallBusy
-  if (worst === 99) return m.hallClosed
-  if (worst === 4) return m.hallMaintenance
   if (vehicleBand === "slow") return m.hallSlow
   return m.hallNormal
 }
