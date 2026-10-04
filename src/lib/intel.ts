@@ -1,3 +1,4 @@
+import { boardFailedCopy, type BoardFault } from "./board-status.ts"
 import { warnedCrossings } from "./crossings.ts"
 import { controlName, displayText, hallStatus, hallSummary, vehicleSentence, type Messages } from "./i18n.ts"
 import type { ApproachPoint, Corridor, TrafficResponse, WeatherConditions, WeatherWarning } from "./types.ts"
@@ -45,6 +46,7 @@ export type IntelInput = {
   nlbError: string | null
   ferryError: string | null
   mapError: string | null
+  boardFaults?: readonly BoardFault[]
 }
 
 const RANKED_LIMIT = 12
@@ -64,7 +66,7 @@ export function intelBoard(input: IntelInput, m: Messages): Record<IntelTab, Int
     roads: [...faults.filter((item) => item.id === "fault-speed" || item.id === "fault-incidents"), ...incidents, ...jams, ...works].sort(byScore).slice(0, 16),
     boundary: boundaryOf(input, m),
     weather: weatherOf(input, warnings, m),
-    systems: [...faults].sort(byScore),
+    systems: [...faults, ...boardFaultItems(input.boardFaults ?? [], m)].sort(byScore),
     notes: [],
   }
 }
@@ -97,6 +99,10 @@ function faultsOf(input: IntelInput, m: Messages): IntelItem[] {
     if (feed.detail) items.push(fault(feed.id, feed.score, feed.title, feed.detail, m))
   }
   return items
+}
+
+function boardFaultItems(faults: readonly BoardFault[], m: Messages): IntelItem[] {
+  return faults.map((item) => fault(`fault-board-${item.operator}-${item.id}`, 360_000, boardFailedCopy(item.operator, m), item.name, m))
 }
 
 function fault(id: string, score: number, title: string, detail: string, m: Messages): IntelItem {

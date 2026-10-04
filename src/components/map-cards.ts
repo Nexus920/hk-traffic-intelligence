@@ -16,6 +16,7 @@ import { lrtRoutesThrough, lrtStation } from "@/lib/lrt-network"
 import { isCameraSnapshotUrl } from "@/lib/picture"
 import { isSpeedBand } from "@/lib/speed"
 import { ferryBadge, ferryLeg } from "@/lib/ferry-routes"
+import { boardFailedCopy, clearBoardFault, markBoardFault } from "@/lib/board-status"
 import { routesWithoutArrival } from "@/lib/stop-routes"
 import type { StopOperator } from "@/lib/stop-board"
 import type { ApproachPoint, HarbourJourney, LrtResponse, MtrCalling, MtrResponse, SpeedBand } from "@/lib/types"
@@ -223,11 +224,11 @@ function busStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages, title:
     paintBoard(card.body, [], routes, m, empty)
     return card.root
   }
-  mountStopBoard(card.body, operator, id, m, empty, routes)
+  mountStopBoard(card.body, operator, id, heading, m, empty, routes)
   return card.root
 }
 
-function mountStopBoard(body: HTMLElement, operator: StopOperator, id: string, m: Messages, empty: string, routes: string[]) {
+function mountStopBoard(body: HTMLElement, operator: StopOperator, id: string, name: string, m: Messages, empty: string, routes: string[]) {
   const key = `${operator}:${id}`
   const hit = seenBoards.get(key)
   if (hit && Date.now() - hit.at < BOARD_MS) {
@@ -241,16 +242,19 @@ function mountStopBoard(body: HTMLElement, operator: StopOperator, id: string, m
       if (!body.isConnected) return
       const stop = readStopBoard(payload)
       if (!stop) {
-        paintBoard(body, [], routes, m, empty)
+        markBoardFault({ operator, id, name })
+        paintBoard(body, [], routes, m, boardFailedCopy(operator, m))
         return
       }
+      clearBoardFault(operator, id)
       const nextRoutes = stop.routes.length > 0 ? stop.routes : routes
       seenBoards.set(key, { at: Date.now(), calls: stop.calls, routes: nextRoutes })
       paintBoard(body, stop.calls, nextRoutes, m, empty)
     })
     .catch(() => {
       if (!body.isConnected) return
-      paintBoard(body, [], routes, m, empty)
+      markBoardFault({ operator, id, name })
+      paintBoard(body, [], routes, m, boardFailedCopy(operator, m))
     })
 }
 

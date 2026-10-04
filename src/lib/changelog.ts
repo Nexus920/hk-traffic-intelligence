@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-board-fault",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "When a stop's arrival read fails, the card says so, and that stop is listed under Systems.",
+    tc: "車站到站時間讀取失敗時，卡片會寫明，並在系統分頁列出該站。",
+    sc: "车站到站时间读取失败时，卡片会写明，并在系统分页列出该站。",
+  },
+  {
     id: "2026-10-04-stop-board",
     date: "2026-10-04",
     kind: "fixed",

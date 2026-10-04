@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { useSearchParams } from "next/navigation"
 import { CityMap } from "@/components/city-map"
 import { LayerDock } from "@/components/layer-dock"
@@ -11,6 +11,7 @@ import { decorateControlPoints } from "@/lib/control-points"
 import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, PLACE_POLL_MS } from "@/lib/kmb-view"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
+import { boardFaultSnapshot, subscribeBoardFaults } from "@/lib/board-status"
 import { catalogueBoards } from "@/lib/place-arrivals"
 import { hkoLang } from "@/lib/i18n"
 import type {
@@ -116,6 +117,7 @@ export function Dashboard() {
   const pictureError = pictureLive.error ?? picture?.error ?? (picture && !picture.ok ? "Picture failed" : null)
   const [focus, setFocus] = useState<{ id: string; coordinates: [number, number] } | null>(null)
   const [intelOpen, setIntelOpen] = useState(true)
+  const boardFaults = useSyncExternalStore(subscribeBoardFaults, boardFaultSnapshot, boardFaultSnapshot)
 
   const corridors = traffic?.ok ? traffic.corridors : []
   const boundary = controlPoints?.ok ? decorateControlPoints(controlPoints.points, corridors) : null
@@ -180,6 +182,7 @@ export function Dashboard() {
         gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus arrivals failed")}
         nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus arrivals failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
+        boardFaults={boardFaults}
         open={intelOpen}
         onOpenChange={setIntelOpen}
         onFocus={setFocus}

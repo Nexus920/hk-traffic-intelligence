@@ -7,6 +7,7 @@ import { boundaryGlance } from "@/lib/control-points"
 import { crossingsFrom, nearestApproach } from "@/lib/crossings"
 import { displayText, formatClock, LOCALE_MARK, LOCALES, type Messages } from "@/lib/i18n"
 import { CHANGELOG, changelogText } from "@/lib/changelog"
+import type { BoardFault } from "@/lib/board-status"
 import { INTEL_TABS, intelBoard, type IntelItem, type IntelTab } from "@/lib/intel"
 import { formatSpeed } from "@/lib/speed"
 import type { ApproachPoint, ApproachesResponse, HarbourJourney, TrafficResponse, WeatherConditions, WeatherWarning } from "@/lib/types"
@@ -36,6 +37,7 @@ type OpsHudProps = {
   gmbError: string | null
   nlbError: string | null
   ferryError: string | null
+  boardFaults: readonly BoardFault[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onFocus: (focus: { id: string; coordinates: [number, number] }) => void
@@ -95,6 +97,7 @@ export function OpsHud(props: OpsHudProps) {
     nlbError: props.nlbError,
     ferryError: props.ferryError,
     mapError: props.mapLive ? null : m.mapFailed,
+    boardFaults: props.boardFaults,
   }, m)
   const intel = board[tab]
   const urgentCount = intel.filter((item) => item.urgent).length

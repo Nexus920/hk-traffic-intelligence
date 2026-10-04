@@ -40,3 +40,12 @@ assert.deepEqual(
 )
 assert.equal(failed.systems[0]?.title, MESSAGES.en.mapFailed)
 assert.equal(failed.systems[2]?.detail, "HTTP 502")
+
+const missedStop = intelBoard(
+  { ...quiet, boardFaults: [{ operator: "citybus", id: "002155", name: "保泰街" }] },
+  MESSAGES["zh-HK"],
+)
+assert.equal(missedStop.systems.length, 1)
+assert.equal(missedStop.systems[0]?.title, "未能取得城巴到站時間。")
+assert.equal(missedStop.systems[0]?.detail, "保泰街")
+assert.equal(missedStop.ranked.some((item) => item.detail === "保泰街"), false)
