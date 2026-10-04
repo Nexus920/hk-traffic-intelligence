@@ -100,8 +100,9 @@ export function OpsHud(props: OpsHudProps) {
     boardFaults: props.boardFaults,
   }, m)
   const intel = board[tab]
-  const urgentCount = intel.filter((item) => item.urgent).length
-  const marqueeSeconds = Math.max(28, intel.length * 9)
+  const ranked = board.ranked
+  const urgentCount = ranked.filter((item) => item.urgent).length
+  const marqueeSeconds = Math.max(28, ranked.length * 9)
   const halls = boundaryGlance(props.controlPoints, props.controlError, m)
   const weather = weatherBar(props.warnings, props.conditions)
   const incidentCount = props.incidents?.features.length ?? 0
@@ -442,15 +443,9 @@ export function OpsHud(props: OpsHudProps) {
           ) : (
             <>
               <span className="shrink-0 font-[family-name:var(--font-hud)] text-[0.62rem] tracking-[0.14em] text-cyan-100/70 uppercase">
-                {tabLabel(tab, m)}
+                {tabLabel("ranked", m)}
               </span>
-              {tab === "notes" ? (
-                <p className="min-w-0 flex-1 truncate text-sm text-zinc-200">
-                  {CHANGELOG[0] ? changelogText(CHANGELOG[0], locale) : m.changelog}
-                </p>
-              ) : (
-                <IntelMarquee items={intel} empty={emptyCopy(tab, m)} seconds={marqueeSeconds} onFocus={props.onFocus} />
-              )}
+              <IntelMarquee items={ranked} empty={emptyCopy("ranked", m)} seconds={marqueeSeconds} onFocus={props.onFocus} />
               {urgentCount > 0 ? (
                 <span className="shrink-0 font-[family-name:var(--font-hud)] text-[0.65rem] tracking-[0.12em] text-[#FF5D73] uppercase">{urgentCount}</span>
               ) : null}

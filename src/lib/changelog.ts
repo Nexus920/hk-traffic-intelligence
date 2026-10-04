@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-ranked-marquee",
+    date: "2026-10-04",
+    kind: "fixed",
+    en: "The collapsed ticker always runs the ranked items, whichever list was open.",
+    tc: "情報欄收起時，無論先前查看哪個分頁，跑馬燈都顯示優先項目。",
+    sc: "情报栏收起时，无论先前查看哪个分页，跑马灯都显示优先项目。",
+  },
+  {
     id: "2026-10-04-one-stop-read",
     date: "2026-10-04",
     kind: "improved",
