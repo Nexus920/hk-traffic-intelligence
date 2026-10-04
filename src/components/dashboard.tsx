@@ -13,6 +13,7 @@ import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
 import { boardFaultSnapshot, subscribeBoardFaults } from "@/lib/board-status"
 import { catalogueBoards } from "@/lib/place-arrivals"
+import { preferenceServerSnapshot, preferenceSnapshot, subscribePreferences, updatePreference } from "@/lib/preferences"
 import { hkoLang } from "@/lib/i18n"
 import type {
   ApproachesResponse,
@@ -29,7 +30,6 @@ import type {
   TrafficResponse,
   WarningsResponse,
   WatchLayer,
-  WatchLayers,
   Basemap,
 } from "@/lib/types"
 
@@ -39,32 +39,16 @@ function liveError(error: string | null, body: { ok: boolean; error?: string } |
   return body.error ?? (body.ok ? null : fallback)
 }
 
-const LAYERS_ON: WatchLayers = {
-  speed: true,
-  cameras: true,
-  works: true,
-  tolls: true,
-  incidents: true,
-  control: true,
-  mtr: true,
-  lrt: true,
-  kmb: true,
-  citybus: true,
-  gmb: true,
-  nlb: true,
-  ferry: true,
-}
-
 export function Dashboard() {
   const { locale, messages: m } = useI18n()
   const search = useSearchParams()
   const forceDown = search.get("feed") === "down"
   const mapDown = search.get("map") === "down"
+  const prefs = useSyncExternalStore(subscribePreferences, preferenceSnapshot, preferenceServerSnapshot)
   const [flyToken, setFlyToken] = useState(0)
   const [mapLive, setMapLive] = useState(!mapDown)
-  const [layers, setLayers] = useState<WatchLayers>(LAYERS_ON)
-  const [basemap, setBasemap] = useState<Basemap>("satellite")
-  const [ground, setGround] = useState<Exclude<Basemap, "buildings">>("satellite")
+  const layers = prefs.layers
+  const basemap = prefs.basemap
   const trafficLive = useLiveJson<TrafficResponse>(forceDown ? "/api/traffic?simulate=fail" : "/api/traffic")
   const approachesLive = useLiveJson<ApproachesResponse>("/api/approaches")
   const pictureLive = useLiveJson<PictureResponse>("/api/picture", PICTURE_POLL_MS)
@@ -116,23 +100,22 @@ export function Dashboard() {
   const trafficError = trafficLive.error ?? (traffic && !traffic.ok ? traffic.error ?? "Speed feed failed" : null)
   const pictureError = pictureLive.error ?? picture?.error ?? (picture && !picture.ok ? "Picture failed" : null)
   const [focus, setFocus] = useState<{ id: string; coordinates: [number, number] } | null>(null)
-  const [intelOpen, setIntelOpen] = useState(true)
+  const intelOpen = prefs.intelOpen
   const boardFaults = useSyncExternalStore(subscribeBoardFaults, boardFaultSnapshot, boardFaultSnapshot)
 
   const corridors = traffic?.ok ? traffic.corridors : []
   const boundary = controlPoints?.ok ? decorateControlPoints(controlPoints.points, corridors) : null
 
   const toggleLayer = (layer: WatchLayer) => {
-    setLayers((current) => ({ ...current, [layer]: !current[layer] }))
+    updatePreference((current) => ({ layers: { ...current.layers, [layer]: !current.layers[layer] } }))
   }
 
   function selectBasemap(next: Basemap) {
     if (next === "buildings") {
-      setBasemap((current) => (current === "buildings" ? ground : "buildings"))
+      updatePreference((current) => ({ basemap: current.basemap === "buildings" ? current.ground : "buildings" }))
       return
     }
-    setGround(next)
-    setBasemap(next)
+    updatePreference({ basemap: next, ground: next })
   }
 
   return (
@@ -184,7 +167,7 @@ export function Dashboard() {
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         boardFaults={boardFaults}
         open={intelOpen}
-        onOpenChange={setIntelOpen}
+        onOpenChange={(open) => updatePreference({ intelOpen: open })}
         onFocus={setFocus}
         view={view}
       />

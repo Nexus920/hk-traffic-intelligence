@@ -1,7 +1,8 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 import { DEFAULT_LOCALE, ensureSimplified, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
+import { noteServerLocale, preferenceServerSnapshot, preferenceSnapshot, storedPreferenceRaw, subscribePreferences, updatePreference } from "@/lib/preferences"
 
 type LocaleContextValue = {
   locale: Locale
@@ -12,13 +13,19 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 export function LocaleProvider({ initial, children }: { initial: Locale; children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(initial || DEFAULT_LOCALE)
+  noteServerLocale(initial || DEFAULT_LOCALE)
+  const locale = useSyncExternalStore(subscribePreferences, preferenceSnapshot, preferenceServerSnapshot).locale
   const [simplifiedReady, setSimplifiedReady] = useState(false)
   const messages = MESSAGES[locale]
   const setLocale = (next: Locale) => {
-    setLocaleState(next)
-    document.cookie = `locale=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
+    writeLocale(next)
+    updatePreference({ locale: next })
   }
+  useEffect(() => {
+    const saved = preferenceSnapshot().locale
+    if (saved !== initial) writeLocale(saved)
+    if (!storedPreferenceRaw()) updatePreference({ locale: initial || DEFAULT_LOCALE })
+  }, [initial])
   useEffect(() => {
     if (locale !== "zh-CN") return
     let cancel = false
@@ -35,6 +42,10 @@ export function LocaleProvider({ initial, children }: { initial: Locale; childre
     document.title = messages.documentTitle
   }, [locale, messages.documentTitle, simplifiedReady])
   return <LocaleContext.Provider value={{ locale, setLocale, messages }}>{children}</LocaleContext.Provider>
+}
+
+function writeLocale(next: Locale) {
+  document.cookie = `locale=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
 }
 
 export function useI18n(): LocaleContextValue {

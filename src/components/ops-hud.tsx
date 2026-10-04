@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react"
 import { createPortal, flushSync } from "react-dom"
 import { useI18n } from "@/components/locale"
 import { boundaryGlance } from "@/lib/control-points"
@@ -9,6 +9,7 @@ import { displayText, formatClock, LOCALE_MARK, LOCALES, type Messages } from "@
 import { CHANGELOG, changelogText } from "@/lib/changelog"
 import type { BoardFault } from "@/lib/board-status"
 import { firstOpenBoundary, INTEL_TABS, intelBoard, type IntelItem, type IntelTab } from "@/lib/intel"
+import { preferenceServerSnapshot, preferenceSnapshot, subscribePreferences, updatePreference } from "@/lib/preferences"
 import { formatSpeed } from "@/lib/speed"
 import type { ApproachPoint, ApproachesResponse, HarbourJourney, TrafficResponse, WeatherConditions, WeatherWarning } from "@/lib/types"
 import { weatherBar } from "@/lib/warnings"
@@ -60,9 +61,13 @@ const BAR_KEY = {
 export function OpsHud(props: OpsHudProps) {
   const { locale, setLocale, messages: m } = useI18n()
   const clock = useHongKongClock(locale)
-  const [tab, setTab] = useState<IntelTab>("ranked")
-  const [barOpen, setBarOpen] = useState(true)
-  const [pinnedOrigin, setPinnedOrigin] = useState<string | null>(null)
+  const prefs = useSyncExternalStore(subscribePreferences, preferenceSnapshot, preferenceServerSnapshot)
+  const tab = prefs.intelTab
+  const setTab = (next: IntelTab) => updatePreference({ intelTab: next })
+  const barOpen = prefs.barOpen
+  const setBarOpen = (next: boolean) => updatePreference({ barOpen: next })
+  const pinnedOrigin = prefs.pinnedOrigin
+  const setPinnedOrigin = (next: string | null) => updatePreference({ pinnedOrigin: next })
   const open = props.open
   const approachPoints = props.approaches?.ok ? props.approaches.points : []
   const nearest = nearestApproach(approachPoints, props.view)

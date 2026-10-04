@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-04-remember",
+    date: "2026-10-04",
+    kind: "added",
+    en: "The language, the map layers, the basemap, and whether the intel card is open stay as you left them.",
+    tc: "語言、地圖圖層、底圖，以及情報欄的開合，都會保持你上次的選擇。",
+    sc: "语言、地图图层、底图，以及情报栏的开合，都会保持你上次的选择。",
+  },
+  {
     id: "2026-10-04-open-boundary",
     date: "2026-10-04",
     kind: "fixed",
