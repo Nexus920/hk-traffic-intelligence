@@ -30,7 +30,6 @@ import type {
   PictureResponse,
   TrafficResponse,
   WarningsResponse,
-  WatchLayer,
   WatchLayers,
   Basemap,
 } from "@/lib/types"
@@ -114,10 +113,6 @@ export function Dashboard() {
 
   const corridors = traffic?.ok ? traffic.corridors : []
   const boundary = controlPoints?.ok ? decorateControlPoints(controlPoints.points, corridors) : null
-
-  const toggleLayer = (layer: WatchLayer) => {
-    updatePreference((current) => ({ layers: { ...current.layers, [layer]: !current.layers[layer] } }))
-  }
 
   function setLayers(next: WatchLayers) {
     updatePreference({ layers: next })
@@ -227,7 +222,6 @@ export function Dashboard() {
           parking: null,
           control: null,
         }}
-        onToggle={toggleLayer}
         onSetLayers={setLayers}
         onBasemap={selectBasemap}
         onReplay={() => setFlyToken((value) => value + 1)}

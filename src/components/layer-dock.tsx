@@ -3,14 +3,13 @@
 import { useRef, useState } from "react"
 import { useI18n } from "@/components/locale"
 import type { Messages } from "@/lib/i18n"
-import { soloLayers } from "@/lib/preferences"
+import { chooseWatchedLayer } from "@/lib/preferences"
 import type { Basemap, WatchLayer, WatchLayers } from "@/lib/types"
 
 type LayerDockProps = {
   layers: WatchLayers
   basemap: Basemap
   counts: Record<WatchLayer, number | null>
-  onToggle: (layer: WatchLayer) => void
   onSetLayers: (layers: WatchLayers) => void
   onBasemap: (basemap: Basemap) => void
   onReplay: () => void
@@ -111,11 +110,12 @@ export function LayerDock(props: LayerDockProps) {
   if (!props.mapLive) return null
 
   function choose(id: WatchLayer) {
-    if (!only) {
-      props.onToggle(id)
-      return
+    const next = chooseWatchedLayer(only, props.layers, id)
+    if (next.only !== only) {
+      if (!next.only) mix.current = null
+      setOnly(next.only)
     }
-    props.onSetLayers(soloLayers(props.layers, id))
+    props.onSetLayers(next.layers)
   }
 
   function switchOnly() {

@@ -148,6 +148,22 @@ export function soloLayers(layers: WatchLayers, id: WatchLayer): WatchLayers {
   return next
 }
 
+export function chooseWatchedLayer(only: boolean, layers: WatchLayers, id: WatchLayer): { only: boolean; layers: WatchLayers } {
+  if (!only) return { only: false, layers: { ...layers, [id]: !layers[id] } }
+  const showing = soleLayer(layers)
+  if (showing && showing !== id) return { only: false, layers: layersBeside(layers, id) ?? layers }
+  if (showing === id) return { only: false, layers: { ...layers, [id]: false } }
+  return { only: true, layers: soloLayers(layers, id) }
+}
+
+export function layersBeside(layers: WatchLayers, id: WatchLayer): WatchLayers | null {
+  const current = soleLayer(layers)
+  if (!current || current === id) return null
+  const next = { ...layers }
+  for (const key of LAYER_IDS) next[key] = key === current || key === id
+  return next
+}
+
 export function soleLayer(layers: WatchLayers): WatchLayer | null {
   let found: WatchLayer | null = null
   for (const id of LAYER_IDS) {

@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-only-beside",
+    date: "2026-10-05",
+    kind: "improved",
+    en: "While Only is on, choosing another layer turns Only off and leaves both layers on. Choosing the layer already on turns it off.",
+    tc: "只看開啟時，再選另一層，只看會關閉，地圖留下原來那層和剛選的一層。再按已選的那層，就會把它關掉。",
+    sc: "只看开启时，再选另一层，只看会关闭，地图留下原来那层和刚选的一层。再按已选的那层，就会把它关掉。",
+  },
+  {
     id: "2026-10-05-overview-follow",
     date: "2026-10-05",
     kind: "fixed",

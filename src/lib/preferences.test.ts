@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { PREFERENCE_DEFAULTS, readPreferences, soleLayer, soloLayers } from "./preferences.ts"
+import { PREFERENCE_DEFAULTS, chooseWatchedLayer, layersBeside, readPreferences, soleLayer, soloLayers } from "./preferences.ts"
 
 const saved = readPreferences(JSON.stringify({
   locale: "en",
@@ -32,5 +32,28 @@ assert.equal(onlyParking.kmb, false)
 assert.equal(PREFERENCE_DEFAULTS.layers.gmb, true)
 assert.equal(soleLayer(onlyParking), "parking")
 assert.equal(soleLayer(PREFERENCE_DEFAULTS.layers), null)
+const beside = layersBeside(onlyParking, "gmb")
+assert.equal(beside?.parking, true)
+assert.equal(beside?.gmb, true)
+assert.equal(beside?.kmb, false)
+assert.equal(beside?.mtr, false)
+assert.equal(onlyParking.gmb, false)
+assert.equal(layersBeside(onlyParking, "parking"), null)
+assert.equal(layersBeside(PREFERENCE_DEFAULTS.layers, "gmb"), null)
+const added = chooseWatchedLayer(true, onlyParking, "gmb")
+assert.equal(added.only, false)
+assert.equal(added.layers.parking, true)
+assert.equal(added.layers.gmb, true)
+assert.equal(added.layers.kmb, false)
+const switchedOff = chooseWatchedLayer(true, onlyParking, "parking")
+assert.equal(switchedOff.only, false)
+assert.equal(switchedOff.layers.parking, false)
+const first = chooseWatchedLayer(true, PREFERENCE_DEFAULTS.layers, "parking")
+assert.equal(first.only, true)
+assert.equal(soleLayer(first.layers), "parking")
+const plain = chooseWatchedLayer(false, onlyParking, "kmb")
+assert.equal(plain.only, false)
+assert.equal(plain.layers.parking, true)
+assert.equal(plain.layers.kmb, true)
 
 console.log("preferences ok")
