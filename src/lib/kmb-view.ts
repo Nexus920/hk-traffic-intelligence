@@ -3,7 +3,7 @@ import type { WatchLayer } from "@/lib/types"
 export const KMB_MIN_ZOOM = 13
 // Green minibuses stay at the nearest 24. That circle still holds more than 24 until the map is this close.
 export const GMB_MIN_ZOOM = 17
-// One layer on its own can fill the city view. A wide map would otherwise be empty.
+// One layer on its own can appear from the city view and show more pins than the mixed map.
 export const SOLO_PIN_ZOOM = 10
 export const KMB_POLL_MS = 60_000
 export const PLACE_POLL_MS = 12 * 60 * 60 * 1000

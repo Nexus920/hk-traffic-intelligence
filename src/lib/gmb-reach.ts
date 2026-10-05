@@ -1,5 +1,5 @@
 import networkFile from "../../data/gmb-network.json" with { type: "json" }
-import { pointsWithin } from "@/lib/nearest"
+import { pointsWithin, spreadWithin } from "@/lib/nearest"
 import { indexPoints, mates } from "@/lib/point-index"
 
 type StopRecord = {
@@ -36,4 +36,8 @@ export function gmbPoleIds(id: string): string[] {
 
 export function gmbStopsWithin(lng: number, lat: number, radiusMetres: number, limit: number): GmbStopPoint[] {
   return pointsWithin(stopList, lng, lat, radiusMetres, limit)
+}
+
+export function gmbStopsSpread(lng: number, lat: number, radiusMetres: number, limit: number): GmbStopPoint[] {
+  return spreadWithin(stopList, lng, lat, radiusMetres, limit)
 }

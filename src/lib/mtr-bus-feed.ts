@@ -1,5 +1,6 @@
 import { fetchUpstream } from "@/lib/upstream"
 import { kmbReachMetres } from "@/lib/kmb-reach"
+import { spreadWithin } from "@/lib/nearest"
 import { mtrBusPolesNear, mtrBusVisits, parseMtrBusStops, type MtrBusPole } from "@/lib/mtr-bus"
 import { etaQueue } from "@/lib/polite-fetch"
 import type { CitybusCall, CitybusPlacesResponse, CitybusStopBoard } from "@/lib/types"
@@ -9,6 +10,8 @@ const SCHEDULE_URL = "https://rt.data.gov.hk/v1/transport/mtr/bus/getSchedule"
 const STOPS_MS = 12 * 60 * 60 * 1000
 const SCHEDULE_MS = 60_000
 const STOP_CAP = 24
+// A few hundred poles in the whole feed, so Only can take a larger share than KMB.
+const SOLO_CAP = 240
 
 const schedules = new Map<string, { at: number; body: unknown }>()
 let poles: MtrBusPole[] | null = null
@@ -17,11 +20,11 @@ let polesAt = 0
 export async function loadMtrBusPlaces(lng: number, lat: number, zoom = Number.NaN, wide = false): Promise<CitybusPlacesResponse> {
   const list = await catalogue()
   if (!list) return { ok: false, error: "MTR bus stops failed", stops: [] }
-  const radius = wide ? Number.POSITIVE_INFINITY : kmbReachMetres(zoom, lat)
-  const limit = wide ? Number.POSITIVE_INFINITY : STOP_CAP
+  const radius = kmbReachMetres(zoom, lat)
+  const found = wide ? spreadWithin(list, lng, lat, radius, SOLO_CAP) : mtrBusPolesNear(list, lng, lat, radius, STOP_CAP)
   return {
     ok: true,
-    stops: mtrBusPolesNear(list, lng, lat, radius, limit).map((pole) => ({
+    stops: found.map((pole) => ({
       id: pole.id,
       nameTc: pole.nameTc,
       nameEn: pole.nameEn,

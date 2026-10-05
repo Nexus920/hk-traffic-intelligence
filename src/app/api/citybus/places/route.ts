@@ -10,11 +10,12 @@ export function GET(request: Request) {
   const wide = url.searchParams.get("wide") === "1"
   const lng = Number(url.searchParams.get("lng"))
   const lat = Number(url.searchParams.get("lat"))
-  if (!wide && (!Number.isFinite(lng) || !Number.isFinite(lat))) {
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
     return Response.json(empty("Citybus centre missing"), { status: 400 })
   }
+  const zoom = Number(url.searchParams.get("zoom"))
   try {
-    return Response.json(loadCitybusPlaces(Number.isFinite(lng) ? lng : 0, Number.isFinite(lat) ? lat : 0, wide))
+    return Response.json(loadCitybusPlaces(lng, lat, wide, zoom))
   } catch (error) {
     return Response.json(empty(error instanceof Error ? error.message : "Citybus stops failed"), { status: 502 })
   }

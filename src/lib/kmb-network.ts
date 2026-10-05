@@ -1,5 +1,5 @@
 import networkFile from "../../data/kmb-network.json" with { type: "json" }
-import { pointsWithin } from "@/lib/nearest"
+import { pointsWithin, spreadWithin } from "@/lib/nearest"
 import { indexPoints, mates } from "@/lib/point-index"
 import { catalogueAccepts } from "@/lib/stop-list"
 
@@ -50,4 +50,8 @@ export function kmbPoleIds(id: string): string[] {
 
 export function kmbStopsWithin(lng: number, lat: number, radiusMetres: number, limit: number): KmbStopPoint[] {
   return pointsWithin(stopList, lng, lat, radiusMetres, limit)
+}
+
+export function kmbStopsSpread(lng: number, lat: number, radiusMetres: number, limit: number): KmbStopPoint[] {
+  return spreadWithin(stopList, lng, lat, radiusMetres, limit)
 }

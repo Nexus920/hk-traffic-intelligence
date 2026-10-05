@@ -1,6 +1,6 @@
 import { busCompany } from "@/lib/bus-company"
 import { refreshKmbCatalogueSoon } from "@/lib/kmb-catalogue"
-import { kmbPoleIds, kmbStop, kmbStopsWithin } from "@/lib/kmb-network"
+import { kmbPoleIds, kmbStop, kmbStopsSpread, kmbStopsWithin } from "@/lib/kmb-network"
 import { kmbRoutesAt, refreshKmbRoutesSoon } from "@/lib/kmb-routes"
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
@@ -9,6 +9,8 @@ import { loadPoleBoard } from "@/lib/pole-board"
 import type { KmbCall, KmbPlacesResponse, KmbResponse, KmbStopBoard } from "@/lib/types"
 
 const ETA_ROOT = "https://data.etabus.gov.hk/v1/transport/kmb/stop-eta"
+// More than the mixed 40. The full stop list is what stalled the phone.
+const SOLO_CAP = 160
 
 type EtaRow = {
   co?: string
@@ -29,9 +31,9 @@ export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom =
 
 export function kmbPlacesAt(lng: number, lat: number, zoom = Number.NaN, wide = false): KmbPlacesResponse {
   const stops: KmbPlacesResponse["stops"] = []
-  const radius = wide ? Number.POSITIVE_INFINITY : kmbReachMetres(zoom, lat)
-  const limit = wide ? Number.POSITIVE_INFINITY : STOP_CAP
-  for (const stop of kmbStopsWithin(lng, lat, radius, limit)) {
+  const radius = kmbReachMetres(zoom, lat)
+  const found = wide ? kmbStopsSpread(lng, lat, radius, SOLO_CAP) : kmbStopsWithin(lng, lat, radius, STOP_CAP)
+  for (const stop of found) {
     const record = kmbStop(stop.id)
     if (!record) continue
     stops.push({

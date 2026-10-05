@@ -65,25 +65,25 @@ export function Dashboard() {
       : null
   const citybusQuery =
     view && view.zoom >= placePinZoom("citybus", sole)
-      ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
+      ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}${sole === "citybus" ? `&zoom=${view.zoom.toFixed(2)}&wide=1` : ""}`
       : null
-  const kmbPlacesUrl = layers.kmb && kmbQuery ? (sole === "kmb" ? "/api/kmb/places?wide=1" : `/api/kmb/places?${kmbQuery}`) : null
-  const citybusPlacesUrl = layers.citybus && citybusQuery ? (sole === "citybus" ? "/api/citybus/places?wide=1" : `/api/citybus/places?${citybusQuery}`) : null
+  const kmbPlacesUrl = layers.kmb && kmbQuery ? `/api/kmb/places?${kmbQuery}${sole === "kmb" ? "&wide=1" : ""}` : null
+  const citybusPlacesUrl = layers.citybus && citybusQuery ? `/api/citybus/places?${citybusQuery}` : null
   const gmbQuery =
     view && view.zoom >= placePinZoom("gmb", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
-  const gmbPlacesUrl = layers.gmb && gmbQuery ? (sole === "gmb" ? "/api/gmb/places?wide=1" : `/api/gmb/places?${gmbQuery}`) : null
+  const gmbPlacesUrl = layers.gmb && gmbQuery ? `/api/gmb/places?${gmbQuery}${sole === "gmb" ? "&wide=1" : ""}` : null
   const nlbQuery =
     view && view.zoom >= placePinZoom("nlb", sole) && (sole === "nlb" || inLantau(view.lng, view.lat))
-      ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
+      ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}${sole === "nlb" ? `&zoom=${view.zoom.toFixed(2)}&wide=1` : ""}`
       : null
-  const nlbPlacesUrl = layers.nlb && nlbQuery ? (sole === "nlb" ? "/api/nlb/places?wide=1" : `/api/nlb/places?${nlbQuery}`) : null
+  const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
   const mtrBusQuery =
     view && view.zoom >= placePinZoom("mtrbus", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
-  const mtrBusPlacesUrl = layers.mtrbus && mtrBusQuery ? (sole === "mtrbus" ? "/api/mtr-bus/places?wide=1" : `/api/mtr-bus/places?${mtrBusQuery}`) : null
+  const mtrBusPlacesUrl = layers.mtrbus && mtrBusQuery ? `/api/mtr-bus/places?${mtrBusQuery}${sole === "mtrbus" ? "&wide=1" : ""}` : null
   const parkingWide = sole === "parking"
   const parkingPlacesUrl =
     layers.parking && view && view.zoom >= placePinZoom("parking", sole)

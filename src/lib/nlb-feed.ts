@@ -1,18 +1,22 @@
 import { mergeSamePoles } from "@/lib/kmb-pole"
 import { nlbArrivalMs } from "@/lib/nlb-clock"
-import { nearestNlbStops, nlbPoleIds, nlbStop } from "@/lib/nlb-network"
+import { nearestNlbStops, nlbPoleIds, nlbStop, nlbStopsSpread } from "@/lib/nlb-network"
+import { kmbReachMetres } from "@/lib/kmb-reach"
 import { readEtaJson } from "@/lib/eta-read"
 import { loadPoleBoard } from "@/lib/pole-board"
 import type { NlbCall, NlbPlacesResponse, NlbResponse, NlbStopBoard } from "@/lib/types"
 
 const STOP_LIMIT = 6
+// More than 6. The island list is short, so this can cover most of it and still stop early.
+const SOLO_CAP = 120
 const ETA_ROOT = "https://rt.data.gov.hk/v2/transport/nlb/stop.php?action=estimatedArrivals"
 
 type Arrival = { estimatedArrivalTime?: string }
 
-export function loadNlbPlaces(lng: number, lat: number, wide = false): NlbPlacesResponse {
+export function loadNlbPlaces(lng: number, lat: number, wide = false, zoom = Number.NaN): NlbPlacesResponse {
   const stops: NlbPlacesResponse["stops"] = []
-  for (const stop of nearestNlbStops(lng, lat, wide ? Number.POSITIVE_INFINITY : STOP_LIMIT)) {
+  const found = wide ? nlbStopsSpread(lng, lat, kmbReachMetres(zoom, lat), SOLO_CAP) : nearestNlbStops(lng, lat, STOP_LIMIT)
+  for (const stop of found) {
     const record = nlbStop(stop.id)
     if (!record) continue
     stops.push({

@@ -1,12 +1,14 @@
 import { gmbDestination } from "@/lib/gmb-destinations"
 import { mergeSamePoles } from "@/lib/kmb-pole"
-import { gmbPoleIds, gmbStop, gmbStopsWithin } from "@/lib/gmb-reach"
+import { gmbPoleIds, gmbStop, gmbStopsSpread, gmbStopsWithin } from "@/lib/gmb-reach"
 import { kmbReachMetres } from "@/lib/kmb-reach"
 import { readEtaJson } from "@/lib/eta-read"
 import { loadPoleBoard } from "@/lib/pole-board"
 import type { GmbCall, GmbPlacesResponse, GmbResponse, GmbStopBoard } from "@/lib/types"
 
 const GMB_CAP = 24
+// More than the nearest 24. The green-minibus catalogue is thousands of stops.
+const SOLO_CAP = 160
 const ETA_ROOT = "https://data.etagmb.gov.hk/eta/stop"
 
 type EtaEntry = {
@@ -26,9 +28,9 @@ type EtaRoute = {
 
 export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom = Number.NaN, wide = false): GmbPlacesResponse {
   const stops: GmbPlacesResponse["stops"] = []
-  const radius = wide ? Number.POSITIVE_INFINITY : kmbReachMetres(zoom, lat)
-  const limit = wide ? Number.POSITIVE_INFINITY : GMB_CAP
-  for (const stop of gmbStopsWithin(lng, lat, radius, limit)) {
+  const radius = kmbReachMetres(zoom, lat)
+  const found = wide ? gmbStopsSpread(lng, lat, radius, SOLO_CAP) : gmbStopsWithin(lng, lat, radius, GMB_CAP)
+  for (const stop of found) {
     const record = gmbStop(stop.id)
     if (!record) continue
     stops.push({
