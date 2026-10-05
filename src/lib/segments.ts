@@ -1,4 +1,5 @@
 import centerlinesJson from "../../data/strategic-centerlines.json"
+import { keepLeftCarriageways } from "@/lib/keep-left"
 import { bandForSaturation, bandForSpeed } from "@/lib/speed"
 import type { Corridor, SpeedSummary } from "@/lib/types"
 
@@ -19,7 +20,7 @@ const HK80_TO_WGS84_LAT = -5.5 / 3600
 let geometry: Promise<Centerline[]> | null = null
 
 export function loadCenterlines(): Promise<Centerline[]> {
-  geometry ??= Promise.resolve(seatOnWgs84(centerlinesJson as Centerline[]))
+  geometry ??= Promise.resolve(keepLeftCarriageways(seatOnWgs84(centerlinesJson as Centerline[])))
   return geometry
 }
 

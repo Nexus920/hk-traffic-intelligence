@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-keep-left",
+    date: "2026-10-05",
+    kind: "fixed",
+    en: "On a divided road, the speed dots travel on the left side.",
+    tc: "分隔行車路上，車速點改為靠左行駛。",
+    sc: "分隔行车路上，车速点改为靠左行驶。",
+  },
+  {
     id: "2026-10-05-meter-time",
     date: "2026-10-05",
     kind: "improved",
