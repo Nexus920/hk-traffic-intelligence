@@ -1,11 +1,16 @@
 import assert from "node:assert/strict"
-import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, kmbViewKey } from "./kmb-view.ts"
+import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, SOLO_PIN_ZOOM, kmbViewKey, placePinZoom } from "./kmb-view.ts"
 import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "./kmb-reach.ts"
 
 const close = kmbReachMetres(16.5, 22.38274)
 assert.ok(close > 450 && close <= 650)
 assert.equal(kmbReachMetres(13, 22.38274), 650)
 assert.equal(GMB_MIN_ZOOM, 17)
+assert.equal(placePinZoom("kmb", "kmb"), KMB_MIN_ZOOM)
+assert.equal(placePinZoom("gmb", "gmb"), SOLO_PIN_ZOOM)
+assert.equal(placePinZoom("gmb", null), GMB_MIN_ZOOM)
+assert.equal(placePinZoom("parking", "parking"), SOLO_PIN_ZOOM)
+assert.equal(placePinZoom("citybus", "citybus"), SOLO_PIN_ZOOM)
 assert.ok(GMB_MIN_ZOOM > KMB_MIN_ZOOM)
 assert.equal(kmbReachMetres(16, 22.305), 650)
 assert.ok(kmbReachMetres(GMB_MIN_ZOOM, 22.305) < 400)

@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-solo-zoom",
+    date: "2026-10-05",
+    kind: "improved",
+    en: "With Only on, a quieter layer such as car parks or minibuses appears from farther away. KMB stays close in, because those stops cover the map.",
+    tc: "開啟只看後，停車場或小巴等較疏的圖層會在較遠的比例顯示。九巴站多，仍然要拉近才顯示。",
+    sc: "开启只看后，停车场或小巴等较疏的图层会在较远的比例显示。九巴站多，仍然要拉近才显示。",
+  },
+  {
     id: "2026-10-05-only-layer",
     date: "2026-10-05",
     kind: "added",

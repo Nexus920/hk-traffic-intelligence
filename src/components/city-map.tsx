@@ -38,7 +38,8 @@ import {
   workPopup,
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
-import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, kmbViewKey } from "@/lib/kmb-view"
+import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, kmbViewKey, placePinZoom } from "@/lib/kmb-view"
+import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
 import { lineRecord, mtrStationCollection, mtrTrackCollection, stationPoint, stationRecord } from "@/lib/mtr-network"
 import { lrtColor, lrtPoint, lrtRoutesThrough, lrtStation, lrtStationCollection, lrtTrackCollection } from "@/lib/lrt-network"
@@ -737,10 +738,20 @@ export function CityMap({
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
     const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "ferry", "parking"]
+    const sole = soleLayer(layers)
+    const pinZoom: Partial<Record<string, number>> = {
+      "kmb-stops": KMB_MIN_ZOOM,
+      parking: placePinZoom("parking", sole),
+      "citybus-stops": placePinZoom("citybus", sole),
+      "gmb-stops": placePinZoom("gmb", sole),
+      "nlb-stops": placePinZoom("nlb", sole),
+    }
     for (const kind of kinds) {
       for (const layerId of layerIds(kind)) {
         if (!map.getLayer(layerId)) continue
         map.setLayoutProperty(layerId, "visibility", layers[kind] ? "visible" : "none")
+        const min = pinZoom[layerId]
+        if (min != null) map.setLayerZoomRange(layerId, min, 24)
       }
     }
   }, [disabled, layers, mapReady, styleEpoch])

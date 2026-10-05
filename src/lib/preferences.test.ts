@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { PREFERENCE_DEFAULTS, readPreferences, soloLayers } from "./preferences.ts"
+import { PREFERENCE_DEFAULTS, readPreferences, soleLayer, soloLayers } from "./preferences.ts"
 
 const saved = readPreferences(JSON.stringify({
   locale: "en",
@@ -30,5 +30,7 @@ assert.equal(onlyParking.parking, true)
 assert.equal(onlyParking.gmb, false)
 assert.equal(onlyParking.kmb, false)
 assert.equal(PREFERENCE_DEFAULTS.layers.gmb, true)
+assert.equal(soleLayer(onlyParking), "parking")
+assert.equal(soleLayer(PREFERENCE_DEFAULTS.layers), null)
 
 console.log("preferences ok")

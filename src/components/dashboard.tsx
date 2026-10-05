@@ -8,13 +8,13 @@ import { OpsHud } from "@/components/ops-hud"
 import { useLiveJson } from "@/components/use-live-json"
 import { useI18n } from "@/components/locale"
 import { decorateControlPoints } from "@/lib/control-points"
-import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, PLACE_POLL_MS } from "@/lib/kmb-view"
+import { KMB_MIN_ZOOM, PLACE_POLL_MS, placePinZoom } from "@/lib/kmb-view"
 import type { ParkingPlacesResponse } from "@/lib/parking"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
 import { boardFaultSnapshot, subscribeBoardFaults } from "@/lib/board-status"
 import { catalogueBoards } from "@/lib/place-arrivals"
-import { preferenceServerSnapshot, preferenceSnapshot, subscribePreferences, updatePreference } from "@/lib/preferences"
+import { preferenceServerSnapshot, preferenceSnapshot, soleLayer, subscribePreferences, updatePreference } from "@/lib/preferences"
 import { hkoLang } from "@/lib/i18n"
 import type {
   ApproachesResponse,
@@ -58,27 +58,32 @@ export function Dashboard() {
   const controlLive = useLiveJson<ControlPointsResponse>("/api/control-points")
   const warningsLive = useLiveJson<WarningsResponse>(`/api/warnings?lang=${hkoLang(locale)}`)
   const [view, setView] = useState<{ lng: number; lat: number; zoom: number } | null>(null)
+  const sole = soleLayer(layers)
   const kmbQuery =
     view && view.zoom >= KMB_MIN_ZOOM
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
   const citybusQuery =
-    view && view.zoom >= KMB_MIN_ZOOM
+    view && view.zoom >= placePinZoom("citybus", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
   const kmbPlacesUrl = layers.kmb && kmbQuery ? `/api/kmb/places?${kmbQuery}` : null
   const citybusPlacesUrl = layers.citybus && citybusQuery ? `/api/citybus/places?${citybusQuery}` : null
   const gmbQuery =
-    view && view.zoom >= GMB_MIN_ZOOM
+    view && view.zoom >= placePinZoom("gmb", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
   const gmbPlacesUrl = layers.gmb && gmbQuery ? `/api/gmb/places?${gmbQuery}` : null
   const nlbQuery =
-    view && view.zoom >= KMB_MIN_ZOOM && inLantau(view.lng, view.lat)
+    view && view.zoom >= placePinZoom("nlb", sole) && (sole === "nlb" || inLantau(view.lng, view.lat))
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
   const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
-  const parkingPlacesUrl = layers.parking && kmbQuery ? `/api/parking/places?${kmbQuery}` : null
+  const parkingWide = sole === "parking" && view != null && view.zoom < KMB_MIN_ZOOM
+  const parkingPlacesUrl =
+    layers.parking && view && view.zoom >= placePinZoom("parking", sole)
+      ? `/api/parking/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${parkingWide ? "&wide=1" : ""}`
+      : null
   const mtrLive = useLiveJson<MtrResponse>("/api/mtr", 15_000)
   const kmbPlacesLive = useLiveJson<KmbPlacesResponse>(kmbPlacesUrl, PLACE_POLL_MS)
   const lrtLive = useLiveJson<LrtResponse>(layers.lrt ? "/api/lrt" : null, 15_000)

@@ -148,6 +148,16 @@ export function soloLayers(layers: WatchLayers, id: WatchLayer): WatchLayers {
   return next
 }
 
+export function soleLayer(layers: WatchLayers): WatchLayer | null {
+  let found: WatchLayer | null = null
+  for (const id of LAYER_IDS) {
+    if (!layers[id]) continue
+    if (found) return null
+    found = id
+  }
+  return found
+}
+
 function readLayers(value: unknown, fallback: WatchLayers): WatchLayers {
   const source = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
   const layers = { ...fallback }
