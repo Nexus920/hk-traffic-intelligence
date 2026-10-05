@@ -16,9 +16,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     id: "2026-10-05-camera-zoom",
     date: "2026-10-05",
     kind: "fixed",
-    en: "A camera appears earlier only at a harbour crossing or a tunnel mouth.",
-    tc: "快拍只在過海口或隧道口才較早出現。",
-    sc: "快拍只在过海口或隧道口才较早出现。",
+    en: "With 「Only」 on, cameras and car parks stay on the map when you zoom out.",
+    tc: "開啟「只看」後，拉遠地圖，快拍和停車場仍然顯示。",
+    sc: "开启「只看」后，拉远地图，快拍和停车场仍然显示。",
   },
   {
     id: "2026-10-05-camera-icon",

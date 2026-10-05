@@ -5,6 +5,15 @@ export const TOLL_LAYER_MS = 6 * 60 * 60 * 1000
 export const WORKS_LAYER_MS = 5 * 60 * 1000
 export const PICTURE_POLL_MS = WORKS_LAYER_MS
 
+const HARBOUR_DISTRICTS: ReadonlySet<string> = new Set([
+  "Central & Western",
+  "Wan Chai",
+  "Eastern",
+  "Yau Tsim Mong",
+  "Kowloon City",
+  "Kwun Tong",
+])
+
 const TUNNEL_NAMES: Record<string, string> = {
   WHC: "Western Harbour Crossing",
   CHT: "Cross Harbour Tunnel",
@@ -37,7 +46,7 @@ export function camerasFromWfs(wfs: unknown): GeoJSON.FeatureCollection {
         region: text(feature.properties?.TD_REGION),
         url: isCameraSnapshotUrl(url) ? url : "",
         rotation: rotationOf(feature.properties?.ROTATION),
-        harbour: 0,
+        harbour: HARBOUR_DISTRICTS.has(district) ? 1 : 0,
       },
       geometry: { type: "Point", coordinates },
     })
@@ -170,44 +179,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
+const PORTAL_NAME = /tunnel|portal|harbour crossing/i
 const PORTAL_METRES = 400
-const TUNNEL_NAME = /tunnel|隧道/i
-const MOUTH_NAME = /portal|toll plaza|隧道口|出入口|收費廣場|收费广场|\b(side|entrance|exit)\b|入口|出口/i
 
 export function withPortalCameras(
   cameras: GeoJSON.FeatureCollection,
   tolls: GeoJSON.FeatureCollection,
 ): GeoJSON.FeatureCollection {
   const portals = tolls.features.flatMap((feature) => {
-    if (feature.properties?.band !== "portal") return []
     const coordinates = pointCoordinates(feature)
     return coordinates ? [coordinates] : []
   })
   return {
     type: "FeatureCollection",
     features: cameras.features.map((feature) => {
-      const name = cameraLabel(feature)
+      const name = feature.properties && typeof feature.properties.name === "string" ? feature.properties.name : ""
       const coordinates = pointCoordinates(feature)
-      const atMouth = coordinates != null && portals.some((point) => metres(coordinates, point) <= PORTAL_METRES)
+      const atPortal = coordinates != null && portals.some((point) => metres(coordinates, point) <= PORTAL_METRES)
       return {
         ...feature,
         properties: {
           ...feature.properties,
-          portal: atMouth || watchesMouth(name) ? 1 : 0,
+          portal: PORTAL_NAME.test(name) || atPortal ? 1 : 0,
         },
       }
     }),
   }
-}
-
-function cameraLabel(feature: GeoJSON.Feature): string {
-  const name = feature.properties && typeof feature.properties.name === "string" ? feature.properties.name : ""
-  const traditional = feature.properties && typeof feature.properties.nameTc === "string" ? feature.properties.nameTc : ""
-  return `${name} ${traditional}`.trim()
-}
-
-function watchesMouth(name: string): boolean {
-  return TUNNEL_NAME.test(name) && MOUTH_NAME.test(name)
 }
 
 function pointCoordinates(feature: GeoJSON.Feature): [number, number] | null {
