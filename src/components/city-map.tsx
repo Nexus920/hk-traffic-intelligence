@@ -1788,24 +1788,39 @@ function cameraCone(): ImageData | null {
   if (!context) return null
   context.clearRect(0, 0, size, size)
   context.translate(size / 2, size / 2)
-  context.beginPath()
-  context.moveTo(0, 2)
-  context.lineTo(-18, -26)
-  context.quadraticCurveTo(0, -18, 18, -26)
-  context.closePath()
-  context.fillStyle = "rgba(125, 211, 232, 0.72)"
-  context.fill()
-  context.lineWidth = 2
-  context.strokeStyle = "rgba(236, 254, 255, 0.95)"
-  context.stroke()
-  context.beginPath()
-  context.arc(0, 2, 5, 0, Math.PI * 2)
+  context.lineJoin = "round"
+  roundBox(context, -16, -6, 32, 24, 5)
   context.fillStyle = "#F4FEFF"
   context.fill()
-  context.lineWidth = 1.5
+  context.lineWidth = 2.5
   context.strokeStyle = "#083044"
   context.stroke()
+  roundBox(context, -7, -12, 14, 8, 2)
+  context.fillStyle = "#083044"
+  context.fill()
+  context.beginPath()
+  context.arc(0, -18, 8, 0, Math.PI * 2)
+  context.fillStyle = "#083044"
+  context.fill()
+  context.beginPath()
+  context.arc(0, -18, 4.5, 0, Math.PI * 2)
+  context.fillStyle = "#7DD3E8"
+  context.fill()
+  context.beginPath()
+  context.arc(-1.5, -19.4, 1.5, 0, Math.PI * 2)
+  context.fillStyle = "#F4FEFF"
+  context.fill()
   return context.getImageData(0, 0, size, size)
+}
+
+function roundBox(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  context.beginPath()
+  context.moveTo(x + radius, y)
+  context.arcTo(x + width, y, x + width, y + height, radius)
+  context.arcTo(x + width, y + height, x, y + height, radius)
+  context.arcTo(x, y + height, x, y, radius)
+  context.arcTo(x, y, x + width, y, radius)
+  context.closePath()
 }
 
 function busStopCollection(map: Map, board: CitybusResponse, locale: Locale, labels: boolean, stroke: string): GeoJSON.FeatureCollection {

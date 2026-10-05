@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-camera-icon",
+    date: "2026-10-05",
+    kind: "improved",
+    en: "A camera on the map is drawn as a camera, with the lens pointing the way it faces.",
+    tc: "地圖上的快拍改為相機圖示，鏡頭指向拍攝方向。",
+    sc: "地图上的快拍改为相机图示，镜头指向拍摄方向。",
+  },
+  {
     id: "2026-10-05-keep-left",
     date: "2026-10-05",
     kind: "fixed",
