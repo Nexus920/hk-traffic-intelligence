@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-camera-zoom",
+    date: "2026-10-05",
+    kind: "fixed",
+    en: "A camera appears earlier only at a harbour crossing or a tunnel mouth.",
+    tc: "快拍只在過海口或隧道口才較早出現。",
+    sc: "快拍只在过海口或隧道口才较早出现。",
+  },
+  {
     id: "2026-10-05-camera-icon",
     date: "2026-10-05",
     kind: "improved",
