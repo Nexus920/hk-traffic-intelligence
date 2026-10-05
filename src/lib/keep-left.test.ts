@@ -29,6 +29,17 @@ const alone: Carriageway[] = [
 ]
 assert.equal(keepLeftCarriageways(alone)[0]?.coordinates[0]?.[0], 114.17)
 
+const shortWrong: Carriageway[] = [
+  { id: "east", roadTc: "夏慤道", roadEn: "HARCOURT ROAD", direction: "3", coordinates: [[114.17, 22.28], [114.175, 22.28]] },
+  { id: "west", roadTc: "夏慤道", roadEn: "HARCOURT ROAD", direction: "3", coordinates: [[114.175, 22.28015], [114.17, 22.28015]] },
+  { id: "stub", roadTc: "夏慤道", roadEn: "HARCOURT ROAD", direction: "3", coordinates: [[114.1712, 22.28012], [114.17095, 22.28012]] },
+]
+const shortTurned = keepLeftCarriageways(shortWrong)
+assert.equal(shortTurned[0]?.coordinates[0]?.[0], 114.175)
+assert.equal(shortTurned[1]?.coordinates[0]?.[0], 114.17)
+assert.equal(shortTurned[2]?.coordinates[0]?.[0], 114.17095)
+assert.deepEqual(keepLeftCarriageways(shortTurned).map((line) => line.coordinates[0]?.[0]), shortTurned.map((line) => line.coordinates[0]?.[0]))
+
 function bearing(a: [number, number], b: [number, number]): number {
   const east = (b[0] - a[0]) * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180)
   const north = b[1] - a[1]

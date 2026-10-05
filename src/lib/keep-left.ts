@@ -56,6 +56,21 @@ function turnWrongPairs<T extends Carriageway>(lines: readonly T[]): T[] {
       if (partners.length > 0 && partners.every((partner) => onRight(span.deg, partner.closest, span.mid))) reverse.add(span.index)
     }
   }
+  lines.forEach((line, index) => {
+    if (reverse.has(index) || line.direction !== "3" || line.coordinates.length < 2) return
+    const lengthM = lengthMetres(line.coordinates)
+    if (lengthM < 1 || lengthM >= MIN_LENGTH_M) return
+    const key = line.roadTc.trim() || line.roadEn.trim()
+    const group = byRoad.get(key)
+    if (!group) return
+    const first = line.coordinates[0]
+    const last = line.coordinates[line.coordinates.length - 1]
+    const mid = halfway(line.coordinates)
+    if (!first || !last || !mid) return
+    const span = { index, key, deg: bearing(first, last), mid }
+    const partners = oppositeSides(lines, group, span)
+    if (partners.length > 0 && partners.every((partner) => onRight(span.deg, partner.closest, span.mid))) reverse.add(index)
+  })
   return lines.map((line, index) => (reverse.has(index) ? { ...line, coordinates: line.coordinates.slice().reverse() } : line))
 }
 
