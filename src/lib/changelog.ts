@@ -13,6 +13,30 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-mtr-bus",
+    date: "2026-10-05",
+    kind: "added",
+    en: "MTR buses appear at their stops, including K51 and K51A at Fu Tai. Opening a stop shows the published minutes.",
+    tc: "港鐵巴士會在車站出現，包括富泰的 K51 和 K51A。打開車站，會顯示已公布的分鐘。",
+    sc: "港铁巴士会在车站出现，包括富泰的 K51 和 K51A。打开车站，会显示已公布的分钟。",
+  },
+  {
+    id: "2026-10-05-locate",
+    date: "2026-10-05",
+    kind: "added",
+    en: "The map can mark where you are when you ask it.",
+    tc: "按下定位，地圖會標出你的位置。",
+    sc: "按下定位，地图会标出你的位置。",
+  },
+  {
+    id: "2026-10-05-parking-time",
+    date: "2026-10-05",
+    kind: "improved",
+    en: "A car park card shows the time the Transport Department published the spaces.",
+    tc: "停車場卡片會顯示運輸署公布空位的時間。",
+    sc: "停车场卡片会显示运输署公布空位的时间。",
+  },
+  {
     id: "2026-10-05-only-beside",
     date: "2026-10-05",
     kind: "improved",

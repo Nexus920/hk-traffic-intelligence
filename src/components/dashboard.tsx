@@ -78,6 +78,11 @@ export function Dashboard() {
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
   const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
+  const mtrBusQuery =
+    view && view.zoom >= placePinZoom("mtrbus", sole)
+      ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
+      : null
+  const mtrBusPlacesUrl = layers.mtrbus && mtrBusQuery ? `/api/mtr-bus/places?${mtrBusQuery}` : null
   const parkingWide = sole === "parking"
   const parkingPlacesUrl =
     layers.parking && view && view.zoom >= placePinZoom("parking", sole)
@@ -89,6 +94,7 @@ export function Dashboard() {
   const citybusPlacesLive = useLiveJson<CitybusPlacesResponse>(citybusPlacesUrl, PLACE_POLL_MS)
   const gmbPlacesLive = useLiveJson<GmbPlacesResponse>(gmbPlacesUrl, PLACE_POLL_MS)
   const nlbPlacesLive = useLiveJson<NlbPlacesResponse>(nlbPlacesUrl, PLACE_POLL_MS)
+  const mtrBusPlacesLive = useLiveJson<CitybusPlacesResponse>(mtrBusPlacesUrl, PLACE_POLL_MS)
   const ferryLive = useLiveJson<FerryResponse>(layers.ferry ? "/api/ferry" : null, 60_000)
   const parkingPlacesLive = useLiveJson<ParkingPlacesResponse>(parkingPlacesUrl, PLACE_POLL_MS)
   const traffic = trafficLive.data
@@ -103,6 +109,7 @@ export function Dashboard() {
   const citybus = catalogueBoards(citybusPlacesLive.data)
   const gmb = catalogueBoards(gmbPlacesLive.data)
   const nlb = catalogueBoards(nlbPlacesLive.data)
+  const mtrBus = catalogueBoards(mtrBusPlacesLive.data)
   const ferry = ferryLive.data
   const trafficLoading = traffic === null && trafficLive.error === null
   const trafficError = trafficLive.error ?? (traffic && !traffic.ok ? traffic.error ?? "Speed feed failed" : null)
@@ -140,6 +147,7 @@ export function Dashboard() {
         citybus={citybus}
         gmb={gmb}
         nlb={nlb}
+        mtrBus={mtrBus}
         ferry={ferry?.ok ? ferry : null}
         parking={parkingPlacesLive.data?.ok ? parkingPlacesLive.data.parks : null}
         onView={setView}
@@ -173,6 +181,7 @@ export function Dashboard() {
         citybusError={liveError(citybusPlacesLive.error, citybusPlacesLive.data, "Citybus stops failed")}
         gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus stops failed")}
         nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus stops failed")}
+        mtrBusError={liveError(mtrBusPlacesLive.error, mtrBusPlacesLive.data, "MTR bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         boardFaults={boardFaults}
         open={intelOpen}
@@ -218,6 +227,7 @@ export function Dashboard() {
           citybus: null,
           gmb: null,
           nlb: null,
+          mtrbus: null,
           ferry: null,
           parking: null,
           control: null,
@@ -233,6 +243,7 @@ export function Dashboard() {
         citybusError={liveError(citybusPlacesLive.error, citybusPlacesLive.data, "Citybus stops failed")}
         gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus stops failed")}
         nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus stops failed")}
+        mtrBusError={liveError(mtrBusPlacesLive.error, mtrBusPlacesLive.data, "MTR bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         parkingError={liveError(parkingPlacesLive.error, parkingPlacesLive.data, "Parking catalogue failed")}
         aboveMarquee={!intelOpen}

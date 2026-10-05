@@ -37,6 +37,7 @@ const quiet: IntelInput = {
   citybusError: null,
   gmbError: null,
   nlbError: null,
+  mtrBusError: null,
   ferryError: null,
   mapError: null,
 }
@@ -64,6 +65,7 @@ const stopList = intelBoard(
     citybusError: "Citybus stops failed",
     gmbError: "Green minibus stops failed",
     nlbError: "New Lantao Bus stops failed",
+    mtrBusError: null,
   },
   MESSAGES["zh-HK"],
 )

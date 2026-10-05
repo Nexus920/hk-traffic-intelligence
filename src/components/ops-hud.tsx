@@ -37,6 +37,7 @@ type OpsHudProps = {
   citybusError: string | null
   gmbError: string | null
   nlbError: string | null
+  mtrBusError: string | null
   ferryError: string | null
   boardFaults: readonly BoardFault[]
   open: boolean
@@ -100,6 +101,7 @@ export function OpsHud(props: OpsHudProps) {
     citybusError: props.citybusError,
     gmbError: props.gmbError,
     nlbError: props.nlbError,
+    mtrBusError: props.mtrBusError,
     ferryError: props.ferryError,
     mapError: props.mapLive ? null : m.mapFailed,
     boardFaults: props.boardFaults,

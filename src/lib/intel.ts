@@ -44,6 +44,7 @@ export type IntelInput = {
   citybusError: string | null
   gmbError: string | null
   nlbError: string | null
+  mtrBusError: string | null
   ferryError: string | null
   mapError: string | null
   boardFaults?: readonly BoardFault[]
@@ -92,6 +93,7 @@ function faultsOf(input: IntelInput, m: Messages): IntelItem[] {
     { id: "fault-citybus", score: 370_000, title: m.citybusStopsFailed, detail: input.citybusError },
     { id: "fault-gmb", score: 360_000, title: m.gmbStopsFailed, detail: input.gmbError },
     { id: "fault-nlb", score: 350_000, title: m.nlbStopsFailed, detail: input.nlbError },
+    { id: "fault-mtrbus", score: 345_000, title: m.mtrBusStopsFailed, detail: input.mtrBusError },
     { id: "fault-ferry", score: 340_000, title: m.ferryFailed, detail: input.ferryError },
     { id: "fault-map", score: 1_200_000, title: m.mapFailed, detail: input.mapError },
   ]

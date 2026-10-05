@@ -54,6 +54,8 @@ export function boardFailedCopy(operator: StopOperator, m: Messages): string {
       return m.gmbFailed
     case "nlb":
       return m.nlbFailed
+    case "mtrbus":
+      return m.mtrBusFailed
     default: {
       const exhaustive: never = operator
       return exhaustive

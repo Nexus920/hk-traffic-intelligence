@@ -1,17 +1,18 @@
 import { loadCitybusBoard } from "@/lib/citybus-feed"
 import { loadGmbBoard } from "@/lib/gmb-feed"
 import { loadKmbBoard } from "@/lib/kmb-feed"
+import { loadMtrBusBoard } from "@/lib/mtr-bus-feed"
 import { loadNlbBoard } from "@/lib/nlb-feed"
 import type { CitybusStopBoard, KmbStopBoard } from "@/lib/types"
 
-export const STOP_OPERATORS = ["kmb", "citybus", "gmb", "nlb"] as const
+export const STOP_OPERATORS = ["kmb", "citybus", "gmb", "nlb", "mtrbus"] as const
 
 export type StopOperator = (typeof STOP_OPERATORS)[number]
 
 export type StopBoard = KmbStopBoard | CitybusStopBoard
 
 export function isStopOperator(value: string | null): value is StopOperator {
-  return value === "kmb" || value === "citybus" || value === "gmb" || value === "nlb"
+  return value === "kmb" || value === "citybus" || value === "gmb" || value === "nlb" || value === "mtrbus"
 }
 
 export function loadStopBoard(op: StopOperator, id: string): Promise<{ ok: true; stop: StopBoard } | { ok: false }> {
@@ -24,6 +25,8 @@ export function loadStopBoard(op: StopOperator, id: string): Promise<{ ok: true;
       return loadGmbBoard(id)
     case "nlb":
       return loadNlbBoard(id)
+    case "mtrbus":
+      return loadMtrBusBoard(id)
     default: {
       const exhaustive: never = op
       return exhaustive

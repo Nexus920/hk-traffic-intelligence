@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react"
 import {
   GeoJSONSource,
+  GeolocateControl,
   GPUInitializationError,
   Map,
   NavigationControl,
@@ -27,6 +28,7 @@ import {
   gmbStopPopup,
   lrtStationPopup,
   nlbStopPopup,
+  mtrBusStopPopup,
   parkingPopup,
   lrtTrainPopup,
   corridorPopup,
@@ -180,7 +182,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -203,6 +205,7 @@ type CityMapProps = {
   citybus: CitybusResponse | null
   gmb: GmbResponse | null
   nlb: NlbResponse | null
+  mtrBus: NlbResponse | null
   ferry: FerryResponse | null
   parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[] | null
   onView: (view: { lng: number; lat: number; zoom: number }) => void
@@ -233,6 +236,7 @@ export function CityMap({
   citybus,
   gmb,
   nlb,
+  mtrBus,
   ferry,
   parking,
   onView,
@@ -280,7 +284,11 @@ export function CityMap({
   useEffect(() => {
     copyRef.current = messages
     localeRef.current = locale
-  }, [locale, messages])
+    const button = containerRef.current?.querySelector<HTMLButtonElement>(".maplibregl-ctrl-geolocate")
+    if (!button) return
+    button.title = messages.locate
+    button.setAttribute("aria-label", messages.locate)
+  }, [locale, mapReady, messages])
 
   useEffect(() => {
     corridorsRef.current = corridors
@@ -391,6 +399,12 @@ export function CityMap({
       }
     }
     map.addControl(new NavigationControl({ visualizePitch: true }), "top-left")
+    map.addControl(new GeolocateControl({
+      positionOptions: { enableHighAccuracy: true, timeout: 8_000, maximumAge: 15_000 },
+      trackUserLocation: false,
+      showUserLocation: true,
+      fitBoundsOptions: { maxZoom: 16 },
+    }), "top-left")
     mapRef.current = map
     holdDataCreditOpen(map)
 
@@ -697,6 +711,11 @@ export function CityMap({
       } else if (nlb?.ok) {
         geoJsonSource(map, "nlb-stops")?.setData(busStopCollection(map, nlb, locale, labels, "#0f766e"))
       }
+      if (!layers.mtrbus) {
+        geoJsonSource(map, "mtrbus-stops")?.setData(emptyCollection())
+      } else if (mtrBus?.ok) {
+        geoJsonSource(map, "mtrbus-stops")?.setData(busStopCollection(map, mtrBus, locale, labels, "#166534"))
+      }
       if (!layers.ferry) {
         geoJsonSource(map, "ferry-piers")?.setData(emptyCollection())
         geoJsonSource(map, "ferry-vessels")?.setData(emptyCollection())
@@ -715,7 +734,7 @@ export function CityMap({
     return () => {
       map.off("zoomend", paint)
     }
-  }, [citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.nlb, layers.parking, locale, lrt, mapReady, mtr, nlb, parking, picture, styleEpoch])
+  }, [citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, mtr, mtrBus, nlb, parking, picture, styleEpoch])
 
   useEffect(() => {
     const map = mapRef.current
@@ -737,7 +756,7 @@ export function CityMap({
   useEffect(() => {
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
-    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "ferry", "parking"]
+    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking"]
     const sole = soleLayer(layers)
     const pinZoom: Partial<Record<string, number>> = {
       "kmb-stops": placePinZoom("kmb", sole),
@@ -745,6 +764,7 @@ export function CityMap({
       "citybus-stops": placePinZoom("citybus", sole),
       "gmb-stops": placePinZoom("gmb", sole),
       "nlb-stops": placePinZoom("nlb", sole),
+      "mtrbus-stops": placePinZoom("mtrbus", sole),
     }
     for (const kind of kinds) {
       for (const layerId of layerIds(kind)) {
@@ -1200,6 +1220,7 @@ function mountDataLayers(map: Map) {
   map.addSource("citybus-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("gmb-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("nlb-stops", { type: "geojson", data: emptyCollection() })
+  map.addSource("mtrbus-stops", { type: "geojson", data: emptyCollection(), attribution: "© MTR Corporation" })
   map.addSource("ferry-piers", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessel-labels", { type: "geojson", data: emptyCollection() })
@@ -1322,6 +1343,8 @@ function bindOverlayClicks(
     "gmb-stop-label": gmbStopPopup,
     "nlb-stops": nlbStopPopup,
     "nlb-stop-label": nlbStopPopup,
+    "mtrbus-stops": mtrBusStopPopup,
+    "mtrbus-stop-label": mtrBusStopPopup,
     "ferry-piers": ferryStopPopup,
     "ferry-pier-label": ferryStopPopup,
     "ferry-vessels": ferryStopPopup,
@@ -1624,6 +1647,20 @@ function addWatchLayers(map: Map, before: string | undefined) {
   }, before)
   addStopLabel(map, "nlb-stop-label", "nlb-stops", before, LABEL_MIN_ZOOM, false)
   addOverlay(map, {
+    id: "mtrbus-stops",
+    type: "circle",
+    source: "mtrbus-stops",
+    minzoom: KMB_MIN_ZOOM,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-color": "#f0fdf4",
+      "circle-stroke-color": "#166534",
+      "circle-stroke-width": 1.5,
+      "circle-pitch-alignment": "map",
+    },
+  }, before)
+  addStopLabel(map, "mtrbus-stop-label", "mtrbus-stops", before, LABEL_MIN_ZOOM, false)
+  addOverlay(map, {
     id: "ferry-piers",
     type: "circle",
     source: "ferry-piers",
@@ -1903,6 +1940,8 @@ function layerIds(kind: WatchLayer): string[] {
       return ["gmb-stops", "gmb-stop-label"]
     case "nlb":
       return ["nlb-stops", "nlb-stop-label"]
+    case "mtrbus":
+      return ["mtrbus-stops", "mtrbus-stop-label"]
     case "ferry":
       return ["ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
     case "parking":

@@ -143,6 +143,7 @@ export type Messages = {
   tolls: string
   incidentsLayer: string
   replay: string
+  locate: string
   layerOnly: string
   basemap: string
   speedKey: string
@@ -208,6 +209,10 @@ export type Messages = {
   nlbFailed: string
   nlbStopsFailed: string
   nlbNone: string
+  mtrBus: string
+  mtrBusFailed: string
+  mtrBusStopsFailed: string
+  mtrBusNone: string
   ferry: string
   ferryFailed: string
   ferryNone: string
@@ -219,6 +224,7 @@ export type Messages = {
   parkingHgv: string
   parkingMotorcycle: string
   parkingSpaces: (n: number) => string
+  parkingAsOf: (count: string, time: string) => string
   parkingHeight: (n: number) => string
 }
 
@@ -334,6 +340,7 @@ const en: Messages = {
   tolls: "Tolls",
   incidentsLayer: "Incidents",
   replay: "Replay",
+  locate: "My location",
   layerOnly: "Only",
   basemap: "Basemap",
   speedKey: "Official traffic class. Good, average, and bad are the Transport Department saturation levels.",
@@ -399,6 +406,10 @@ const en: Messages = {
   nlbFailed: "New Lantao Bus arrivals did not load.",
   nlbStopsFailed: "New Lantao Bus stops did not load.",
   nlbNone: "No arrival on the board",
+  mtrBus: "MTR Bus",
+  mtrBusFailed: "MTR bus arrivals did not load.",
+  mtrBusStopsFailed: "MTR bus stops did not load.",
+  mtrBusNone: "No arrival on the board",
   ferry: "Ferry",
   ferryFailed: "Ferry arrivals did not load.",
   ferryNone: "No sailing on the board",
@@ -410,6 +421,7 @@ const en: Messages = {
   parkingHgv: "Heavy goods",
   parkingMotorcycle: "Motorcycle",
   parkingSpaces: (n) => `${n} spaces`,
+  parkingAsOf: (count, time) => `${count} at ${time}`,
   parkingHeight: (n) => `Height limit ${n} m`,
 }
 
@@ -525,6 +537,7 @@ const zhHK: Messages = {
   tolls: "隧道",
   incidentsLayer: "事故",
   replay: "重播",
+  locate: "我的位置",
   layerOnly: "只看",
   basemap: "底圖",
   speedKey: "運輸署交通狀況等級：暢順、緩慢、擠塞。",
@@ -590,6 +603,10 @@ const zhHK: Messages = {
   nlbFailed: "未能取得嶼巴到站時間。",
   nlbStopsFailed: "未能載入嶼巴車站。",
   nlbNone: "班次表沒有到站時間",
+  mtrBus: "港鐵巴士",
+  mtrBusFailed: "未能取得港鐵巴士到站時間。",
+  mtrBusStopsFailed: "未能載入港鐵巴士車站。",
+  mtrBusNone: "班次表沒有到站時間",
   ferry: "渡輪",
   ferryFailed: "未能取得渡輪航班時間。",
   ferryNone: "未有航班時間",
@@ -601,6 +618,7 @@ const zhHK: Messages = {
   parkingHgv: "重型貨車",
   parkingMotorcycle: "電單車",
   parkingSpaces: (n) => `${n} 個空位`,
+  parkingAsOf: (count, time) => `${count}（${time}）`,
   parkingHeight: (n) => `限高 ${n} 米`,
 }
 
@@ -712,6 +730,7 @@ const zhCN: Messages = {
   tolls: "隧道",
   incidentsLayer: "事故",
   replay: "重播",
+  locate: "我的位置",
   layerOnly: "只看",
   basemap: "底图",
   speedKey: "运输署交通状况等级：畅顺、缓慢、挤塞。",
@@ -771,6 +790,10 @@ const zhCN: Messages = {
   nlbFailed: "未能取得屿巴到站时间。",
   nlbStopsFailed: "未能载入屿巴车站。",
   nlbNone: "班次表没有到站时间",
+  mtrBus: "港铁巴士",
+  mtrBusFailed: "未能取得港铁巴士到站时间。",
+  mtrBusStopsFailed: "未能载入港铁巴士车站。",
+  mtrBusNone: "班次表没有到站时间",
   ferry: "渡轮",
   ferryFailed: "未能取得渡轮航班时间。",
   ferryNone: "未有航班时间",
@@ -782,6 +805,7 @@ const zhCN: Messages = {
   parkingHgv: "重型货车",
   parkingMotorcycle: "电单车",
   parkingSpaces: (n) => `${n} 个空位`,
+  parkingAsOf: (count, time) => `${count}（${time}）`,
   parkingHeight: (n) => `限高 ${n} 米`,
 }
 

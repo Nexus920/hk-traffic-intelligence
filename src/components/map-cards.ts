@@ -337,6 +337,10 @@ export function nlbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
   return busStopPopup(properties, m, m.nlb, m.nlbNone, "nlb")
 }
 
+export function mtrBusStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+  return busStopPopup(properties, m, m.mtrBus, m.mtrBusNone, "mtrbus")
+}
+
 const seenParks = new Map<string, { at: number; spaces: ParkingSpace[] }>()
 
 export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
@@ -385,9 +389,15 @@ function paintParking(body: HTMLElement, spaces: ParkingSpace[], m: Messages) {
   const board = document.createElement("div")
   board.className = "city-card-board"
   for (const space of spaces) {
-    board.append(serviceRow(parkingKindLabel(space.kind, m), space.vacancy == null ? m.parkingNone : m.parkingSpaces(space.vacancy)))
+    board.append(serviceRow(parkingKindLabel(space.kind, m), parkingCount(space, m)))
   }
   body.append(board)
+}
+
+function parkingCount(space: ParkingSpace, m: Messages): string {
+  const count = space.vacancy == null ? m.parkingNone : m.parkingSpaces(space.vacancy)
+  const time = /(\d{2}:\d{2})/.exec(space.updated)?.[1] ?? ""
+  return time ? m.parkingAsOf(count, time) : count
 }
 
 function parkingKindLabel(kind: ParkingKind, m: Messages): string {
@@ -412,10 +422,10 @@ function readParkingSpaces(payload: unknown): ParkingSpace[] | null {
   if (!("spaces" in payload) || !Array.isArray(payload.spaces)) return null
   return payload.spaces.flatMap((item) => {
     if (!item || typeof item !== "object") return []
-    const row = item as { kind?: unknown; vacancy?: unknown }
+    const row = item as { kind?: unknown; vacancy?: unknown; updated?: unknown }
     if (row.kind !== "private" && row.kind !== "lgv" && row.kind !== "hgv" && row.kind !== "motorcycle") return []
     const vacancy = typeof row.vacancy === "number" && Number.isFinite(row.vacancy) ? row.vacancy : null
-    return [{ kind: row.kind, vacancy, updated: "" }]
+    return [{ kind: row.kind, vacancy, updated: typeof row.updated === "string" ? row.updated : "" }]
   })
 }
 
