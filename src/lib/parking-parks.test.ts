@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { parseParkingParks, parseParkingSpaces, parksNear, type ParkingPark } from "./parking-parks.ts"
+import { parseParkingParks, parseParkingSpaces, parksNear, soloParkingRadiusMetres, type ParkingPark } from "./parking-parks.ts"
 
 const near: ParkingPark = {
   id: "near",
@@ -35,5 +35,8 @@ const spaces = parseParkingSpaces({
 }, "a")
 assert.equal(spaces[0]?.vacancy, 4)
 assert.equal(spaces[1]?.vacancy, null)
+const closeRadius = soloParkingRadiusMetres(18, 22.3)
+assert.ok(closeRadius >= 800)
+assert.equal(parksNear([near, { ...near, id: "half", lng: 114.175, lat: 22.284 }], 114.17, 22.28, closeRadius).length, 2)
 
 console.log("parking-parks ok")

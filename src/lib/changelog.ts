@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-parking-zoom",
+    date: "2026-10-05",
+    kind: "fixed",
+    en: "With only car parks on, the pins stay on the map as you zoom in.",
+    tc: "只看停車場時，拉近地圖，停車場標記仍然留在畫面上。",
+    sc: "只看停车场时，拉近地图，停车场标记仍然留在画面上。",
+  },
+  {
     id: "2026-10-05-solo-zoom",
     date: "2026-10-05",
     kind: "improved",

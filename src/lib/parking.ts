@@ -1,7 +1,6 @@
 import { fetchUpstream } from "@/lib/upstream"
-import { KMB_MIN_ZOOM } from "@/lib/kmb-view"
 import { kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
-import { parseParkingParks, parseParkingSpaces, parksNear, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
+import { parseParkingParks, parseParkingSpaces, parksNear, soloParkingRadiusMetres, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
 
 export type ParkingPlacesResponse = { ok: true; parks: ParkingPark[] } | { ok: false; error?: string; parks: ParkingPark[] }
 
@@ -9,7 +8,6 @@ const INFO_URL = "https://resource.data.one.gov.hk/td/carpark/basic_info_all.jso
 const VACANCY_URL = "https://resource.data.one.gov.hk/td/carpark/vacancy_all.json"
 const INFO_MS = 12 * 60 * 60 * 1000
 const VACANCY_MS = 60_000
-const WIDE_RADIUS_M = 80_000
 const WIDE_CAP = 600
 
 export async function loadParkingPlaces(
@@ -20,10 +18,15 @@ export async function loadParkingPlaces(
 ): Promise<{ ok: true; parks: ParkingPark[] } | { ok: false }> {
   const parks = await catalogue()
   if (!parks) return { ok: false }
-  const spread = wide && zoom < KMB_MIN_ZOOM
   return {
     ok: true,
-    parks: parksNear(parks, lng, lat, spread ? WIDE_RADIUS_M : kmbReachMetres(zoom, lat), spread ? WIDE_CAP : STOP_CAP),
+    parks: parksNear(
+      parks,
+      lng,
+      lat,
+      wide ? soloParkingRadiusMetres(zoom, lat) : kmbReachMetres(zoom, lat),
+      wide ? WIDE_CAP : STOP_CAP,
+    ),
   }
 }
 

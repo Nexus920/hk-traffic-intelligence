@@ -18,6 +18,13 @@ export type ParkingSpace = {
 }
 
 const PARK_CAP = 40
+const WIDE_RADIUS_M = 80_000
+
+export function soloParkingRadiusMetres(zoom: number, lat: number): number {
+  if (!Number.isFinite(zoom)) return WIDE_RADIUS_M
+  const metresPerPixel = (156_543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom
+  return Math.min(WIDE_RADIUS_M, Math.max(800, metresPerPixel * 1_600))
+}
 
 export function parksNear(parks: readonly ParkingPark[], lng: number, lat: number, radiusM: number, cap = PARK_CAP): ParkingPark[] {
   const near = parks.flatMap((park) => {

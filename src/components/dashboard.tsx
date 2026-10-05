@@ -79,7 +79,7 @@ export function Dashboard() {
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
   const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
-  const parkingWide = sole === "parking" && view != null && view.zoom < KMB_MIN_ZOOM
+  const parkingWide = sole === "parking"
   const parkingPlacesUrl =
     layers.parking && view && view.zoom >= placePinZoom("parking", sole)
       ? `/api/parking/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${parkingWide ? "&wide=1" : ""}`
