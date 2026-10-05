@@ -1,6 +1,6 @@
 import { fetchUpstream } from "@/lib/upstream"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { joinMeterOccupancy, meterPolesNear, parseMeterSites, type MeterPole, type MeterSite } from "@/lib/meter-poles"
+import { joinMeterOccupancy, meterPolesNear, meterPolesWide, parseMeterSites, type MeterPole, type MeterSite } from "@/lib/meter-poles"
 
 const SPACE_URL = "https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv"
 const OCCUPANCY_URL = "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv"
@@ -10,10 +10,16 @@ const OCCUPANCY_MS = 60_000
 let sites: { at: number; rows: MeterSite[] } | null = null
 let joined: { at: number; poles: MeterPole[] } | null = null
 
-export async function loadMeterPlaces(lng: number, lat: number, zoom = Number.NaN): Promise<{ ok: true; poles: MeterPole[] } | { ok: false }> {
+export async function loadMeterPlaces(
+  lng: number,
+  lat: number,
+  zoom = Number.NaN,
+  wide = false,
+): Promise<{ ok: true; poles: MeterPole[] } | { ok: false }> {
   const poles = await catalogue()
   if (!poles) return { ok: false }
-  return { ok: true, poles: meterPolesNear(poles, lng, lat, kmbReachMetres(zoom, lat)) }
+  const radius = kmbReachMetres(zoom, lat)
+  return { ok: true, poles: wide ? meterPolesWide(poles, lng, lat, radius) : meterPolesNear(poles, lng, lat, radius) }
 }
 
 async function catalogue(): Promise<MeterPole[] | null> {

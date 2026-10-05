@@ -24,9 +24,11 @@ type EtaRoute = {
   eta?: EtaEntry[] | null
 }
 
-export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom = Number.NaN): GmbPlacesResponse {
+export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom = Number.NaN, wide = false): GmbPlacesResponse {
   const stops: GmbPlacesResponse["stops"] = []
-  for (const stop of gmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), GMB_CAP)) {
+  const radius = wide ? Number.POSITIVE_INFINITY : kmbReachMetres(zoom, lat)
+  const limit = wide ? Number.POSITIVE_INFINITY : GMB_CAP
+  for (const stop of gmbStopsWithin(lng, lat, radius, limit)) {
     const record = gmbStop(stop.id)
     if (!record) continue
     stops.push({

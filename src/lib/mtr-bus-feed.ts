@@ -14,12 +14,14 @@ const schedules = new Map<string, { at: number; body: unknown }>()
 let poles: MtrBusPole[] | null = null
 let polesAt = 0
 
-export async function loadMtrBusPlaces(lng: number, lat: number, zoom = Number.NaN): Promise<CitybusPlacesResponse> {
+export async function loadMtrBusPlaces(lng: number, lat: number, zoom = Number.NaN, wide = false): Promise<CitybusPlacesResponse> {
   const list = await catalogue()
   if (!list) return { ok: false, error: "MTR bus stops failed", stops: [] }
+  const radius = wide ? Number.POSITIVE_INFINITY : kmbReachMetres(zoom, lat)
+  const limit = wide ? Number.POSITIVE_INFINITY : STOP_CAP
   return {
     ok: true,
-    stops: mtrBusPolesNear(list, lng, lat, kmbReachMetres(zoom, lat), STOP_CAP).map((pole) => ({
+    stops: mtrBusPolesNear(list, lng, lat, radius, limit).map((pole) => ({
       id: pole.id,
       nameTc: pole.nameTc,
       nameEn: pole.nameEn,

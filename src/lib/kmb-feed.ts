@@ -21,11 +21,17 @@ type EtaRow = {
   rmk_tc?: string
 }
 
-export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): KmbPlacesResponse {
+export function loadKmbPlaces(lng: number, lat: number, now = Date.now(), zoom = Number.NaN, wide = false): KmbPlacesResponse {
   refreshKmbCatalogueSoon(now)
   refreshKmbRoutesSoon(now)
+  return kmbPlacesAt(lng, lat, zoom, wide)
+}
+
+export function kmbPlacesAt(lng: number, lat: number, zoom = Number.NaN, wide = false): KmbPlacesResponse {
   const stops: KmbPlacesResponse["stops"] = []
-  for (const stop of kmbStopsWithin(lng, lat, kmbReachMetres(zoom, lat), STOP_CAP)) {
+  const radius = wide ? Number.POSITIVE_INFINITY : kmbReachMetres(zoom, lat)
+  const limit = wide ? Number.POSITIVE_INFINITY : STOP_CAP
+  for (const stop of kmbStopsWithin(lng, lat, radius, limit)) {
     const record = kmbStop(stop.id)
     if (!record) continue
     stops.push({

@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-only-wide",
+    date: "2026-10-05",
+    kind: "improved",
+    en: "With 「Only」 on, KMB, Citybus, green minibuses, New Lantao Bus, and MTR buses fill the wide map. Meters show more poles across that view.",
+    tc: "開啟「只看」後，九巴、城巴、綠色專線小巴、嶼巴和港鐵巴士會鋪滿拉遠的地圖。咪錶會在該視野顯示更多。",
+    sc: "开启「只看」后，九巴、城巴、绿色专线小巴、屿巴和港铁巴士会铺满拉远的地图。咪表会在该视野显示更多。",
+  },
+  {
     id: "2026-10-05-camera-zoom",
     date: "2026-10-05",
     kind: "fixed",

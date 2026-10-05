@@ -1,4 +1,4 @@
-import networkFile from "../../data/kmb-network.json"
+import networkFile from "../../data/kmb-network.json" with { type: "json" }
 import { pointsWithin } from "@/lib/nearest"
 import { indexPoints, mates } from "@/lib/point-index"
 import { catalogueAccepts } from "@/lib/stop-list"

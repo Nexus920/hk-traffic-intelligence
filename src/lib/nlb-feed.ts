@@ -10,9 +10,9 @@ const ETA_ROOT = "https://rt.data.gov.hk/v2/transport/nlb/stop.php?action=estima
 
 type Arrival = { estimatedArrivalTime?: string }
 
-export function loadNlbPlaces(lng: number, lat: number): NlbPlacesResponse {
+export function loadNlbPlaces(lng: number, lat: number, wide = false): NlbPlacesResponse {
   const stops: NlbPlacesResponse["stops"] = []
-  for (const stop of nearestNlbStops(lng, lat, STOP_LIMIT)) {
+  for (const stop of nearestNlbStops(lng, lat, wide ? Number.POSITIVE_INFINITY : STOP_LIMIT)) {
     const record = nlbStop(stop.id)
     if (!record) continue
     stops.push({

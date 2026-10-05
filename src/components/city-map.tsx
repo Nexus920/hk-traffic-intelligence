@@ -41,7 +41,7 @@ import {
   workPopup,
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
-import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
+import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
 import type { MeterPole } from "@/lib/meter-poles"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -1548,9 +1548,9 @@ function addWatchLayers(map: Map, before: string | undefined) {
     id: "kmb-stops",
     type: "circle",
     source: "kmb-stops",
-    minzoom: KMB_MIN_ZOOM,
+    minzoom: SOLO_PIN_ZOOM,
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
       "circle-color": "#f7fbff",
       "circle-stroke-color": "#9f1239",
       "circle-stroke-width": 1.5,
@@ -1576,7 +1576,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
     id: "meters",
     type: "circle",
     source: "meters",
-    minzoom: KMB_MIN_ZOOM,
+    minzoom: SOLO_PIN_ZOOM,
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
       "circle-color": ["match", ["get", "tone"], "open", "#dbeafe", "full", "#e2e8f0", "#f8fafc"],
@@ -1638,9 +1638,9 @@ function addWatchLayers(map: Map, before: string | undefined) {
     id: "citybus-stops",
     type: "circle",
     source: "citybus-stops",
-    minzoom: KMB_MIN_ZOOM,
+    minzoom: SOLO_PIN_ZOOM,
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
       "circle-color": "#fff8e8",
       "circle-stroke-color": "#c2410c",
       "circle-stroke-width": 1.5,
@@ -1652,9 +1652,9 @@ function addWatchLayers(map: Map, before: string | undefined) {
     id: "gmb-stops",
     type: "circle",
     source: "gmb-stops",
-    minzoom: GMB_MIN_ZOOM,
+    minzoom: SOLO_PIN_ZOOM,
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
       "circle-color": "#f7fee7",
       "circle-stroke-color": "#65a30d",
       "circle-stroke-width": 1.5,
@@ -1666,9 +1666,9 @@ function addWatchLayers(map: Map, before: string | undefined) {
     id: "nlb-stops",
     type: "circle",
     source: "nlb-stops",
-    minzoom: KMB_MIN_ZOOM,
+    minzoom: SOLO_PIN_ZOOM,
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
       "circle-color": "#f0fdfa",
       "circle-stroke-color": "#0f766e",
       "circle-stroke-width": 1.5,
@@ -1680,9 +1680,9 @@ function addWatchLayers(map: Map, before: string | undefined) {
     id: "mtrbus-stops",
     type: "circle",
     source: "mtrbus-stops",
-    minzoom: KMB_MIN_ZOOM,
+    minzoom: SOLO_PIN_ZOOM,
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
       "circle-color": "#f0fdf4",
       "circle-stroke-color": "#166534",
       "circle-stroke-width": 1.5,

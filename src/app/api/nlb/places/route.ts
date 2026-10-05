@@ -7,13 +7,14 @@ const empty = (error: string): NlbPlacesResponse => ({ ok: false, error, stops: 
 
 export function GET(request: Request) {
   const url = new URL(request.url)
+  const wide = url.searchParams.get("wide") === "1"
   const lng = Number(url.searchParams.get("lng"))
   const lat = Number(url.searchParams.get("lat"))
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+  if (!wide && (!Number.isFinite(lng) || !Number.isFinite(lat))) {
     return Response.json(empty("New Lantao Bus centre missing"), { status: 400 })
   }
   try {
-    return Response.json(loadNlbPlaces(lng, lat))
+    return Response.json(loadNlbPlaces(Number.isFinite(lng) ? lng : 0, Number.isFinite(lat) ? lat : 0, wide))
   } catch (error) {
     return Response.json(empty(error instanceof Error ? error.message : "New Lantao Bus stops failed"), { status: 502 })
   }

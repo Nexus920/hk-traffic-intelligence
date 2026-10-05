@@ -1,4 +1,4 @@
-import routesFile from "../../data/kmb-routes.json"
+import routesFile from "../../data/kmb-routes.json" with { type: "json" }
 import { getRequestExecutionContext } from "vinext/shims/request-context"
 import { catalogueAccepts } from "@/lib/stop-list"
 import { readRouteStopList } from "@/lib/stop-routes"

@@ -1,5 +1,5 @@
 import { parseCsv } from "./csv.ts"
-import { pointsWithin } from "./nearest.ts"
+import { pointsWithin, spreadWithin } from "./nearest.ts"
 
 export type MeterKind = "general" | "goods" | "coach"
 
@@ -35,6 +35,7 @@ export type MeterPole = {
 export type MeterPlacesResponse = { ok: true; poles: MeterPole[] } | { ok: false; error?: string; poles: MeterPole[] }
 
 export const METER_CAP = 40
+export const METER_WIDE_CAP = 600
 export const METER_POLL_MS = 60_000
 
 export function parseMeterSites(spaceCsv: string): MeterSite[] {
@@ -118,6 +119,10 @@ export function meterClock(updated: string): string {
 
 export function meterPolesNear(poles: readonly MeterPole[], lng: number, lat: number, radiusMetres: number, limit = METER_CAP): MeterPole[] {
   return pointsWithin(poles, lng, lat, radiusMetres, limit)
+}
+
+export function meterPolesWide(poles: readonly MeterPole[], lng: number, lat: number, radiusMetres: number, limit = METER_WIDE_CAP): MeterPole[] {
+  return spreadWithin(poles, lng, lat, radiusMetres, limit)
 }
 
 export function meterFree(pole: MeterPole): number {

@@ -1,4 +1,4 @@
-import networkFile from "../../data/citybus-network.json"
+import networkFile from "../../data/citybus-network.json" with { type: "json" }
 import { nearestPoints } from "@/lib/nearest"
 import { indexPoints, mates } from "@/lib/point-index"
 

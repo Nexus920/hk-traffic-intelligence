@@ -16,9 +16,9 @@ type EtaRow = {
   rmk_tc?: string
 }
 
-export function loadCitybusPlaces(lng: number, lat: number): CitybusPlacesResponse {
+export function loadCitybusPlaces(lng: number, lat: number, wide = false): CitybusPlacesResponse {
   const stops: CitybusPlacesResponse["stops"] = []
-  for (const stop of nearestCitybusStops(lng, lat, STOP_LIMIT)) {
+  for (const stop of nearestCitybusStops(lng, lat, wide ? Number.POSITIVE_INFINITY : STOP_LIMIT)) {
     const record = citybusStop(stop.id)
     if (!record) continue
     stops.push({

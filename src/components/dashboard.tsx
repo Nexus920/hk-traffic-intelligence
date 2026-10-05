@@ -67,31 +67,32 @@ export function Dashboard() {
     view && view.zoom >= placePinZoom("citybus", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
-  const kmbPlacesUrl = layers.kmb && kmbQuery ? `/api/kmb/places?${kmbQuery}` : null
-  const citybusPlacesUrl = layers.citybus && citybusQuery ? `/api/citybus/places?${citybusQuery}` : null
+  const kmbPlacesUrl = layers.kmb && kmbQuery ? (sole === "kmb" ? "/api/kmb/places?wide=1" : `/api/kmb/places?${kmbQuery}`) : null
+  const citybusPlacesUrl = layers.citybus && citybusQuery ? (sole === "citybus" ? "/api/citybus/places?wide=1" : `/api/citybus/places?${citybusQuery}`) : null
   const gmbQuery =
     view && view.zoom >= placePinZoom("gmb", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
-  const gmbPlacesUrl = layers.gmb && gmbQuery ? `/api/gmb/places?${gmbQuery}` : null
+  const gmbPlacesUrl = layers.gmb && gmbQuery ? (sole === "gmb" ? "/api/gmb/places?wide=1" : `/api/gmb/places?${gmbQuery}`) : null
   const nlbQuery =
     view && view.zoom >= placePinZoom("nlb", sole) && (sole === "nlb" || inLantau(view.lng, view.lat))
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
-  const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
+  const nlbPlacesUrl = layers.nlb && nlbQuery ? (sole === "nlb" ? "/api/nlb/places?wide=1" : `/api/nlb/places?${nlbQuery}`) : null
   const mtrBusQuery =
     view && view.zoom >= placePinZoom("mtrbus", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
-  const mtrBusPlacesUrl = layers.mtrbus && mtrBusQuery ? `/api/mtr-bus/places?${mtrBusQuery}` : null
+  const mtrBusPlacesUrl = layers.mtrbus && mtrBusQuery ? (sole === "mtrbus" ? "/api/mtr-bus/places?wide=1" : `/api/mtr-bus/places?${mtrBusQuery}`) : null
   const parkingWide = sole === "parking"
   const parkingPlacesUrl =
     layers.parking && view && view.zoom >= placePinZoom("parking", sole)
       ? `/api/parking/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${parkingWide ? "&wide=1" : ""}`
       : null
+  const meterWide = sole === "meter"
   const meterPlacesUrl =
     layers.meter && view && view.zoom >= placePinZoom("meter", sole)
-      ? `/api/meters/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
+      ? `/api/meters/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${meterWide ? "&wide=1" : ""}`
       : null
   const mtrLive = useLiveJson<MtrResponse>("/api/mtr", 15_000)
   const kmbPlacesLive = useLiveJson<KmbPlacesResponse>(kmbPlacesUrl, PLACE_POLL_MS)

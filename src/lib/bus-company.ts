@@ -1,4 +1,4 @@
-import lwbRoutes from "../../data/lwb-routes.json"
+import lwbRoutes from "../../data/lwb-routes.json" with { type: "json" }
 
 // The shared ETA feed currently marks Long Win routes with company code KMB.
 // These route numbers are the Long Win services on that same feed.

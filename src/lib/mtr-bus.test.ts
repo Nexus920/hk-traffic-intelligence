@@ -12,6 +12,7 @@ assert.equal(shared?.routes.join(","), "K51,K51A")
 assert.deepEqual(shared?.stopIds.sort(), ["K51-U010", "K51A-U010"])
 assert.equal(poles.find((pole) => pole.stopIds.includes("K58-U010"))?.nameEn, "Fu Tai, Estate")
 assert.equal(mtrBusPolesNear(poles, 113.982895, 22.413286, 30, 5).length, 1)
+assert.equal(mtrBusPolesNear(poles, 0, 0, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY).length, poles.length)
 
 assert.equal(mtrBusMinutes("108000", "552"), 9)
 assert.equal(mtrBusMinutes("631", "647"), 11)

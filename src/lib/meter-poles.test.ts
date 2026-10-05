@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { meterClock, meterFree, meterPolesNear, parseMeterPoles, parseMeterSites, METER_CAP, type MeterPole } from "./meter-poles.ts"
+import { meterClock, meterFree, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
 
 const spaces = `2026-10-04
 
@@ -35,6 +35,14 @@ const crowded = island
   ? Array.from({ length: METER_CAP + 5 }, (_, index): MeterPole => ({ ...crowdedPole(island, index) }))
   : []
 assert.equal(meterPolesNear(crowded, 114.15, 22.28, 5_000).length, METER_CAP)
+
+const west = Array.from({ length: 40 }, (_, index): MeterPole => ({ ...crowdedPole(island!, index), lng: 113.9 + index * 0.0001, lat: 22.2 }))
+const east = Array.from({ length: 40 }, (_, index): MeterPole => ({ ...crowdedPole(island!, index + 40), lng: 114.4 + index * 0.0001, lat: 22.4 }))
+const spread = meterPolesWide([...west, ...east], 114.15, 22.3, 80_000, 10)
+assert.equal(spread.length, 10)
+assert.ok(spread.some((pole) => pole.lng < 114))
+assert.ok(spread.some((pole) => pole.lng > 114.3))
+assert.equal(meterPolesWide(west, 113.9, 22.2, 5_000, METER_WIDE_CAP).length, west.length)
 
 function crowdedPole(pole: MeterPole, index: number): MeterPole {
   return { ...pole, id: String(index), lng: pole.lng + index * 0.00001 }
