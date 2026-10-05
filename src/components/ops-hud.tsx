@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react"
 import { createPortal, flushSync } from "react-dom"
 import { useI18n } from "@/components/locale"
-import { useLiveJson } from "@/components/use-live-json"
 import { boundaryGlance } from "@/lib/control-points"
 import { crossingsFrom, nearestApproach } from "@/lib/crossings"
 import { displayText, formatClock, LOCALE_MARK, LOCALES, type Messages } from "@/lib/i18n"
@@ -59,12 +58,8 @@ const BAR_KEY = {
   WH: "western",
 } as const
 
-type VisitDay = { day: string; people: number; opens: number }
-type VisitsResponse = { ok: boolean; day: string; people: number; opens: number; days: VisitDay[] }
-
 export function OpsHud(props: OpsHudProps) {
   const { locale, setLocale, messages: m } = useI18n()
-  const visits = useLiveJson<VisitsResponse>("/api/visits", 120_000)
   const clock = useHongKongClock(locale)
   const prefs = useSyncExternalStore(subscribePreferences, preferenceSnapshot, preferenceServerSnapshot)
   const tab = prefs.intelTab
@@ -349,15 +344,6 @@ export function OpsHud(props: OpsHudProps) {
               onClick={() => show("weather", undefined)}
             />
           ) : null}
-          {visits.data?.ok ? (
-            <Metric
-              label={m.visitVisitors}
-              value={String(visits.data.people)}
-              tone="#7DD3E8"
-              hint={m.visitToday(visits.data.people, visits.data.opens)}
-              onClick={() => show("notes", undefined)}
-            />
-          ) : null}
           <div className="inline-flex shrink-0 border border-white/15 sm:hidden" role="group" aria-label={m.language}>
             {LOCALES.map((item) => (
               <button
@@ -488,7 +474,7 @@ export function OpsHud(props: OpsHudProps) {
             className="intel-scroll max-h-[min(26rem,46dvh,var(--intel-list-max,100dvh))] overflow-y-auto border-t border-white/10 px-2 py-2"
           >
             {tab === "notes" ? (
-              <ChangelogList days={visits.data?.ok ? visits.data.days : []} />
+              <ChangelogList />
             ) : intel.length === 0 ? (
               <p className="px-1 py-2 text-sm text-zinc-300">{emptyCopy(tab, m)}</p>
             ) : (
@@ -639,7 +625,7 @@ function Metric(props: { label: string; value: string; tone: string; hint?: stri
   )
 }
 
-function ChangelogList(props: { days: readonly VisitDay[] }) {
+function ChangelogList() {
   const { locale, messages: m } = useI18n()
   const kind = {
     added: m.changelogAdded,
@@ -648,18 +634,6 @@ function ChangelogList(props: { days: readonly VisitDay[] }) {
   }
   return (
     <ol className="flex flex-col gap-2">
-      {props.days.length > 0 ? (
-        <li className="border border-white/10 bg-black/20 px-2 py-1.5">
-          <p className="font-[family-name:var(--font-hud)] text-[0.62rem] tracking-[0.08em] text-cyan-100/80 uppercase">{m.visitVisitors}</p>
-          <ul className="mt-1 flex flex-col gap-1">
-            {[...props.days].reverse().map((item) => (
-              <li key={item.day} className="text-sm leading-5 text-zinc-100">
-                {item.day} · {m.visitToday(item.people, item.opens)}
-              </li>
-            ))}
-          </ul>
-        </li>
-      ) : null}
       {CHANGELOG.map((entry) => (
         <li key={entry.id} className="border border-white/10 bg-black/20 px-2 py-1.5">
           <p className="flex flex-wrap items-center gap-2 font-[family-name:var(--font-hud)] text-[0.62rem] tracking-[0.08em] text-cyan-100/80 uppercase">
