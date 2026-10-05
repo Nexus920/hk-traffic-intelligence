@@ -19,6 +19,7 @@ const LAYER_IDS: readonly WatchLayer[] = [
   "mtrbus",
   "ferry",
   "parking",
+  "meter",
 ]
 
 const TABS = ["ranked", "roads", "boundary", "weather", "systems", "notes"] as const
@@ -54,6 +55,7 @@ export const PREFERENCE_DEFAULTS: Preferences = {
     mtrbus: true,
     ferry: true,
     parking: true,
+    meter: true,
   },
   basemap: "satellite",
   ground: "satellite",

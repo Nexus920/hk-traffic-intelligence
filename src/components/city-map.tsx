@@ -29,6 +29,7 @@ import {
   lrtStationPopup,
   nlbStopPopup,
   mtrBusStopPopup,
+  meterPopup,
   parkingPopup,
   lrtTrainPopup,
   corridorPopup,
@@ -41,6 +42,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
+import type { MeterPole } from "@/lib/meter-poles"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
 import { lineRecord, mtrStationCollection, mtrTrackCollection, stationPoint, stationRecord } from "@/lib/mtr-network"
@@ -182,7 +184,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "meters", "meters-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -208,6 +210,7 @@ type CityMapProps = {
   mtrBus: NlbResponse | null
   ferry: FerryResponse | null
   parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[] | null
+  meters: MeterPole[] | null
   onView: (view: { lng: number; lat: number; zoom: number }) => void
   layers: WatchLayers
   basemap: Basemap
@@ -239,6 +242,7 @@ export function CityMap({
   mtrBus,
   ferry,
   parking,
+  meters,
   onView,
   layers,
   basemap,
@@ -728,13 +732,18 @@ export function CityMap({
       } else {
         geoJsonSource(map, "parking")?.setData(parkingCollection(map, parking, locale, labels))
       }
+      if (!layers.meter || !meters) {
+        geoJsonSource(map, "meters")?.setData(emptyCollection())
+      } else {
+        geoJsonSource(map, "meters")?.setData(meterCollection(map, meters, locale, labels))
+      }
     }
     paint()
     map.on("zoomend", paint)
     return () => {
       map.off("zoomend", paint)
     }
-  }, [citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, mtr, mtrBus, nlb, parking, picture, styleEpoch])
+  }, [citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.meter, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, meters, mtr, mtrBus, nlb, parking, picture, styleEpoch])
 
   useEffect(() => {
     const map = mapRef.current
@@ -756,11 +765,12 @@ export function CityMap({
   useEffect(() => {
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
-    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking"]
+    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking", "meter"]
     const sole = soleLayer(layers)
     const pinZoom: Partial<Record<string, number>> = {
       "kmb-stops": placePinZoom("kmb", sole),
       parking: placePinZoom("parking", sole),
+      meters: placePinZoom("meter", sole),
       "citybus-stops": placePinZoom("citybus", sole),
       "gmb-stops": placePinZoom("gmb", sole),
       "nlb-stops": placePinZoom("nlb", sole),
@@ -1225,6 +1235,7 @@ function mountDataLayers(map: Map) {
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessel-labels", { type: "geojson", data: emptyCollection() })
   map.addSource("parking", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
+  map.addSource("meters", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("approaches", { type: "geojson", data: emptyCollection() })
   map.addSource("corridors", {
     type: "geojson",
@@ -1351,6 +1362,8 @@ function bindOverlayClicks(
     "ferry-vessel-label": ferryStopPopup,
     parking: parkingPopup,
     "parking-label": parkingPopup,
+    meters: meterPopup,
+    "meters-label": meterPopup,
   }
   map.on("click", "approach-times", (event) => {
     const raw = event.features?.[0]?.properties?.id
@@ -1556,6 +1569,20 @@ function addWatchLayers(map: Map, before: string | undefined) {
     },
   }, before)
   addStopLabel(map, "parking-label", "parking", before, LABEL_MIN_ZOOM, false)
+  addOverlay(map, {
+    id: "meters",
+    type: "circle",
+    source: "meters",
+    minzoom: KMB_MIN_ZOOM,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
+      "circle-color": ["match", ["get", "tone"], "open", "#dbeafe", "full", "#e2e8f0", "#f8fafc"],
+      "circle-stroke-color": ["match", ["get", "tone"], "open", "#1d4ed8", "full", "#475569", "#94a3b8"],
+      "circle-stroke-width": 1.5,
+      "circle-pitch-alignment": "map",
+    },
+  }, before)
+  addStopLabel(map, "meters-label", "meters", before, LABEL_MIN_ZOOM, false)
   addOverlay(map, {
     id: "lrt-track-casing",
     type: "line",
@@ -1866,6 +1893,55 @@ function parkingCollection(
   }
 }
 
+function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: poles.map((pole) => {
+      const tone = meterTone(pole)
+      const name = readablePlace(displayText(locale, pole.streetTc, pole.streetEn))
+      const icon = labels ? placeStopPlate(map, name, [], meterStroke(tone)) : ""
+      return {
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
+        properties: {
+          id: pole.id,
+          streetTc: pole.streetTc,
+          streetEn: pole.streetEn,
+          sectionTc: pole.sectionTc,
+          sectionEn: pole.sectionEn,
+          tone,
+          spaces: JSON.stringify(pole.spaces),
+          ...(icon ? { icon } : {}),
+        },
+      }
+    }),
+  }
+}
+
+function meterTone(pole: MeterPole): "open" | "full" | "closed" {
+  let occupied = false
+  for (const space of pole.spaces) {
+    if (space.vacant === true) return "open"
+    if (space.vacant === false) occupied = true
+  }
+  return occupied ? "full" : "closed"
+}
+
+function meterStroke(tone: "open" | "full" | "closed"): string {
+  switch (tone) {
+    case "open":
+      return "#1d4ed8"
+    case "full":
+      return "#475569"
+    case "closed":
+      return "#94a3b8"
+    default: {
+      const exhaustive: never = tone
+      return exhaustive
+    }
+  }
+}
+
 function kmbStopCollection(map: Map, kmb: KmbResponse, locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -1946,6 +2022,8 @@ function layerIds(kind: WatchLayer): string[] {
       return ["ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
     case "parking":
       return ["parking", "parking-label"]
+    case "meter":
+      return ["meters", "meters-label"]
     default: {
       const exhaustive: never = kind
       return exhaustive

@@ -10,6 +10,7 @@ import { useI18n } from "@/components/locale"
 import { decorateControlPoints } from "@/lib/control-points"
 import { PLACE_POLL_MS, placePinZoom } from "@/lib/kmb-view"
 import type { ParkingPlacesResponse } from "@/lib/parking"
+import { METER_POLL_MS, type MeterPlacesResponse } from "@/lib/meter-poles"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
 import { boardFaultSnapshot, subscribeBoardFaults } from "@/lib/board-status"
@@ -88,6 +89,10 @@ export function Dashboard() {
     layers.parking && view && view.zoom >= placePinZoom("parking", sole)
       ? `/api/parking/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${parkingWide ? "&wide=1" : ""}`
       : null
+  const meterPlacesUrl =
+    layers.meter && view && view.zoom >= placePinZoom("meter", sole)
+      ? `/api/meters/places?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
+      : null
   const mtrLive = useLiveJson<MtrResponse>("/api/mtr", 15_000)
   const kmbPlacesLive = useLiveJson<KmbPlacesResponse>(kmbPlacesUrl, PLACE_POLL_MS)
   const lrtLive = useLiveJson<LrtResponse>(layers.lrt ? "/api/lrt" : null, 15_000)
@@ -97,6 +102,7 @@ export function Dashboard() {
   const mtrBusPlacesLive = useLiveJson<CitybusPlacesResponse>(mtrBusPlacesUrl, PLACE_POLL_MS)
   const ferryLive = useLiveJson<FerryResponse>(layers.ferry ? "/api/ferry" : null, 60_000)
   const parkingPlacesLive = useLiveJson<ParkingPlacesResponse>(parkingPlacesUrl, PLACE_POLL_MS)
+  const meterPlacesLive = useLiveJson<MeterPlacesResponse>(meterPlacesUrl, METER_POLL_MS)
   const traffic = trafficLive.data
   const approaches = approachesLive.data
   const picture = pictureLive.data
@@ -150,6 +156,7 @@ export function Dashboard() {
         mtrBus={mtrBus}
         ferry={ferry?.ok ? ferry : null}
         parking={parkingPlacesLive.data?.ok ? parkingPlacesLive.data.parks : null}
+        meters={meterPlacesLive.data?.ok ? meterPlacesLive.data.poles : null}
         onView={setView}
         layers={layers}
         basemap={basemap}
@@ -230,6 +237,7 @@ export function Dashboard() {
           mtrbus: null,
           ferry: null,
           parking: null,
+          meter: null,
           control: null,
         }}
         onSetLayers={setLayers}
@@ -246,6 +254,7 @@ export function Dashboard() {
         mtrBusError={liveError(mtrBusPlacesLive.error, mtrBusPlacesLive.data, "MTR bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         parkingError={liveError(parkingPlacesLive.error, parkingPlacesLive.data, "Parking catalogue failed")}
+        meterError={liveError(meterPlacesLive.error, meterPlacesLive.data, "Meter catalogue failed")}
         aboveMarquee={!intelOpen}
       />
     </main>

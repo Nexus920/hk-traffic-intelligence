@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-meters",
+    date: "2026-10-05",
+    kind: "added",
+    en: "Nearby parking meters show whether a space is vacant. The map keeps to the nearest 40 poles.",
+    tc: "附近咪錶會顯示有沒有空位。地圖只保留最近的 40 支咪錶。",
+    sc: "附近咪表会显示有没有空位。地图只保留最近的 40 支咪表。",
+  },
+  {
     id: "2026-10-05-all-layers",
     date: "2026-10-05",
     kind: "added",

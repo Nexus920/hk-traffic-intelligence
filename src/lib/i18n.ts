@@ -227,6 +227,14 @@ export type Messages = {
   parkingSpaces: (n: number) => string
   parkingAsOf: (count: string, time: string) => string
   parkingHeight: (n: number) => string
+  meter: string
+  meterFailed: string
+  meterGeneral: string
+  meterGoods: string
+  meterCoach: string
+  meterVacant: string
+  meterTaken: string
+  meterClosed: string
 }
 
 const en: Messages = {
@@ -425,6 +433,14 @@ const en: Messages = {
   parkingSpaces: (n) => `${n} spaces`,
   parkingAsOf: (count, time) => `${count} at ${time}`,
   parkingHeight: (n) => `Height limit ${n} m`,
+  meter: "Meters",
+  meterFailed: "Meters did not load.",
+  meterGeneral: "Private car / light van",
+  meterGoods: "Goods vehicle",
+  meterCoach: "Coach",
+  meterVacant: "Vacant",
+  meterTaken: "Occupied",
+  meterClosed: "Not in use",
 }
 
 const zhHK: Messages = {
@@ -623,6 +639,14 @@ const zhHK: Messages = {
   parkingSpaces: (n) => `${n} 個空位`,
   parkingAsOf: (count, time) => `${count}（${time}）`,
   parkingHeight: (n) => `限高 ${n} 米`,
+  meter: "咪錶",
+  meterFailed: "未能載入咪錶。",
+  meterGeneral: "私家車／輕型貨車",
+  meterGoods: "貨車",
+  meterCoach: "旅遊巴",
+  meterVacant: "空位",
+  meterTaken: "佔用",
+  meterClosed: "停用",
 }
 
 const zhCN: Messages = {
@@ -811,6 +835,14 @@ const zhCN: Messages = {
   parkingSpaces: (n) => `${n} 个空位`,
   parkingAsOf: (count, time) => `${count}（${time}）`,
   parkingHeight: (n) => `限高 ${n} 米`,
+  meter: "咪表",
+  meterFailed: "未能载入咪表。",
+  meterGeneral: "私家车／轻型货车",
+  meterGoods: "货车",
+  meterCoach: "旅游巴",
+  meterVacant: "空位",
+  meterTaken: "占用",
+  meterClosed: "停用",
 }
 
 export const MESSAGES: Record<Locale, Messages> = {

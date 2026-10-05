@@ -1,0 +1,152 @@
+import { parseCsv } from "./csv.ts"
+import { pointsWithin } from "./nearest.ts"
+
+export type MeterKind = "general" | "goods" | "coach"
+
+export type MeterSpace = {
+  id: string
+  kind: MeterKind
+  vacant: boolean | null
+  updated: string
+}
+
+export type MeterSite = {
+  id: string
+  lng: number
+  lat: number
+  streetTc: string
+  streetEn: string
+  sectionTc: string
+  sectionEn: string
+  spaces: { id: string; kind: MeterKind }[]
+}
+
+export type MeterPole = {
+  id: string
+  lng: number
+  lat: number
+  streetTc: string
+  streetEn: string
+  sectionTc: string
+  sectionEn: string
+  spaces: MeterSpace[]
+}
+
+export type MeterPlacesResponse = { ok: true; poles: MeterPole[] } | { ok: false; error?: string; poles: MeterPole[] }
+
+export const METER_CAP = 40
+export const METER_POLL_MS = 60_000
+
+export function parseMeterSites(spaceCsv: string): MeterSite[] {
+  const poles = new Map<string, MeterSite>()
+  for (const row of table(spaceCsv, "PoleId")) {
+    const poleId = row.PoleId
+    const spaceId = row.ParkingSpaceId
+    const kind = kindOf(row.VehicleType ?? "")
+    const lng = Number(row.Longitude)
+    const lat = Number(row.Latitude)
+    if (!poleId || !spaceId || !kind || !Number.isFinite(lng) || !Number.isFinite(lat)) continue
+    const space = { id: spaceId, kind }
+    const pole = poles.get(poleId)
+    if (!pole) {
+      poles.set(poleId, {
+        id: poleId,
+        lng,
+        lat,
+        streetTc: row.Street_tc ?? "",
+        streetEn: row.Street ?? "",
+        sectionTc: row.SectionOfStreet_tc ?? "",
+        sectionEn: row.SectionOfStreet ?? "",
+        spaces: [space],
+      })
+      continue
+    }
+    pole.spaces.push(space)
+  }
+  for (const pole of poles.values()) {
+    pole.spaces.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+  }
+  return [...poles.values()]
+}
+
+export function joinMeterOccupancy(sites: readonly MeterSite[], occupancyCsv: string): MeterPole[] {
+  const occupancy = new Map<string, { status: string; occupied: string; updated: string }>()
+  for (const row of table(occupancyCsv, "ParkingSpaceId")) {
+    const id = row.ParkingSpaceId
+    if (!id) continue
+    occupancy.set(id, {
+      status: row.ParkingMeterStatus ?? "",
+      occupied: row.OccupancyStatus ?? "",
+      updated: row.OccupancyDateChanged ?? "",
+    })
+  }
+  return sites.map((site) => ({
+    id: site.id,
+    lng: site.lng,
+    lat: site.lat,
+    streetTc: site.streetTc,
+    streetEn: site.streetEn,
+    sectionTc: site.sectionTc,
+    sectionEn: site.sectionEn,
+    spaces: site.spaces.map((space) => {
+      const reading = occupancy.get(space.id)
+      return {
+        id: space.id,
+        kind: space.kind,
+        vacant: vacantOf(reading?.status ?? "", reading?.occupied ?? ""),
+        updated: reading?.updated ?? "",
+      }
+    }),
+  }))
+}
+
+export function parseMeterPoles(spaceCsv: string, occupancyCsv: string): MeterPole[] {
+  return joinMeterOccupancy(parseMeterSites(spaceCsv), occupancyCsv)
+}
+
+export function meterClock(updated: string): string {
+  const match = /(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i.exec(updated)
+  if (!match?.[1] || !match[2]) return ""
+  let hour = Number(match[1])
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return ""
+  const meridiem = match[3]?.toUpperCase()
+  if (meridiem && hour > 12) return ""
+  if (meridiem === "PM" && hour < 12) hour += 12
+  if (meridiem === "AM" && hour === 12) hour = 0
+  return `${String(hour).padStart(2, "0")}:${match[2]}`
+}
+
+export function meterPolesNear(poles: readonly MeterPole[], lng: number, lat: number, radiusMetres: number, limit = METER_CAP): MeterPole[] {
+  return pointsWithin(poles, lng, lat, radiusMetres, limit)
+}
+
+export function meterFree(pole: MeterPole): number {
+  return pole.spaces.filter((space) => space.vacant === true).length
+}
+
+function kindOf(type: string): MeterKind | null {
+  switch (type.toUpperCase()) {
+    case "A":
+      return "general"
+    case "G":
+      return "goods"
+    case "C":
+      return "coach"
+    default:
+      return null
+  }
+}
+
+function vacantOf(status: string, occupied: string): boolean | null {
+  if (status.toUpperCase() === "NU") return null
+  if (occupied === "V") return true
+  if (occupied === "O") return false
+  return null
+}
+
+function table(text: string, headerName: string): Record<string, string>[] {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/)
+  const start = lines.findIndex((line) => line.startsWith(`${headerName},`) || line.startsWith(`${headerName}\r`))
+  if (start < 0) return []
+  return parseCsv(lines.slice(start).join("\n"))
+}

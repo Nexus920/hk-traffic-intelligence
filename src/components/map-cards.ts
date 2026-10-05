@@ -20,6 +20,7 @@ import { boardFailedCopy, clearBoardFault, markBoardFault } from "@/lib/board-st
 import { routesWithoutArrival } from "@/lib/stop-routes"
 import type { StopOperator } from "@/lib/stop-board"
 import type { ParkingKind, ParkingSpace } from "@/lib/parking-parks"
+import { meterClock, type MeterKind, type MeterSpace } from "@/lib/meter-poles"
 import type { ApproachPoint, HarbourJourney, LrtResponse, MtrCalling, MtrResponse, SpeedBand } from "@/lib/types"
 
 const TUNNEL_TC: Record<string, string> = {
@@ -414,6 +415,61 @@ function parkingKindLabel(kind: ParkingKind, m: Messages): string {
       const exhaustive: never = kind
       return exhaustive
     }
+  }
+}
+
+export function meterPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+  const street = readablePlace(displayText(m.locale, textProp(properties, "streetTc"), textProp(properties, "streetEn"))) || m.meter
+  const card = openCard(street)
+  const section = displayText(m.locale, textProp(properties, "sectionTc"), textProp(properties, "sectionEn"))
+  if (section) card.head.append(paragraph("city-card-detail", section))
+  const spaces = readMeterSpaces(textProp(properties, "spaces"))
+  if (spaces.length === 0) {
+    card.body.append(paragraph("city-card-copy", m.meterFailed))
+    return card.root
+  }
+  const board = document.createElement("div")
+  board.className = "city-card-board"
+  for (const space of spaces) board.append(serviceRow(meterKindLabel(space.kind, m), meterState(space, m)))
+  card.body.append(board)
+  return card.root
+}
+
+function meterState(space: MeterSpace, m: Messages): string {
+  const state = space.vacant === true ? m.meterVacant : space.vacant === false ? m.meterTaken : m.meterClosed
+  const time = meterClock(space.updated)
+  return time ? m.parkingAsOf(state, time) : state
+}
+
+function meterKindLabel(kind: MeterKind, m: Messages): string {
+  switch (kind) {
+    case "general":
+      return m.meterGeneral
+    case "goods":
+      return m.meterGoods
+    case "coach":
+      return m.meterCoach
+    default: {
+      const exhaustive: never = kind
+      return exhaustive
+    }
+  }
+}
+
+function readMeterSpaces(raw: string): MeterSpace[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.flatMap((item) => {
+      if (!item || typeof item !== "object") return []
+      const row = item as { id?: unknown; kind?: unknown; vacant?: unknown; updated?: unknown }
+      if (row.kind !== "general" && row.kind !== "goods" && row.kind !== "coach") return []
+      const vacant = row.vacant === true ? true : row.vacant === false ? false : null
+      return [{ id: typeof row.id === "string" ? row.id : "", kind: row.kind, vacant, updated: typeof row.updated === "string" ? row.updated : "" }]
+    })
+  } catch {
+    return []
   }
 }
 
