@@ -235,6 +235,7 @@ export type Messages = {
   meterVacant: string
   meterTaken: string
   meterClosed: string
+  meterSince: (state: string, time: string) => string
 }
 
 const en: Messages = {
@@ -441,6 +442,7 @@ const en: Messages = {
   meterVacant: "Vacant",
   meterTaken: "Occupied",
   meterClosed: "Not in use",
+  meterSince: (state, time) => `${state} since ${time}`,
 }
 
 const zhHK: Messages = {
@@ -644,9 +646,10 @@ const zhHK: Messages = {
   meterGeneral: "私家車／輕型貨車",
   meterGoods: "貨車",
   meterCoach: "旅遊巴",
-  meterVacant: "空位",
+  meterVacant: "空置",
   meterTaken: "佔用",
   meterClosed: "停用",
+  meterSince: (state, time) => `自 ${time} 起${state}`,
 }
 
 const zhCN: Messages = {
@@ -840,9 +843,10 @@ const zhCN: Messages = {
   meterGeneral: "私家车／轻型货车",
   meterGoods: "货车",
   meterCoach: "旅游巴",
-  meterVacant: "空位",
+  meterVacant: "空置",
   meterTaken: "占用",
   meterClosed: "停用",
+  meterSince: (state, time) => `自 ${time} 起${state}`,
 }
 
 export const MESSAGES: Record<Locale, Messages> = {

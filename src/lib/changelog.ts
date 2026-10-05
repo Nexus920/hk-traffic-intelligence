@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-meter-time",
+    date: "2026-10-05",
+    kind: "improved",
+    en: "A meter card says the space has been vacant or occupied since that time.",
+    tc: "咪錶卡片寫明車位由該時間起空置或佔用。",
+    sc: "咪表卡片写明车位由该时间起空置或占用。",
+  },
+  {
     id: "2026-10-05-meters",
     date: "2026-10-05",
     kind: "added",

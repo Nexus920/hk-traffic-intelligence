@@ -436,9 +436,10 @@ export function meterPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): 
 }
 
 function meterState(space: MeterSpace, m: Messages): string {
-  const state = space.vacant === true ? m.meterVacant : space.vacant === false ? m.meterTaken : m.meterClosed
   const time = meterClock(space.updated)
-  return time ? m.parkingAsOf(state, time) : state
+  if (space.vacant === true) return time ? m.meterSince(m.meterVacant, time) : m.meterVacant
+  if (space.vacant === false) return time ? m.meterSince(m.meterTaken, time) : m.meterTaken
+  return m.meterClosed
 }
 
 function meterKindLabel(kind: MeterKind, m: Messages): string {
