@@ -9,6 +9,7 @@ import { useLiveJson } from "@/components/use-live-json"
 import { useI18n } from "@/components/locale"
 import { decorateControlPoints } from "@/lib/control-points"
 import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, PLACE_POLL_MS } from "@/lib/kmb-view"
+import type { ParkingPlacesResponse } from "@/lib/parking"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
 import { boardFaultSnapshot, subscribeBoardFaults } from "@/lib/board-status"
@@ -76,6 +77,7 @@ export function Dashboard() {
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}`
       : null
   const nlbPlacesUrl = layers.nlb && nlbQuery ? `/api/nlb/places?${nlbQuery}` : null
+  const parkingPlacesUrl = layers.parking && kmbQuery ? `/api/parking/places?${kmbQuery}` : null
   const mtrLive = useLiveJson<MtrResponse>("/api/mtr", 15_000)
   const kmbPlacesLive = useLiveJson<KmbPlacesResponse>(kmbPlacesUrl, PLACE_POLL_MS)
   const lrtLive = useLiveJson<LrtResponse>(layers.lrt ? "/api/lrt" : null, 15_000)
@@ -83,6 +85,7 @@ export function Dashboard() {
   const gmbPlacesLive = useLiveJson<GmbPlacesResponse>(gmbPlacesUrl, PLACE_POLL_MS)
   const nlbPlacesLive = useLiveJson<NlbPlacesResponse>(nlbPlacesUrl, PLACE_POLL_MS)
   const ferryLive = useLiveJson<FerryResponse>(layers.ferry ? "/api/ferry" : null, 60_000)
+  const parkingPlacesLive = useLiveJson<ParkingPlacesResponse>(parkingPlacesUrl, PLACE_POLL_MS)
   const traffic = trafficLive.data
   const approaches = approachesLive.data
   const picture = pictureLive.data
@@ -133,6 +136,7 @@ export function Dashboard() {
         gmb={gmb}
         nlb={nlb}
         ferry={ferry?.ok ? ferry : null}
+        parking={parkingPlacesLive.data?.ok ? parkingPlacesLive.data.parks : null}
         onView={setView}
         layers={layers}
         basemap={basemap}
@@ -210,6 +214,7 @@ export function Dashboard() {
           gmb: null,
           nlb: null,
           ferry: null,
+          parking: null,
           control: null,
         }}
         onToggle={toggleLayer}
@@ -224,6 +229,7 @@ export function Dashboard() {
         gmbError={liveError(gmbPlacesLive.error, gmbPlacesLive.data, "Green minibus stops failed")}
         nlbError={liveError(nlbPlacesLive.error, nlbPlacesLive.data, "New Lantao Bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
+        parkingError={liveError(parkingPlacesLive.error, parkingPlacesLive.data, "Parking catalogue failed")}
         aboveMarquee={!intelOpen}
       />
     </main>

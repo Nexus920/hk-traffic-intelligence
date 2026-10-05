@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-parking",
+    date: "2026-10-05",
+    kind: "added",
+    en: "Car parks appear when the map is close. Opening one shows the published spaces.",
+    tc: "地圖拉近後會顯示停車場。打開一個，會顯示已公布的空位。",
+    sc: "地图拉近后会显示停车场。打开一个，会显示已公布的空位。",
+  },
+  {
     id: "2026-10-04-title",
     date: "2026-10-04",
     kind: "improved",

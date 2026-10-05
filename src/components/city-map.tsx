@@ -27,6 +27,7 @@ import {
   gmbStopPopup,
   lrtStationPopup,
   nlbStopPopup,
+  parkingPopup,
   lrtTrainPopup,
   corridorPopup,
   incidentPopup,
@@ -178,7 +179,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -202,6 +203,7 @@ type CityMapProps = {
   gmb: GmbResponse | null
   nlb: NlbResponse | null
   ferry: FerryResponse | null
+  parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[] | null
   onView: (view: { lng: number; lat: number; zoom: number }) => void
   layers: WatchLayers
   basemap: Basemap
@@ -231,6 +233,7 @@ export function CityMap({
   gmb,
   nlb,
   ferry,
+  parking,
   onView,
   layers,
   basemap,
@@ -700,13 +703,18 @@ export function CityMap({
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
         geoJsonSource(map, "ferry-vessels")?.setData(ferryMotionFeatures(ferryMotionRef.current, Date.now()))
       }
+      if (!layers.parking || !parking) {
+        geoJsonSource(map, "parking")?.setData(emptyCollection())
+      } else {
+        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parking, locale, labels))
+      }
     }
     paint()
     map.on("zoomend", paint)
     return () => {
       map.off("zoomend", paint)
     }
-  }, [citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.nlb, locale, lrt, mapReady, mtr, nlb, picture, styleEpoch])
+  }, [citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.nlb, layers.parking, locale, lrt, mapReady, mtr, nlb, parking, picture, styleEpoch])
 
   useEffect(() => {
     const map = mapRef.current
@@ -728,7 +736,7 @@ export function CityMap({
   useEffect(() => {
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
-    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "ferry"]
+    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "ferry", "parking"]
     for (const kind of kinds) {
       for (const layerId of layerIds(kind)) {
         if (!map.getLayer(layerId)) continue
@@ -1184,6 +1192,7 @@ function mountDataLayers(map: Map) {
   map.addSource("ferry-piers", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessel-labels", { type: "geojson", data: emptyCollection() })
+  map.addSource("parking", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("approaches", { type: "geojson", data: emptyCollection() })
   map.addSource("corridors", {
     type: "geojson",
@@ -1306,6 +1315,8 @@ function bindOverlayClicks(
     "ferry-pier-label": ferryStopPopup,
     "ferry-vessels": ferryStopPopup,
     "ferry-vessel-label": ferryStopPopup,
+    parking: parkingPopup,
+    "parking-label": parkingPopup,
   }
   map.on("click", "approach-times", (event) => {
     const raw = event.features?.[0]?.properties?.id
@@ -1497,6 +1508,20 @@ function addWatchLayers(map: Map, before: string | undefined) {
     },
   }, before)
   addStopLabel(map, "kmb-stop-label", "kmb-stops", before, LABEL_MIN_ZOOM, false)
+  addOverlay(map, {
+    id: "parking",
+    type: "circle",
+    source: "parking",
+    minzoom: KMB_MIN_ZOOM,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6],
+      "circle-color": "#fff7ed",
+      "circle-stroke-color": "#d97706",
+      "circle-stroke-width": 1.5,
+      "circle-pitch-alignment": "map",
+    },
+  }, before)
+  addStopLabel(map, "parking-label", "parking", before, LABEL_MIN_ZOOM, false)
   addOverlay(map, {
     id: "lrt-track-casing",
     type: "line",
@@ -1765,6 +1790,34 @@ function ferryPierCollection(map: Map, ferry: FerryResponse | null, locale: Loca
   }
 }
 
+function parkingCollection(
+  map: Map,
+  parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[],
+  locale: Locale,
+  labels: boolean,
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: parks.map((park) => {
+      const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
+      const icon = labels ? placeStopPlate(map, name, [], "#d97706") : ""
+      return {
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [park.lng, park.lat] },
+        properties: {
+          id: park.id,
+          nameTc: park.nameTc,
+          nameEn: park.nameEn,
+          addressTc: park.addressTc,
+          addressEn: park.addressEn,
+          heightM: park.heightM,
+          ...(icon ? { icon } : {}),
+        },
+      }
+    }),
+  }
+}
+
 function kmbStopCollection(map: Map, kmb: KmbResponse, locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -1841,6 +1894,8 @@ function layerIds(kind: WatchLayer): string[] {
       return ["nlb-stops", "nlb-stop-label"]
     case "ferry":
       return ["ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
+    case "parking":
+      return ["parking", "parking-label"]
     default: {
       const exhaustive: never = kind
       return exhaustive

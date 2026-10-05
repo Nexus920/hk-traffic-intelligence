@@ -210,6 +210,15 @@ export type Messages = {
   ferry: string
   ferryFailed: string
   ferryNone: string
+  parking: string
+  parkingFailed: string
+  parkingNone: string
+  parkingPrivate: string
+  parkingLgv: string
+  parkingHgv: string
+  parkingMotorcycle: string
+  parkingSpaces: (n: number) => string
+  parkingHeight: (n: number) => string
 }
 
 const en: Messages = {
@@ -391,6 +400,15 @@ const en: Messages = {
   ferry: "Ferry",
   ferryFailed: "Ferry arrivals did not load.",
   ferryNone: "No sailing on the board",
+  parking: "Car parks",
+  parkingFailed: "Car parks did not load.",
+  parkingNone: "No published spaces",
+  parkingPrivate: "Private car",
+  parkingLgv: "Light goods",
+  parkingHgv: "Heavy goods",
+  parkingMotorcycle: "Motorcycle",
+  parkingSpaces: (n) => `${n} spaces`,
+  parkingHeight: (n) => `Height limit ${n} m`,
 }
 
 const zhHK: Messages = {
@@ -572,6 +590,15 @@ const zhHK: Messages = {
   ferry: "渡輪",
   ferryFailed: "未能取得渡輪航班時間。",
   ferryNone: "未有航班時間",
+  parking: "停車場",
+  parkingFailed: "未能載入停車場。",
+  parkingNone: "沒有公布空位",
+  parkingPrivate: "私家車",
+  parkingLgv: "輕型貨車",
+  parkingHgv: "重型貨車",
+  parkingMotorcycle: "電單車",
+  parkingSpaces: (n) => `${n} 個空位`,
+  parkingHeight: (n) => `限高 ${n} 米`,
 }
 
 const zhCN: Messages = {
@@ -743,6 +770,15 @@ const zhCN: Messages = {
   ferry: "渡轮",
   ferryFailed: "未能取得渡轮航班时间。",
   ferryNone: "未有航班时间",
+  parking: "停车场",
+  parkingFailed: "未能载入停车场。",
+  parkingNone: "没有公布空位",
+  parkingPrivate: "私家车",
+  parkingLgv: "轻型货车",
+  parkingHgv: "重型货车",
+  parkingMotorcycle: "电单车",
+  parkingSpaces: (n) => `${n} 个空位`,
+  parkingHeight: (n) => `限高 ${n} 米`,
 }
 
 export const MESSAGES: Record<Locale, Messages> = {

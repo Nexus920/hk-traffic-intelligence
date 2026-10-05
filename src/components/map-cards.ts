@@ -19,6 +19,7 @@ import { ferryBadge, ferryLeg } from "@/lib/ferry-routes"
 import { boardFailedCopy, clearBoardFault, markBoardFault } from "@/lib/board-status"
 import { routesWithoutArrival } from "@/lib/stop-routes"
 import type { StopOperator } from "@/lib/stop-board"
+import type { ParkingKind, ParkingSpace } from "@/lib/parking-parks"
 import type { ApproachPoint, HarbourJourney, LrtResponse, MtrCalling, MtrResponse, SpeedBand } from "@/lib/types"
 
 const TUNNEL_TC: Record<string, string> = {
@@ -334,6 +335,88 @@ export function gmbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
 
 export function nlbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
   return busStopPopup(properties, m, m.nlb, m.nlbNone, "nlb")
+}
+
+const seenParks = new Map<string, { at: number; spaces: ParkingSpace[] }>()
+
+export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+  const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.parking
+  const card = openCard(heading)
+  const address = displayText(m.locale, textProp(properties, "addressTc"), textProp(properties, "addressEn"))
+  if (address) card.head.append(paragraph("city-card-detail", address))
+  const height = numberProp(properties, "heightM")
+  if (height != null && height > 0) card.head.append(paragraph("city-card-detail", m.parkingHeight(height)))
+  const id = textProp(properties, "id")
+  if (!id) {
+    card.body.append(paragraph("city-card-copy", m.parkingNone))
+    return card.root
+  }
+  const hit = seenParks.get(id)
+  if (hit && Date.now() - hit.at < BOARD_MS) {
+    paintParking(card.body, hit.spaces, m)
+    return card.root
+  }
+  card.body.replaceChildren(paragraph("city-card-copy", m.boardLoading))
+  void fetch(`/api/parking/vacancy?id=${encodeURIComponent(id)}`, { cache: "no-store" })
+    .then((response) => response.json())
+    .then((payload: unknown) => {
+      if (!card.body.isConnected) return
+      const spaces = readParkingSpaces(payload)
+      if (!spaces) {
+        card.body.replaceChildren(paragraph("city-card-copy", m.parkingFailed))
+        return
+      }
+      seenParks.set(id, { at: Date.now(), spaces })
+      paintParking(card.body, spaces, m)
+    })
+    .catch(() => {
+      if (!card.body.isConnected) return
+      card.body.replaceChildren(paragraph("city-card-copy", m.parkingFailed))
+    })
+  return card.root
+}
+
+function paintParking(body: HTMLElement, spaces: ParkingSpace[], m: Messages) {
+  body.replaceChildren()
+  if (spaces.length === 0) {
+    body.append(paragraph("city-card-copy", m.parkingNone))
+    return
+  }
+  const board = document.createElement("div")
+  board.className = "city-card-board"
+  for (const space of spaces) {
+    board.append(serviceRow(parkingKindLabel(space.kind, m), space.vacancy == null ? m.parkingNone : m.parkingSpaces(space.vacancy)))
+  }
+  body.append(board)
+}
+
+function parkingKindLabel(kind: ParkingKind, m: Messages): string {
+  switch (kind) {
+    case "private":
+      return m.parkingPrivate
+    case "lgv":
+      return m.parkingLgv
+    case "hgv":
+      return m.parkingHgv
+    case "motorcycle":
+      return m.parkingMotorcycle
+    default: {
+      const exhaustive: never = kind
+      return exhaustive
+    }
+  }
+}
+
+function readParkingSpaces(payload: unknown): ParkingSpace[] | null {
+  if (typeof payload !== "object" || payload === null || !("ok" in payload) || payload.ok !== true) return null
+  if (!("spaces" in payload) || !Array.isArray(payload.spaces)) return null
+  return payload.spaces.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+    const row = item as { kind?: unknown; vacancy?: unknown }
+    if (row.kind !== "private" && row.kind !== "lgv" && row.kind !== "hgv" && row.kind !== "motorcycle") return []
+    const vacancy = typeof row.vacancy === "number" && Number.isFinite(row.vacancy) ? row.vacancy : null
+    return [{ kind: row.kind, vacancy, updated: "" }]
+  })
 }
 
 export function ferryStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
