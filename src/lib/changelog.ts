@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-layer-tap",
+    date: "2026-10-05",
+    kind: "fixed",
+    en: "On a phone, tapping a layer name selects that layer.",
+    tc: "在手機上，點選圖層名稱會選中該層。",
+    sc: "在手机上，点选图层名称会选中该层。",
+  },
+  {
     id: "2026-10-05-iphone-marquee",
     date: "2026-10-05",
     kind: "fixed",

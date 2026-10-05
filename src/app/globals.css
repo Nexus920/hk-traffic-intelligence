@@ -217,6 +217,22 @@
   display: none;
 }
 
+.layer-scroll {
+  scrollbar-width: none;
+  padding-bottom: 0.7rem;
+}
+
+.layer-scroll::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+
+@media (min-width: 640px) {
+  .layer-scroll {
+    padding-bottom: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .maplibregl-map .maplibregl-ctrl-bottom-right {
     bottom: 2.75rem;

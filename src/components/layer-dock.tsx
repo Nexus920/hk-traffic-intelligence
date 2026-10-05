@@ -153,7 +153,7 @@ export function LayerDock(props: LayerDockProps) {
           : "bottom-[var(--map-dock-bottom,7rem)] sm:bottom-14 sm:max-w-[calc(100%-24rem)] lg:max-w-[calc(100%-30rem)]"
       }`}
     >
-      <div className="flex max-w-full items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible">
+      <div className="layer-scroll flex max-w-full items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible">
       <div className="inline-flex shrink-0 border border-white/15" role="group" aria-label={m.basemap}>
         {BASEMAPS.map((id) => {
           const on = props.basemap === id
