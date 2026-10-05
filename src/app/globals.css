@@ -133,10 +133,10 @@
 
 @keyframes intel-marquee {
   from {
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0.01px);
   }
   to {
-    transform: translate3d(-50%, 0, 0);
+    transform: translate3d(-50%, 0, 0.01px);
   }
 }
 
@@ -144,8 +144,9 @@
   animation-name: intel-marquee;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0.01px);
   backface-visibility: hidden;
+  will-change: transform;
 }
 
 @media (hover: hover) and (pointer: fine) {
