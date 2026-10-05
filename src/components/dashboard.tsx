@@ -31,6 +31,7 @@ import type {
   TrafficResponse,
   WarningsResponse,
   WatchLayer,
+  WatchLayers,
   Basemap,
 } from "@/lib/types"
 
@@ -111,6 +112,10 @@ export function Dashboard() {
 
   const toggleLayer = (layer: WatchLayer) => {
     updatePreference((current) => ({ layers: { ...current.layers, [layer]: !current.layers[layer] } }))
+  }
+
+  function setLayers(next: WatchLayers) {
+    updatePreference({ layers: next })
   }
 
   function selectBasemap(next: Basemap) {
@@ -218,6 +223,7 @@ export function Dashboard() {
           control: null,
         }}
         onToggle={toggleLayer}
+        onSetLayers={setLayers}
         onBasemap={selectBasemap}
         onReplay={() => setFlyToken((value) => value + 1)}
         mapLive={mapLive}

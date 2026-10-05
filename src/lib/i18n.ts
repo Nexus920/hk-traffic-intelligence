@@ -143,6 +143,7 @@ export type Messages = {
   tolls: string
   incidentsLayer: string
   replay: string
+  layerOnly: string
   basemap: string
   speedKey: string
   pictureFailed: string
@@ -333,6 +334,7 @@ const en: Messages = {
   tolls: "Tolls",
   incidentsLayer: "Incidents",
   replay: "Replay",
+  layerOnly: "Only",
   basemap: "Basemap",
   speedKey: "Official traffic class. Good, average, and bad are the Transport Department saturation levels.",
   pictureFailed: "The camera and works picture did not load.",
@@ -523,6 +525,7 @@ const zhHK: Messages = {
   tolls: "隧道",
   incidentsLayer: "事故",
   replay: "重播",
+  layerOnly: "只看",
   basemap: "底圖",
   speedKey: "運輸署交通狀況等級：暢順、緩慢、擠塞。",
   pictureFailed: "未能載入快拍及工程畫面。",
@@ -709,6 +712,7 @@ const zhCN: Messages = {
   tolls: "隧道",
   incidentsLayer: "事故",
   replay: "重播",
+  layerOnly: "只看",
   basemap: "底图",
   speedKey: "运输署交通状况等级：畅顺、缓慢、挤塞。",
   pictureFailed: "未能载入快拍及工程画面。",

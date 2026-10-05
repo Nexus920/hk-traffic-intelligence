@@ -1,7 +1,9 @@
 "use client"
 
+import { useRef, useState } from "react"
 import { useI18n } from "@/components/locale"
 import type { Messages } from "@/lib/i18n"
+import { soloLayers } from "@/lib/preferences"
 import type { Basemap, WatchLayer, WatchLayers } from "@/lib/types"
 
 type LayerDockProps = {
@@ -9,6 +11,7 @@ type LayerDockProps = {
   basemap: Basemap
   counts: Record<WatchLayer, number | null>
   onToggle: (layer: WatchLayer) => void
+  onSetLayers: (layers: WatchLayers) => void
   onBasemap: (basemap: Basemap) => void
   onReplay: () => void
   mapLive: boolean
@@ -103,7 +106,28 @@ const LAYERS: { id: WatchLayer; swatch: string }[] = [
 
 export function LayerDock(props: LayerDockProps) {
   const { messages: m } = useI18n()
+  const [only, setOnly] = useState(false)
+  const mix = useRef<WatchLayers | null>(null)
   if (!props.mapLive) return null
+
+  function choose(id: WatchLayer) {
+    if (!only) {
+      props.onToggle(id)
+      return
+    }
+    props.onSetLayers(soloLayers(props.layers, id))
+  }
+
+  function switchOnly() {
+    if (only) {
+      if (mix.current) props.onSetLayers(mix.current)
+      mix.current = null
+      setOnly(false)
+      return
+    }
+    mix.current = props.layers
+    setOnly(true)
+  }
   return (
     <div
       data-map-chrome="bottom"
@@ -133,6 +157,16 @@ export function LayerDock(props: LayerDockProps) {
           )
         })}
       </div>
+      <button
+        type="button"
+        aria-pressed={only}
+        onClick={switchOnly}
+        className={`shrink-0 border px-2.5 py-1.5 font-[family-name:var(--font-hud)] text-[0.72rem] tracking-[0.08em] uppercase ${
+          only ? "border-cyan-200/50 bg-[#041018]/80 text-white" : "border-white/15 bg-[#041018]/70 text-cyan-50"
+        }`}
+      >
+        {m.layerOnly}
+      </button>
       {LAYERS.map((layer) => {
         const on = props.layers[layer.id]
         const count = COUNTED_LAYERS.has(layer.id) ? props.counts[layer.id] : null
@@ -141,7 +175,7 @@ export function LayerDock(props: LayerDockProps) {
             key={layer.id}
             type="button"
             aria-pressed={on}
-            onClick={() => props.onToggle(layer.id)}
+            onClick={() => choose(layer.id)}
             className={`inline-flex shrink-0 items-center gap-2 border px-2.5 py-1.5 font-[family-name:var(--font-hud)] text-[0.72rem] tracking-[0.08em] uppercase ${
               on
                 ? "border-cyan-200/50 bg-[#041018]/80 text-white"

@@ -142,6 +142,12 @@ function ensureLoaded(): void {
   current = raw ? readPreferences(raw) : { ...PREFERENCE_DEFAULTS, locale: serverSnapshot.locale }
 }
 
+export function soloLayers(layers: WatchLayers, id: WatchLayer): WatchLayers {
+  const next = { ...layers }
+  for (const key of LAYER_IDS) next[key] = key === id
+  return next
+}
+
 function readLayers(value: unknown, fallback: WatchLayers): WatchLayers {
   const source = typeof value === "object" && value !== null ? value as Record<string, unknown> : {}
   const layers = { ...fallback }

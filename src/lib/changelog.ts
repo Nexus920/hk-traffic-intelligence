@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-only-layer",
+    date: "2026-10-05",
+    kind: "added",
+    en: "Choose Only, then a layer, to leave just that layer on the map.",
+    tc: "先按只看，再選一層，地圖就只留該層。",
+    sc: "先按只看，再选一层，地图就只留该层。",
+  },
+  {
     id: "2026-10-05-parking",
     date: "2026-10-05",
     kind: "added",
