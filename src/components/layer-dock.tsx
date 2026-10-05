@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { useI18n } from "@/components/locale"
 import type { Messages } from "@/lib/i18n"
-import { beginOnly, chooseWatchedLayer } from "@/lib/preferences"
+import { allLayers, allLayersOn, beginOnly, chooseWatchedLayer } from "@/lib/preferences"
 import type { Basemap, WatchLayer, WatchLayers } from "@/lib/types"
 
 type LayerDockProps = {
@@ -122,6 +122,12 @@ export function LayerDock(props: LayerDockProps) {
     props.onSetLayers(next.layers)
   }
 
+  function showAll() {
+    mix.current = null
+    setOnly(false)
+    props.onSetLayers(allLayers(props.layers))
+  }
+
   function switchOnly() {
     if (only) {
       if (mix.current) props.onSetLayers(mix.current)
@@ -171,6 +177,16 @@ export function LayerDock(props: LayerDockProps) {
         }`}
       >
         {m.layerOnly}
+      </button>
+      <button
+        type="button"
+        aria-pressed={!only && allLayersOn(props.layers)}
+        onClick={showAll}
+        className={`shrink-0 border px-2.5 py-1.5 font-[family-name:var(--font-hud)] text-[0.72rem] tracking-[0.08em] uppercase ${
+          !only && allLayersOn(props.layers) ? "border-cyan-200/50 bg-[#041018]/80 text-white" : "border-white/15 bg-[#041018]/70 text-cyan-50"
+        }`}
+      >
+        {m.layerAll}
       </button>
       {LAYERS.map((layer) => {
         const on = props.layers[layer.id]

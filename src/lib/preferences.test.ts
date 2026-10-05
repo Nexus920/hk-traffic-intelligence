@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { PREFERENCE_DEFAULTS, beginOnly, chooseWatchedLayer, readPreferences, soleLayer, soloLayers } from "./preferences.ts"
+import { PREFERENCE_DEFAULTS, allLayers, allLayersOn, beginOnly, chooseWatchedLayer, readPreferences, soleLayer, soloLayers } from "./preferences.ts"
 
 const saved = readPreferences(JSON.stringify({
   locale: "en",
@@ -36,6 +36,13 @@ const armed = beginOnly(PREFERENCE_DEFAULTS.layers)
 assert.equal(soleLayer(armed), null)
 assert.equal(Object.values(armed).some(Boolean), false)
 assert.equal(soleLayer(beginOnly(onlyParking)), "parking")
+const restored = allLayers(onlyParking)
+assert.equal(restored.parking, true)
+assert.equal(restored.kmb, true)
+assert.equal(restored.gmb, true)
+assert.equal(allLayersOn(restored), true)
+assert.equal(allLayersOn(onlyParking), false)
+assert.equal(onlyParking.kmb, false)
 const switched = chooseWatchedLayer(true, onlyParking, "gmb")
 assert.equal(switched.only, true)
 assert.equal(soleLayer(switched.layers), "gmb")

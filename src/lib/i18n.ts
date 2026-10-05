@@ -145,6 +145,7 @@ export type Messages = {
   replay: string
   locate: string
   layerOnly: string
+  layerAll: string
   basemap: string
   speedKey: string
   pictureFailed: string
@@ -342,6 +343,7 @@ const en: Messages = {
   replay: "Replay",
   locate: "My location",
   layerOnly: "Only",
+  layerAll: "All",
   basemap: "Basemap",
   speedKey: "Official traffic class. Good, average, and bad are the Transport Department saturation levels.",
   pictureFailed: "The camera and works picture did not load.",
@@ -539,6 +541,7 @@ const zhHK: Messages = {
   replay: "重播",
   locate: "我的位置",
   layerOnly: "只看",
+  layerAll: "全部",
   basemap: "底圖",
   speedKey: "運輸署交通狀況等級：暢順、緩慢、擠塞。",
   pictureFailed: "未能載入快拍及工程畫面。",
@@ -732,6 +735,7 @@ const zhCN: Messages = {
   replay: "重播",
   locate: "我的位置",
   layerOnly: "只看",
+  layerAll: "全部",
   basemap: "底图",
   speedKey: "运输署交通状况等级：畅顺、缓慢、挤塞。",
   pictureFailed: "未能载入快拍及工程画面。",

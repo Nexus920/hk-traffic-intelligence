@@ -144,6 +144,16 @@ function ensureLoaded(): void {
   current = raw ? readPreferences(raw) : { ...PREFERENCE_DEFAULTS, locale: serverSnapshot.locale }
 }
 
+export function allLayers(layers: WatchLayers): WatchLayers {
+  const next = { ...layers }
+  for (const key of LAYER_IDS) next[key] = true
+  return next
+}
+
+export function allLayersOn(layers: WatchLayers): boolean {
+  return LAYER_IDS.every((id) => layers[id])
+}
+
 export function soloLayers(layers: WatchLayers, id: WatchLayer): WatchLayers {
   const next = { ...layers }
   for (const key of LAYER_IDS) next[key] = key === id

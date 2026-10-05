@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-all-layers",
+    date: "2026-10-05",
+    kind: "added",
+    en: "All turns every layer on.",
+    tc: "全部會打開每一層。",
+    sc: "全部会打开每一层。",
+  },
+  {
     id: "2026-10-05-mtr-bus",
     date: "2026-10-05",
     kind: "added",
