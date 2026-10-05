@@ -8,7 +8,7 @@ import { OpsHud } from "@/components/ops-hud"
 import { useLiveJson } from "@/components/use-live-json"
 import { useI18n } from "@/components/locale"
 import { decorateControlPoints } from "@/lib/control-points"
-import { KMB_MIN_ZOOM, PLACE_POLL_MS, placePinZoom } from "@/lib/kmb-view"
+import { PLACE_POLL_MS, placePinZoom } from "@/lib/kmb-view"
 import type { ParkingPlacesResponse } from "@/lib/parking"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
@@ -60,7 +60,7 @@ export function Dashboard() {
   const [view, setView] = useState<{ lng: number; lat: number; zoom: number } | null>(null)
   const sole = soleLayer(layers)
   const kmbQuery =
-    view && view.zoom >= KMB_MIN_ZOOM
+    view && view.zoom >= placePinZoom("kmb", sole)
       ? `lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}`
       : null
   const citybusQuery =

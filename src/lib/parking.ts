@@ -1,5 +1,5 @@
 import { fetchUpstream } from "@/lib/upstream"
-import { kmbReachMetres, STOP_CAP } from "@/lib/kmb-reach"
+import { kmbReachMetres } from "@/lib/kmb-reach"
 import { parseParkingParks, parseParkingSpaces, parksNear, soloParkingRadiusMetres, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
 
 export type ParkingPlacesResponse = { ok: true; parks: ParkingPark[] } | { ok: false; error?: string; parks: ParkingPark[] }
@@ -20,13 +20,9 @@ export async function loadParkingPlaces(
   if (!parks) return { ok: false }
   return {
     ok: true,
-    parks: parksNear(
-      parks,
-      lng,
-      lat,
-      wide ? soloParkingRadiusMetres(zoom, lat) : kmbReachMetres(zoom, lat),
-      wide ? WIDE_CAP : STOP_CAP,
-    ),
+    parks: wide
+      ? parksNear(parks, lng, lat, soloParkingRadiusMetres(zoom, lat), WIDE_CAP)
+      : parksNear(parks, lng, lat, kmbReachMetres(zoom, lat)),
   }
 }
 

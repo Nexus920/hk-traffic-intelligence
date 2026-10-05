@@ -38,7 +38,7 @@ import {
   workPopup,
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
-import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, kmbViewKey, placePinZoom } from "@/lib/kmb-view"
+import { GMB_MIN_ZOOM, KMB_MIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
 import { lineRecord, mtrStationCollection, mtrTrackCollection, stationPoint, stationRecord } from "@/lib/mtr-network"
@@ -306,7 +306,7 @@ export function CityMap({
       settle = window.setTimeout(() => {
         const centre = map.getCenter()
         const zoom = map.getZoom()
-        const key = kmbViewKey(centre.lng, centre.lat, zoom)
+        const key = mapViewKey(centre.lng, centre.lat, zoom)
         if (viewKeyRef.current === key) return
         viewKeyRef.current = key
         onViewRef.current({ lng: centre.lng, lat: centre.lat, zoom })
@@ -740,7 +740,7 @@ export function CityMap({
     const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "ferry", "parking"]
     const sole = soleLayer(layers)
     const pinZoom: Partial<Record<string, number>> = {
-      "kmb-stops": KMB_MIN_ZOOM,
+      "kmb-stops": placePinZoom("kmb", sole),
       parking: placePinZoom("parking", sole),
       "citybus-stops": placePinZoom("citybus", sole),
       "gmb-stops": placePinZoom("gmb", sole),

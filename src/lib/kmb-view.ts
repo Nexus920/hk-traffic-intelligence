@@ -16,8 +16,8 @@ export function placePinZoom(layer: WatchLayer, sole: WatchLayer | null): number
   return Math.min(normal, SOLO_PIN_ZOOM)
 }
 
-export function kmbViewKey(lng: number, lat: number, zoom: number): string {
-  if (zoom < KMB_MIN_ZOOM) return "far"
-  const band = zoom < 16 ? "wide" : zoom < GMB_MIN_ZOOM ? "street" : "close"
+export function mapViewKey(lng: number, lat: number, zoom: number): string {
+  if (!Number.isFinite(zoom) || zoom < SOLO_PIN_ZOOM) return "far"
+  const band = zoom < KMB_MIN_ZOOM ? "overview" : zoom < 16 ? "wide" : zoom < GMB_MIN_ZOOM ? "street" : "close"
   return `${lng.toFixed(3)},${lat.toFixed(3)},${band}`
 }

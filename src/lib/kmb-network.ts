@@ -1,5 +1,5 @@
 import networkFile from "../../data/kmb-network.json"
-import { nearestPoints } from "@/lib/nearest"
+import { pointsWithin } from "@/lib/nearest"
 import { indexPoints, mates } from "@/lib/point-index"
 import { catalogueAccepts } from "@/lib/stop-list"
 
@@ -48,20 +48,6 @@ export function kmbPoleIds(id: string): string[] {
   return mates(pointIndex, id, stop.lng, stop.lat)
 }
 
-export function nearestKmbStops(lng: number, lat: number, limit: number): KmbStopPoint[] {
-  return nearestPoints(stopList, lng, lat, limit)
-}
-
 export function kmbStopsWithin(lng: number, lat: number, radiusMetres: number, limit: number): KmbStopPoint[] {
-  const cos = Math.cos((lat * Math.PI) / 180)
-  const ranked = stopList
-    .map((point) => {
-      const east = (point.lng - lng) * cos * 111_320
-      const north = (point.lat - lat) * 110_540
-      return { point, distance: Math.hypot(east, north) }
-    })
-    .filter((item) => item.distance <= radiusMetres)
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, limit)
-  return ranked.map((item) => item.point)
+  return pointsWithin(stopList, lng, lat, radiusMetres, limit)
 }

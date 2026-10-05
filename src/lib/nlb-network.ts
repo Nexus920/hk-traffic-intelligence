@@ -1,4 +1,5 @@
 import networkFile from "../../data/nlb-network.json" with { type: "json" }
+import { nearestMetres } from "@/lib/nearest"
 import { indexPoints, mates } from "@/lib/point-index"
 import { inLantau } from "./lantau.ts"
 
@@ -29,15 +30,5 @@ export function nlbPoleIds(id: string): string[] {
 }
 
 export function nearestNlbStops(lng: number, lat: number, limit: number): NlbStopPoint[] {
-  if (!inLantau(lng, lat)) return []
-  const cos = Math.cos((lat * Math.PI) / 180)
-  return stopList
-    .map((point) => {
-      const east = (point.lng - lng) * cos * 111_320
-      const north = (point.lat - lat) * 110_540
-      return { point, distance: east * east + north * north }
-    })
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, limit)
-    .map((item) => item.point)
+  return nearestMetres(stopList, lng, lat, limit)
 }

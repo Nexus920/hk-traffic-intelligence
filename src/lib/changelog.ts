@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-overview-follow",
+    date: "2026-10-05",
+    kind: "fixed",
+    en: "With Only on, moving the city view loads the pins for the place you are looking at. New Lantao Bus shows from the harbour when it is the only layer.",
+    tc: "開啟只看後，在城市比例移動地圖，會載入你看着的位置的標記。只看嶼巴時，從海港也能找到車站。",
+    sc: "开启只看后，在城市比例移动地图，会载入你看着的位置的标记。只看屿巴时，从海港也能找到车站。",
+  },
+  {
     id: "2026-10-05-pin-reach",
     date: "2026-10-05",
     kind: "fixed",

@@ -1,3 +1,4 @@
+import { pointKey } from "./point-index.ts"
 import type { ArrivalClock } from "./types.ts"
 
 type Call = {
@@ -19,10 +20,6 @@ type Pole = {
 }
 
 const CODE_TAIL = /^(.*?)\s*\(([^)]+)\)\s*$/
-
-function poleKey(stop: { lng: number; lat: number }): string {
-  return `${stop.lng.toFixed(6)},${stop.lat.toFixed(6)}`
-}
 
 function sharedName(names: string[], codeJoin: string, nameJoin: string): string {
   const unique: string[] = []
@@ -63,7 +60,7 @@ export function mergeSamePoles<T extends Pole>(stops: T[]): T[] {
   const order: string[] = []
   const groups = new Map<string, T[]>()
   for (const stop of stops) {
-    const key = poleKey(stop)
+    const key = pointKey(stop.lng, stop.lat)
     const list = groups.get(key)
     if (!list) {
       groups.set(key, [stop])
