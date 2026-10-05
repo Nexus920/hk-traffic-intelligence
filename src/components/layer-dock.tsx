@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { useI18n } from "@/components/locale"
 import type { Messages } from "@/lib/i18n"
-import { chooseWatchedLayer } from "@/lib/preferences"
+import { beginOnly, chooseWatchedLayer } from "@/lib/preferences"
 import type { Basemap, WatchLayer, WatchLayers } from "@/lib/types"
 
 type LayerDockProps = {
@@ -130,6 +130,7 @@ export function LayerDock(props: LayerDockProps) {
       return
     }
     mix.current = props.layers
+    props.onSetLayers(beginOnly(props.layers))
     setOnly(true)
   }
   return (
