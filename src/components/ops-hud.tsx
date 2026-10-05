@@ -701,10 +701,19 @@ function onTabKey(event: KeyboardEvent<HTMLButtonElement>, index: number, setTab
 
 function IntelMarquee(props: { items: IntelItem[]; empty: string; seconds: number; onFocus: OpsHudProps["onFocus"] }) {
   const { messages } = useI18n()
+  const track = useRef<HTMLDivElement>(null)
   const items = props.items.length > 0 ? props.items : [quietItem(props.empty, messages.clear)]
+  const line = `${props.seconds}:${items.map((item) => item.id).join("|")}`
+  useEffect(() => {
+    const node = track.current
+    if (!node) return
+    node.style.animationName = "none"
+    void node.offsetWidth
+    node.style.animationName = ""
+  }, [line])
   return (
-    <div className="min-w-0 flex-1 overflow-hidden" aria-label={messages.intel}>
-      <div className="intel-marquee flex w-max" style={{ animationDuration: `${props.seconds}s` }}>
+    <div className="min-w-0 flex-1 overflow-clip" aria-label={messages.intel}>
+      <div ref={track} className="intel-marquee flex w-max" style={{ animationDuration: `${props.seconds}s` }}>
         {[0, 1].map((copy) => (
           <div key={copy} className="intel-marquee-copy flex shrink-0 items-center" aria-hidden={copy === 1}>
             {items.map((item) => (

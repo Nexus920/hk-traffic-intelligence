@@ -133,10 +133,10 @@
 
 @keyframes intel-marquee {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -144,10 +144,14 @@
   animation-name: intel-marquee;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
-.intel-marquee:hover {
-  animation-play-state: paused;
+@media (hover: hover) and (pointer: fine) {
+  .intel-marquee:hover {
+    animation-play-state: paused;
+  }
 }
 
 #harbour-intel {

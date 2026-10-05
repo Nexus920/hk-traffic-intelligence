@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-05-iphone-marquee",
+    date: "2026-10-05",
+    kind: "fixed",
+    en: "The headline strip scrolls on iPhone Safari.",
+    tc: "iPhone Safari 上，情報條會捲動。",
+    sc: "iPhone Safari 上，情报条会卷动。",
+  },
+  {
     id: "2026-10-05-only-wide",
     date: "2026-10-05",
     kind: "improved",
