@@ -959,10 +959,16 @@ export function controlName(locale: Locale, code: string, english: string): stri
   return CONTROL_NAMES[locale][code] || (locale === "en" ? english : displayText(locale, "", english))
 }
 
+const DISTRICT_FROM_TRADITIONAL = new Map(Object.entries(DISTRICTS).map(([english, traditional]) => [traditional, english]))
+
 export function districtName(locale: Locale, english: string): string {
   const traditional = DISTRICTS[english]
   if (!traditional) return displayText(locale, "", english)
   return displayText(locale, traditional, english)
+}
+
+export function districtFromTraditional(locale: Locale, traditional: string): string {
+  return displayText(locale, traditional, DISTRICT_FROM_TRADITIONAL.get(traditional) ?? "")
 }
 
 const REGIONS: Record<string, string> = {

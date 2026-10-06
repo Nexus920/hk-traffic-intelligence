@@ -3,6 +3,7 @@ import {
   bandWord,
   controlName,
   displayText,
+  districtFromTraditional,
   districtName,
   queueText,
   regionName,
@@ -422,7 +423,7 @@ function parkingKindLabel(kind: ParkingKind, m: Messages): string {
 export function chargerPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.charger
   const card = openCard(heading)
-  const district = textProp(properties, "districtTc")
+  const district = districtFromTraditional(m.locale, textProp(properties, "districtTc"))
   if (district) card.head.append(paragraph("city-card-detail", district))
   appendChargerCounts(card.head, properties, m)
   return card.root
