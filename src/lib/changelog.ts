@@ -13,14 +13,6 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
-    id: "2026-10-06-map-starts",
-    date: "2026-10-06",
-    kind: "fixed",
-    en: "The satellite map starts again.",
-    tc: "衛星地圖可以再打開。",
-    sc: "卫星地图可以再打开。",
-  },
-  {
     id: "2026-10-06-gwat-name",
     date: "2026-10-06",
     kind: "improved",
