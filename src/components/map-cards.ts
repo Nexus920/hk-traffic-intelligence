@@ -349,7 +349,10 @@ export function kerbPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): H
   const street = readablePlace(displayText(m.locale, textProp(properties, "streetTc"), textProp(properties, "streetEn")))
   const card = openCard(street || m.kerb)
   const bays = numberProp(properties, "bays")
-  card.body.append(paragraph("city-card-copy", bays != null && bays > 0 ? m.kerbBays(bays) : m.kerbFailed))
+  const board = document.createElement("div")
+  board.className = "city-card-board"
+  board.append(serviceRow(m.kerb, bays != null && bays > 0 ? m.kerbBays(bays) : m.kerbFailed))
+  card.body.append(board)
   return card.root
 }
 
