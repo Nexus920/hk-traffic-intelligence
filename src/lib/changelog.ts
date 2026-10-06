@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-track-gap",
+    date: "2026-10-06",
+    kind: "fixed",
+    en: "Two trains on a bend keep separate markers while they are still apart along the track.",
+    tc: "彎路上的兩班列車，只要沿路仍分開，就會各自顯示。",
+    sc: "弯路上的两班列车，只要沿路仍分开，就会各自显示。",
+  },
+  {
     id: "2026-10-06-train-gap",
     date: "2026-10-06",
     kind: "fixed",

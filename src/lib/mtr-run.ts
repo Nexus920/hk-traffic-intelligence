@@ -155,7 +155,7 @@ export function runCollection(
   for (const run of runs) {
     const place = placeRun(run, locate)
     if (!place) continue
-    const stacked = drawn.find((item) => item.run.line === run.line && item.run.dest === run.dest && metresBetween(item.place, place) < SAME_SPOT_M)
+    const stacked = drawn.find((item) => sameService(item.run, item.place, run, place))
     if (stacked) {
       if (run.distance > stacked.run.distance) {
         stacked.run = run
@@ -182,6 +182,17 @@ export function runCollection(
     geometry: { type: "Point", coordinates: [place.lng, place.lat] },
   }))
   return { type: "FeatureCollection", features }
+}
+
+function sameService(
+  left: TrainRun,
+  leftPlace: { lng: number; lat: number },
+  right: TrainRun,
+  rightPlace: { lng: number; lat: number },
+): boolean {
+  if (left.line !== right.line || left.dest !== right.dest) return false
+  if (left.path.join(">") === right.path.join(">")) return Math.abs(left.distance - right.distance) < SAME_SPOT_M
+  return metresBetween(leftPlace, rightPlace) < SAME_SPOT_M
 }
 
 function placeRun(

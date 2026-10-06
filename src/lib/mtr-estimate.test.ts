@@ -225,6 +225,15 @@ const sameWay = runCollection([
 assert.equal(sameWay.features.length, 3)
 assert.deepEqual(sameWay.features.map((feature) => feature.properties?.id).sort(), ["lead", "mid", "other"])
 
+places.H1 = { lng: 114, lat: latNorth(0) }
+places.H2 = { lng: 114, lat: latNorth(800) }
+places.H3 = { lng: 114, lat: latNorth(30) }
+const bend = runCollection([
+  { ...spotRun("out", 20), path: ["H1", "H2", "H3"], dest: "H3" },
+  { ...spotRun("back", 1540), path: ["H1", "H2", "H3"], dest: "H3" },
+], locate)
+assert.equal(bend.features.length, 2)
+
 console.log("mtr estimate ok")
 
 function sampleRun(distance: number, speed: number): TrainRun {
