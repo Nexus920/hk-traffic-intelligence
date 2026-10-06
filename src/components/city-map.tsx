@@ -72,8 +72,8 @@ const OPENING = {
 }
 
 const LABEL_MIN_ZOOM = 16.5
-// Trains and ferries are few. Their names can be read from the city view. Stop names stay close.
-const VEHICLE_LABEL_MIN_ZOOM = 12
+// Halfway between the city view and the close view. Stop names stay at the close view.
+const VEHICLE_LABEL_MIN_ZOOM = 14.25
 const LABEL_REFRESH_MS = 700
 let plateFamily = ""
 
