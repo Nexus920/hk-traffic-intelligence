@@ -32,11 +32,16 @@ export async function loadChargerDistricts(): Promise<ChargerDistrict[]> {
   try {
     const response = await fetchUpstream(LIST_URL, PLACE_POLL_MS, { timeoutMs: 12_000, headers: { Accept: "application/json" } })
     if (response.status !== 200) return hold(cached?.rows ?? [])
-    const rows = parseChargerDistricts(JSON.parse(new TextDecoder().decode(response.body).replace(/^\uFEFF/, "")) as unknown)
-    return hold(rows)
+    const parsed = parseChargerDistricts(JSON.parse(new TextDecoder().decode(response.body).replace(/^\uFEFF/, "")) as unknown)
+    return hold(keepDistrictRows(parsed, cached?.rows ?? []))
   } catch {
     return hold(cached?.rows ?? [])
   }
+}
+
+export function keepDistrictRows(fresh: readonly ChargerDistrict[], previous: readonly ChargerDistrict[]): ChargerDistrict[] {
+  if (fresh.length === 0 && previous.length > 0) return [...previous]
+  return [...fresh]
 }
 
 export function withDistricts<T extends { nameTc: string; nameEn: string; districtTc: string }>(

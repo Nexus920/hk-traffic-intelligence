@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { parseChargerDistricts, withDistricts } from "./charger-districts.ts"
+import { parseChargerDistricts, keepDistrictRows, withDistricts } from "./charger-districts.ts"
 
 const body = {
   features: [
@@ -36,5 +36,7 @@ assert.equal(places.find((place) => place.id === "kept")?.districtTc, "中西區
 assert.equal(places.find((place) => place.id === "sai")?.districtTc, "西貢")
 assert.equal(places.find((place) => place.id === "blank")?.districtTc, "")
 assert.equal(parseChargerDistricts({ features: [] }).length, 0)
+assert.deepEqual(keepDistrictRows([], [{ nameTc: "西貢政府合署停車場", nameEn: "Sai Kung", districtTc: "西貢" }]).map((row) => row.districtTc), ["西貢"])
+assert.equal(keepDistrictRows([], []).length, 0)
 
 console.log("charger districts ok")

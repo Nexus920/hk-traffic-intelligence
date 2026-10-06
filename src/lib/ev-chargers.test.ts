@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
-import { CHARGER_CAP, chargersInsideParks, chargersNear, joinChargers, joinLive, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
+import { CHARGER_CAP, chargersInsideParks, chargersNear, joinChargers, joinLive, keepChargerReading, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
 
 const places = parseChargerPlaces(catalogueFile)
 const citic = places.find((place) => place.nameTc === "中信大廈")
@@ -91,5 +91,11 @@ const closer = joinLive(
 assert.equal(closer.find((place) => place.id === "north")?.free, 2)
 assert.equal(closer.some((place) => place.id === "epd:far"), true)
 assert.equal(closer.some((place) => place.id === "epd:near"), false)
+const keptReading = { id: "live", nameTc: "活", nameEn: "Live", districtTc: "", lng: 114.2, lat: 22.3, standard: 0, medium: 1, quick: 0, fast: 0, free: 4 }
+const juneOnly = { ...keptReading, id: "june", free: null }
+assert.equal(keepChargerReading([keptReading], null, [juneOnly])[0]?.id, "live")
+assert.equal(keepChargerReading(null, [keptReading], [juneOnly])[0]?.free, 4)
+assert.equal(keepChargerReading([], [keptReading], [juneOnly])[0]?.free, 4)
+assert.equal(keepChargerReading(null, null, [juneOnly])[0]?.id, "june")
 
 console.log("ev-chargers ok")

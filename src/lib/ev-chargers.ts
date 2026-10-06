@@ -56,6 +56,16 @@ export function parseChargerPlaces(body: unknown): ChargerPlace[] {
   })
 }
 
+export function keepChargerReading(
+  fresh: readonly ChargerPlace[] | null,
+  previous: readonly ChargerPlace[] | null,
+  fallback: readonly ChargerPlace[],
+): readonly ChargerPlace[] {
+  if (fresh && fresh.length > 0) return fresh
+  if (previous && previous.length > 0) return previous
+  return fallback
+}
+
 let sharedChargers: { expires: number; places: ChargerPlace[] } | null = null
 
 export async function loadChargerPlaces(lng: number, lat: number, zoom = Number.NaN, wide = false): Promise<{ ok: true; places: ChargerPlace[] }> {
@@ -71,10 +81,13 @@ export async function loadChargerPlaces(lng: number, lat: number, zoom = Number.
 async function chargerList(): Promise<ChargerPlace[]> {
   if (sharedChargers && sharedChargers.expires > Date.now()) return sharedChargers.places
   const [epd, clp, districts] = await Promise.all([loadEpdStations(), loadClpStations(), loadChargerDistricts()])
-  const joined = epd.ok
+  const fresh = epd.ok && epd.stations.length > 0
     ? joinChargers(joinLive(catalogue, epd.stations.map(epdLive), "prefer"), clp)
-    : sharedChargers?.places ?? joinChargers(catalogue, clp)
-  const places = withDistricts(joined, districts)
+    : null
+  const places = withDistricts(
+    keepChargerReading(fresh, sharedChargers?.places ?? null, joinChargers(catalogue, clp)),
+    districts,
+  )
   sharedChargers = { expires: Date.now() + CHARGER_POLL_MS, places }
   return places
 }
