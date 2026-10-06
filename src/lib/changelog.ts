@@ -16,9 +16,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     id: "2026-10-06-vehicle-labels",
     date: "2026-10-06",
     kind: "improved",
-    en: "Train and ferry names appear before the street view. Stop names stay close.",
-    tc: "列車和渡輪名稱在街景之前就會出現。車站名稱仍然要拉近才顯示。",
-    sc: "列车和渡轮名称在街景之前就会出现。车站名称仍然要拉近才显示。",
+    en: "Train and ferry names appear before the street view, and each one keeps its name while it moves.",
+    tc: "列車和渡輪名稱在街景之前就會出現，行駛時名稱一直留在車上。",
+    sc: "列车和渡轮名称在街景之前就会出现，行驶时名称一直留在车上。",
   },
   {
     id: "2026-10-05-layer-tap",

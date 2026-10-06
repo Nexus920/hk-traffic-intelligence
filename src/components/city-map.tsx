@@ -74,7 +74,6 @@ const OPENING = {
 const LABEL_MIN_ZOOM = 16.5
 // Halfway between the city view and the close view. Stop names stay at the close view.
 const VEHICLE_LABEL_MIN_ZOOM = 14.25
-const LABEL_REFRESH_MS = 700
 let plateFamily = ""
 
 function narrowScreen(): boolean {
@@ -475,45 +474,6 @@ export function CityMap({
       keep.className = "ios-frame-keep"
       document.body.appendChild(keep)
     }
-    const motionReady = { mtr: false, lrt: false, ferry: false, at: 0 }
-    const refreshTrainLabels = (map: Map, now: number) => {
-      const show = map.getZoom() >= VEHICLE_LABEL_MIN_ZOOM
-      if (!show) {
-        if (!motionReady.mtr && !motionReady.lrt && !motionReady.ferry) return
-        if (motionReady.mtr) geoJsonSource(map, "mtr-train-labels")?.setData(emptyCollection())
-        if (motionReady.lrt) geoJsonSource(map, "lrt-train-labels")?.setData(emptyCollection())
-        if (motionReady.ferry) geoJsonSource(map, "ferry-vessel-labels")?.setData(emptyCollection())
-        motionReady.mtr = false
-        motionReady.lrt = false
-        motionReady.ferry = false
-        return
-      }
-      if (now - motionReady.at < LABEL_REFRESH_MS && (motionReady.mtr || motionReady.lrt || motionReady.ferry)) return
-      motionReady.at = now
-      const publish = (sourceId: string, layerId: string, mode: "mtr" | "lrt", runs: TrainRun[], locate: (code: string) => { lng: number; lat: number } | null) => {
-        const source = geoJsonSource(map, sourceId)
-        if (!source) return
-        if (!layerShown(map, layerId)) {
-          if (motionReady[mode]) source.setData(emptyCollection())
-          motionReady[mode] = false
-          return
-        }
-        source.setData(withTrainMarks(map, runCollection(runs, locate), localeRef.current, mode))
-        motionReady[mode] = true
-      }
-      publish("mtr-train-labels", "mtr-train-label", "mtr", runsRef.current, stationPoint)
-      publish("lrt-train-labels", "lrt-train-label", "lrt", lrtRunsRef.current, lrtPoint)
-      const ferryLabels = geoJsonSource(map, "ferry-vessel-labels")
-      if (ferryLabels) {
-        if (!layerShown(map, "ferry-vessel-label")) {
-          if (motionReady.ferry) ferryLabels.setData(emptyCollection())
-          motionReady.ferry = false
-        } else {
-          ferryLabels.setData(withFerryMarks(map, ferryMotionFeatures(ferryMotionRef.current, Date.now()), localeRef.current))
-          motionReady.ferry = true
-        }
-      }
-    }
     const step = () => {
       const now = performance.now()
       const elapsed = Math.max(0, (now - last) / 1000)
@@ -537,27 +497,24 @@ export function CityMap({
           current.setPaintProperty("control-points-ring", "circle-opacity", pulse)
         }
         const trainStep = Math.min(1, elapsed)
-        const trains = geoJsonSource(current, "mtr-trains")
-        if (trains && layerShown(current, "mtr-trains")) {
+        const showLabels = current.getZoom() >= VEHICLE_LABEL_MIN_ZOOM
+        if (layerShown(current, "mtr-trains")) {
           runsRef.current = advanceRuns(runsRef.current, trainStep, stationPoint)
           const moving = runCollection(runsRef.current, stationPoint)
-          if (ios) pushMovingSource(trains, gates.mtr, moving, now, pushGap)
-          else trains.setData(moving)
+          if (showLabels) withTrainMarks(current, moving, localeRef.current, "mtr")
+          moveVehicles(current, "mtr-trains", gates.mtr, moving, ios, now, pushGap)
         }
-        const lightRail = geoJsonSource(current, "lrt-trains")
-        if (lightRail && layerShown(current, "lrt-trains")) {
+        if (layerShown(current, "lrt-trains")) {
           lrtRunsRef.current = advanceRuns(lrtRunsRef.current, trainStep, lrtPoint)
           const moving = runCollection(lrtRunsRef.current, lrtPoint)
-          if (ios) pushMovingSource(lightRail, gates.lrt, moving, now, pushGap)
-          else lightRail.setData(moving)
+          if (showLabels) withTrainMarks(current, moving, localeRef.current, "lrt")
+          moveVehicles(current, "lrt-trains", gates.lrt, moving, ios, now, pushGap)
         }
-        const boats = geoJsonSource(current, "ferry-vessels")
-        if (boats && layerShown(current, "ferry-vessels")) {
+        if (layerShown(current, "ferry-vessels")) {
           const moving = ferryMotionFeatures(ferryMotionRef.current, Date.now())
-          if (ios) pushMovingSource(boats, gates.ferry, moving, now, pushGap)
-          else boats.setData(moving)
+          if (showLabels) withFerryMarks(current, moving, localeRef.current)
+          moveVehicles(current, "ferry-vessels", gates.ferry, moving, ios, now, pushGap)
         }
-        refreshTrainLabels(current, now)
       }
     }
     const tick = () => {
@@ -691,7 +648,6 @@ export function CityMap({
       geoJsonSource(map, "control-points")?.setData(controlPoints ?? emptyCollection())
       if (!mtr?.ok) {
         geoJsonSource(map, "mtr-trains")?.setData(emptyCollection())
-        geoJsonSource(map, "mtr-train-labels")?.setData(emptyCollection())
       }
       if (!layers.kmb) {
         geoJsonSource(map, "kmb-stops")?.setData(emptyCollection())
@@ -700,7 +656,6 @@ export function CityMap({
       }
       if (!layers.lrt) {
         geoJsonSource(map, "lrt-trains")?.setData(emptyCollection())
-        geoJsonSource(map, "lrt-train-labels")?.setData(emptyCollection())
       }
       if (!layers.citybus) {
         geoJsonSource(map, "citybus-stops")?.setData(emptyCollection())
@@ -727,7 +682,9 @@ export function CityMap({
         geoJsonSource(map, "ferry-vessels")?.setData(emptyCollection())
       } else {
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
-        geoJsonSource(map, "ferry-vessels")?.setData(ferryMotionFeatures(ferryMotionRef.current, Date.now()))
+        const moving = ferryMotionFeatures(ferryMotionRef.current, Date.now())
+        if (map.getZoom() >= VEHICLE_LABEL_MIN_ZOOM) withFerryMarks(map, moving, locale)
+        geoJsonSource(map, "ferry-vessels")?.setData(moving)
       }
       if (!layers.parking || !parking) {
         geoJsonSource(map, "parking")?.setData(emptyCollection())
@@ -1152,6 +1109,21 @@ function pushMovingSource(
   }
 }
 
+function moveVehicles(
+  map: Map,
+  sourceId: string,
+  gate: PushGate,
+  moving: GeoJSON.FeatureCollection,
+  ios: boolean,
+  now: number,
+  gapMs: number,
+) {
+  const source = geoJsonSource(map, sourceId)
+  if (!source) return
+  if (ios) pushMovingSource(source, gate, moving, now, gapMs)
+  else source.setData(moving)
+}
+
 function pointAlong(line: AnimLine, t: number): [number, number] {
   const total = line.cum[line.cum.length - 1] ?? 0
   const first = line.coords[0]
@@ -1216,8 +1188,8 @@ function addVehicleLabel(map: Map, id: string, source: string, before: string | 
       "icon-image": ["get", "icon"],
       "icon-anchor": "bottom",
       "icon-offset": [0, -10],
-      "icon-allow-overlap": ["step", ["zoom"], false, LABEL_MIN_ZOOM, true],
-      "icon-ignore-placement": ["step", ["zoom"], false, LABEL_MIN_ZOOM, true],
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
       "icon-pitch-alignment": "viewport",
       "icon-rotation-alignment": "viewport",
     },
@@ -1241,7 +1213,6 @@ function mountDataLayers(map: Map) {
   })
   map.addSource("mtr-stations", { type: "geojson", data: mtrStationCollection() })
   map.addSource("mtr-trains", { type: "geojson", data: emptyCollection() })
-  map.addSource("mtr-train-labels", { type: "geojson", data: emptyCollection() })
   map.addSource("kmb-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("lrt-track", {
     type: "geojson",
@@ -1250,14 +1221,12 @@ function mountDataLayers(map: Map) {
   })
   map.addSource("lrt-stations", { type: "geojson", data: lrtStationCollection() })
   map.addSource("lrt-trains", { type: "geojson", data: emptyCollection() })
-  map.addSource("lrt-train-labels", { type: "geojson", data: emptyCollection() })
   map.addSource("citybus-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("gmb-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("nlb-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("mtrbus-stops", { type: "geojson", data: emptyCollection(), attribution: "© MTR Corporation" })
   map.addSource("ferry-piers", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
-  map.addSource("ferry-vessel-labels", { type: "geojson", data: emptyCollection() })
   map.addSource("parking", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("meters", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("approaches", { type: "geojson", data: emptyCollection() })
@@ -1564,7 +1533,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addVehicleLabel(map, "mtr-train-label", "mtr-train-labels", before)
+  addVehicleLabel(map, "mtr-train-label", "mtr-trains", before)
   addOverlay(map, {
     id: "kmb-stops",
     type: "circle",
@@ -1654,7 +1623,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addVehicleLabel(map, "lrt-train-label", "lrt-train-labels", before)
+  addVehicleLabel(map, "lrt-train-label", "lrt-trains", before)
   addOverlay(map, {
     id: "citybus-stops",
     type: "circle",
@@ -1736,7 +1705,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addVehicleLabel(map, "ferry-vessel-label", "ferry-vessel-labels", before)
+  addVehicleLabel(map, "ferry-vessel-label", "ferry-vessels", before)
   addOverlay(map, {
     id: "approach-times",
     type: "symbol",
