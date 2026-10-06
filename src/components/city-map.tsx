@@ -344,6 +344,7 @@ export function CityMap({
       runsRef.current,
       runsFromTrains(mtr.trains, stationPoint, (line) => lineRecord(line)?.color ?? "#5C6B7A", now),
       now,
+      stationPoint,
     )
   }, [mtr])
 
@@ -358,6 +359,7 @@ export function CityMap({
       lrtRunsRef.current,
       runsFromTrains(lrt.trains, lrtPoint, () => lrtColor(), now),
       now,
+      lrtPoint,
     )
   }, [lrt])
 

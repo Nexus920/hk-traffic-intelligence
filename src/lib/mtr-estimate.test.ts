@@ -149,6 +149,35 @@ const far = mergeRuns([sampleRun(100, 12)], [{ ...sampleRun(3000, 12), id: "othe
 assert.equal(far.find((run) => run.id === "keep")?.distance, 100)
 assert.equal(far.some((run) => run.id === "other"), true)
 
+const stillBehind = mergeRuns([sampleRun(800, 12)], [sampleRun(200, 12)], now + 1000, locate)
+assert.equal(stillBehind.find((run) => run.id === "keep")?.distance, 800)
+
+const piledRuns = mergeRuns(
+  [sampleRun(1440, 12), { ...sampleRun(1440, 12), id: "second" }],
+  [sampleRun(720, 12), { ...sampleRun(0, 12), id: "back" }],
+  now + 1000,
+  locate,
+)
+const piledGap = Math.abs((piledRuns[0]?.distance ?? 0) - (piledRuns[1]?.distance ?? 0))
+assert.ok(piledGap > 400, `piled runs stayed ${piledGap}m apart`)
+
+const branchClock = estimateTrains(
+  eastRail,
+  [obs("SHS", "ADM", 1, 1, "EAL"), obs("SHS", "ADM", 8, 8, "EAL")],
+  locate,
+)
+assert.equal(branchClock.length, 2)
+const soonSpot = projectTrain(branchClock.find((train) => train.ttnt === 1)!, locate, now)
+const lateSpot = projectTrain(branchClock.find((train) => train.ttnt === 8)!, locate, now)
+assert.ok(soonSpot && lateSpot)
+const branchGap = metresBetween(soonSpot, lateSpot)
+assert.ok(branchGap > 400, `branch clocks stayed ${branchGap.toFixed(0)}m apart`)
+assert.ok(metresBetween(soonSpot, places.SHS!) < metresBetween(lateSpot, places.SHS!))
+
+const onPlatform = estimateTrains(line, [obs("A", "C", 0, 0), obs("A", "C", 3, 3)], locate)
+assert.equal(onPlatform.length, 1)
+assert.equal(onPlatform[0]!.ttnt, 0)
+
 const carried = carryArrivalClock(
   [{ ...obs("B", "C", 0, 0), observedAt: now - 60_000, dueAt: now - 60_000 }],
   [obs("B", "C", 0, 0)],

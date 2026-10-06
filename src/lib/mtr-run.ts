@@ -19,7 +19,7 @@ export type TrainRun = {
 const MATCH_METRES = 1500
 const COAST_MS = 20_000
 const MAX_SPEED = 20
-const SAME_SPOT_M = 80
+const SAME_SPOT_M = 200
 
 let nextRunId = 1
 
@@ -74,9 +74,16 @@ export function advanceRuns(runs: TrainRun[], dtSec: number, locate: (code: stri
   })
 }
 
-export function mergeRuns(previous: TrainRun[], incoming: TrainRun[], now: number): TrainRun[] {
+type PlacedRun = { run: TrainRun; aim: number | null }
+
+export function mergeRuns(
+  previous: TrainRun[],
+  incoming: TrainRun[],
+  now: number,
+  locate?: (code: string) => GeoPoint | null,
+): TrainRun[] {
   const used = new Set<number>()
-  const kept: TrainRun[] = []
+  const kept: PlacedRun[] = []
   for (const run of previous) {
     let best = -1
     let bestGap = MATCH_METRES
@@ -89,7 +96,7 @@ export function mergeRuns(previous: TrainRun[], incoming: TrainRun[], now: numbe
       }
     })
     if (best < 0) {
-      if (now - run.seenAt < COAST_MS) kept.push(run)
+      if (now - run.seenAt < COAST_MS) kept.push({ run, aim: null })
       continue
     }
     used.add(best)
@@ -98,18 +105,46 @@ export function mergeRuns(previous: TrainRun[], incoming: TrainRun[], now: numbe
     const ahead = item.distance - run.distance
     const speed = ahead > 30 ? Math.min(MAX_SPEED, Math.max(run.cruise, ahead / 30)) : run.cruise
     kept.push({
-      ...run,
-      speed,
-      plat: item.plat,
-      delay: item.delay,
-      timeType: item.timeType,
-      seenAt: now,
+      run: {
+        ...run,
+        speed,
+        plat: item.plat,
+        delay: item.delay,
+        timeType: item.timeType,
+        seenAt: now,
+      },
+      aim: item.distance,
     })
   }
   incoming.forEach((item, index) => {
-    if (!used.has(index)) kept.push(item)
+    if (!used.has(index)) kept.push({ run: item, aim: item.distance })
   })
-  return kept
+  if (locate) splitPiledRuns(kept, locate)
+  return kept.map((item) => item.run)
+}
+
+const PILE_M = 40
+
+function splitPiledRuns(kept: PlacedRun[], locate: (code: string) => GeoPoint | null) {
+  const place = kept.map((item) => placeRun(item.run, locate))
+  const aimPlace = kept.map((item) => (item.aim === null ? null : placeRun({ ...item.run, distance: item.aim }, locate)))
+  for (let i = 0; i < kept.length; i++) {
+    for (let j = i + 1; j < kept.length; j++) {
+      const left = kept[i]
+      const right = kept[j]
+      const here = place[i]
+      const there = place[j]
+      const aimHere = aimPlace[i]
+      const aimThere = aimPlace[j]
+      if (!left || !right || !here || !there || !aimHere || !aimThere || left.aim === null || right.aim === null) continue
+      if (left.run.line !== right.run.line) continue
+      if (metresBetween(here, there) >= PILE_M || metresBetween(aimHere, aimThere) < PILE_M) continue
+      left.run = { ...left.run, distance: left.aim }
+      right.run = { ...right.run, distance: right.aim }
+      place[i] = aimHere
+      place[j] = aimThere
+    }
+  }
 }
 
 export function runCollection(
