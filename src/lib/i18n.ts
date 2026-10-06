@@ -236,6 +236,14 @@ export type Messages = {
   meterTaken: string
   meterClosed: string
   meterSince: (state: string, time: string) => string
+  charger: string
+  chargerFailed: string
+  chargerStandard: string
+  chargerMedium: string
+  chargerQuick: string
+  chargerFast: string
+  chargerPlugs: (n: number) => string
+  chargerList: string
 }
 
 const en: Messages = {
@@ -443,6 +451,14 @@ const en: Messages = {
   meterTaken: "Occupied",
   meterClosed: "Not in use",
   meterSince: (state, time) => `${state} since ${time}`,
+  charger: "Chargers",
+  chargerFailed: "Chargers did not load.",
+  chargerStandard: "Standard",
+  chargerMedium: "Medium",
+  chargerQuick: "Quick",
+  chargerFast: "Fast",
+  chargerPlugs: (n) => `${n} plugs`,
+  chargerList: "June 2026 list",
 }
 
 const zhHK: Messages = {
@@ -650,6 +666,14 @@ const zhHK: Messages = {
   meterTaken: "佔用",
   meterClosed: "停用",
   meterSince: (state, time) => `自 ${time} 起${state}`,
+  charger: "充電樁",
+  chargerFailed: "未能載入充電樁。",
+  chargerStandard: "標準",
+  chargerMedium: "中速",
+  chargerQuick: "快速",
+  chargerFast: "高速",
+  chargerPlugs: (n) => `${n} 個`,
+  chargerList: "2026年6月名單",
 }
 
 const zhCN: Messages = {
@@ -847,6 +871,14 @@ const zhCN: Messages = {
   meterTaken: "占用",
   meterClosed: "停用",
   meterSince: (state, time) => `自 ${time} 起${state}`,
+  charger: "充电桩",
+  chargerFailed: "未能载入充电桩。",
+  chargerStandard: "标准",
+  chargerMedium: "中速",
+  chargerQuick: "快速",
+  chargerFast: "高速",
+  chargerPlugs: (n) => `${n} 个`,
+  chargerList: "2026年6月名单",
 }
 
 export const MESSAGES: Record<Locale, Messages> = {

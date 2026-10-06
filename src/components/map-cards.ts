@@ -418,6 +418,34 @@ function parkingKindLabel(kind: ParkingKind, m: Messages): string {
   }
 }
 
+export function chargerPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+  const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.charger
+  const card = openCard(heading)
+  const district = textProp(properties, "districtTc")
+  if (district) card.head.append(paragraph("city-card-detail", district))
+  card.head.append(paragraph("city-card-detail", m.chargerList))
+  const rows = [
+    [m.chargerStandard, countProp(properties, "standard")],
+    [m.chargerMedium, countProp(properties, "medium")],
+    [m.chargerQuick, countProp(properties, "quick")],
+    [m.chargerFast, countProp(properties, "fast")],
+  ] as const
+  const shown = rows.filter(([, count]) => count > 0)
+  if (shown.length === 0) return card.root
+  const board = document.createElement("div")
+  board.className = "city-card-board"
+  for (const [label, count] of shown) board.append(serviceRow(label, m.chargerPlugs(count)))
+  card.body.append(board)
+  return card.root
+}
+
+function countProp(properties: GeoJSON.GeoJsonProperties, key: string): number {
+  const value = properties?.[key]
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return Math.round(value)
+  if (typeof value === "string" && /^\d+$/.test(value)) return Number(value)
+  return 0
+}
+
 export function meterPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
   const street = readablePlace(displayText(m.locale, textProp(properties, "streetTc"), textProp(properties, "streetEn"))) || m.meter
   const card = openCard(street)

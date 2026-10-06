@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-public-chargers",
+    date: "2026-10-06",
+    kind: "added",
+    en: "Public chargers from the June 2026 government list can be switched on. Each pin shows the plug counts from that list.",
+    tc: "2026年6月的公共充電樁可以打開。每個標記顯示該名單上的插頭數目。",
+    sc: "2026年6月的公共充电桩可以打开。每个标记显示该名单上的插头数目。",
+  },
+  {
     id: "2026-10-06-shared-station",
     date: "2026-10-06",
     kind: "fixed",
