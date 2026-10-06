@@ -406,6 +406,7 @@ function paintParking(body: HTMLElement, spaces: ParkingSpace[], m: Messages, le
   board.className = "city-card-board"
   for (const space of ordered) {
     board.append(serviceRow(parkingKindLabel(space.kind, m), parkingCount(space, m)))
+    if (space.kind === "private" && space.ev != null) board.append(serviceRow(m.parkingEv, m.parkingSpaces(space.ev)))
   }
   body.append(board)
 }
@@ -528,15 +529,16 @@ function readParkingSpaces(payload: unknown): ParkingSpace[] | null {
   if (!("spaces" in payload) || !Array.isArray(payload.spaces)) return null
   return payload.spaces.flatMap((item) => {
     if (!item || typeof item !== "object") return []
-    const row = item as { kind?: unknown; state?: unknown; vacancy?: unknown; updated?: unknown }
+    const row = item as { kind?: unknown; state?: unknown; vacancy?: unknown; ev?: unknown; updated?: unknown }
     if (row.kind !== "private" && row.kind !== "lgv" && row.kind !== "hgv" && row.kind !== "motorcycle") return []
     const vacancy = typeof row.vacancy === "number" && Number.isFinite(row.vacancy) ? row.vacancy : null
+    const ev = typeof row.ev === "number" && Number.isFinite(row.ev) && row.ev >= 0 ? row.ev : null
     const state = row.state === "number" || row.state === "unpublished" || row.state === "closed"
       ? row.state
       : vacancy == null
         ? "unpublished"
         : "number"
-    return [{ kind: row.kind, state, vacancy, updated: typeof row.updated === "string" ? row.updated : "" }]
+    return [{ kind: row.kind, state, vacancy, ev, updated: typeof row.updated === "string" ? row.updated : "" }]
   })
 }
 

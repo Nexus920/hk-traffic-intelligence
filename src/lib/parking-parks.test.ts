@@ -86,7 +86,7 @@ assert.equal(collapseSameSites(oneStop).length, 2)
 
 const vacancy = {
   results: [
-    { park_Id: "open", privateCar: [{ vacancy_type: "A", vacancy: 29, lastupdate: "2026-10-07 02:10:03" }], motorCycle: [{ vacancy_type: "A", vacancy: 6, lastupdate: "2026-10-07 02:10:03" }] },
+    { park_Id: "open", privateCar: [{ vacancy_type: "A", vacancy: 29, vacancyEV: 1, lastupdate: "2026-10-07 02:10:03" }], motorCycle: [{ vacancy_type: "A", vacancy: 6, lastupdate: "2026-10-07 02:10:03" }] },
     { park_Id: "full", privateCar: [{ vacancy_type: "A", vacancy: 0, lastupdate: "2026-10-07 02:10:03" }] },
     { park_Id: "quiet", privateCar: [{ vacancy_type: "B", vacancy: 1, lastupdate: "2026-10-07 02:10:03" }] },
     { park_Id: "shut", privateCar: [{ vacancy_type: "C", vacancy: 0, lastupdate: "2026-10-07 02:10:03" }] },
@@ -94,6 +94,8 @@ const vacancy = {
   ],
 }
 assert.equal(parseOneStopSpaces(vacancy, "open").find((space) => space.kind === "private")?.state, "number")
+assert.equal(parseOneStopSpaces(vacancy, "open").find((space) => space.kind === "private")?.ev, 1)
+assert.equal(parseOneStopSpaces(vacancy, "full").find((space) => space.kind === "private")?.ev, null)
 assert.equal(parseOneStopSpaces(vacancy, "open").find((space) => space.kind === "motorcycle")?.vacancy, 6)
 assert.equal(parseOneStopSpaces(vacancy, "full").find((space) => space.kind === "private")?.vacancy, 0)
 assert.equal(parseOneStopSpaces(vacancy, "quiet")[0]?.state, "unpublished")

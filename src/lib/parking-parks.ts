@@ -19,6 +19,7 @@ export type ParkingSpace = {
   kind: ParkingKind
   state: ParkingState
   vacancy: number | null
+  ev: number | null
   updated: string
 }
 
@@ -94,6 +95,7 @@ export function parseParkingSpaces(body: unknown, id: string): ParkingSpace[] {
       kind,
       state: reading.state,
       vacancy: reading.vacancy,
+      ev: null,
       updated: text(category.lastupdate),
     })
   }
@@ -215,7 +217,14 @@ export function parseOneStopSpaces(body: unknown, id: string): ParkingSpace[] {
     const row = firstReading(park[field])
     if (!row) continue
     const reading = vacancyState(text(row.vacancy_type), number(row.vacancy))
-    spaces.push({ kind, state: reading.state, vacancy: reading.vacancy, updated: text(row.lastupdate) })
+    const ev = number(row.vacancyEV)
+    spaces.push({
+      kind,
+      state: reading.state,
+      vacancy: reading.vacancy,
+      ev: ev != null && ev >= 0 ? ev : null,
+      updated: text(row.lastupdate),
+    })
   }
   return spaces
 }

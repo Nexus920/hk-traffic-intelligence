@@ -226,6 +226,7 @@ export type Messages = {
   parkingNone: string
   parkingUnpublished: string
   parkingClosed: string
+  parkingEv: string
   parkingPrivate: string
   parkingLgv: string
   parkingHgv: string
@@ -448,6 +449,7 @@ const en: Messages = {
   parkingNone: "No published spaces",
   parkingUnpublished: "No count published",
   parkingClosed: "Closed",
+  parkingEv: "EV spaces",
   parkingPrivate: "Private car",
   parkingLgv: "Light goods",
   parkingHgv: "Heavy goods",
@@ -670,6 +672,7 @@ const zhHK: Messages = {
   parkingNone: "沒有公布空位",
   parkingUnpublished: "沒有公布數目",
   parkingClosed: "關閉",
+  parkingEv: "電動車位",
   parkingPrivate: "私家車",
   parkingLgv: "輕型貨車",
   parkingHgv: "重型貨車",
@@ -882,6 +885,7 @@ const zhCN: Messages = {
   parkingNone: "没有公布空位",
   parkingUnpublished: "没有公布数目",
   parkingClosed: "关闭",
+  parkingEv: "电动车位",
   parkingPrivate: "私家车",
   parkingLgv: "轻型货车",
   parkingHgv: "重型货车",
