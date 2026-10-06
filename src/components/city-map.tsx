@@ -213,7 +213,7 @@ type CityMapProps = {
   nlb: NlbResponse | null
   mtrBus: NlbResponse | null
   ferry: FerryResponse | null
-  parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[] | null
+  parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; cars: number | null }[] | null
   motorcycles: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; motorcycle: number }[] | null
   kerbs: { id: string; streetTc: string; streetEn: string; lng: number; lat: number; bays: number }[] | null
   meters: MeterPole[] | null

@@ -9,7 +9,7 @@ import { useLiveJson } from "@/components/use-live-json"
 import { useI18n } from "@/components/locale"
 import { decorateControlPoints } from "@/lib/control-points"
 import { PLACE_POLL_MS, placePinZoom } from "@/lib/kmb-view"
-import { MOTORCYCLE_POLL_MS, type MotorcyclePlacesResponse, type ParkingPlacesResponse } from "@/lib/parking"
+import { MOTORCYCLE_POLL_MS, PARKING_POLL_MS, type MotorcyclePlacesResponse, type ParkingPlacesResponse } from "@/lib/parking"
 import { KERB_POLL_MS, type KerbPlacesResponse } from "@/lib/kerb"
 import { METER_POLL_MS, type MeterPlacesResponse } from "@/lib/meter-poles"
 import type { ChargerPlacesResponse } from "@/lib/ev-chargers"
@@ -114,7 +114,7 @@ export function Dashboard() {
     layers.motorcycle && view && view.zoom >= placePinZoom("motorcycle", sole)
       ? `/api/parking/motorcycles?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${motorcycleWide ? "&wide=1" : ""}`
       : null
-  const parkingPlacesLive = useLiveJson<ParkingPlacesResponse>(parkingPlacesUrl, PLACE_POLL_MS)
+  const parkingPlacesLive = useLiveJson<ParkingPlacesResponse>(parkingPlacesUrl, PARKING_POLL_MS)
   const kerbWide = sole === "kerb"
   const kerbPlacesUrl =
     layers.kerb && view && view.zoom >= placePinZoom("kerb", sole)

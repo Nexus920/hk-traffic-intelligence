@@ -1,8 +1,9 @@
 import { fetchUpstream } from "@/lib/upstream"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { parseParkingParks, parseParkingSpaces, parksNear, publishedMotorcycleVacancies, soloParkingRadiusMetres, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
+import { parseParkingParks, parseParkingSpaces, parksNear, publishedMotorcycleVacancies, publishedPrivateVacancies, soloParkingRadiusMetres, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
 
-export type ParkingPlacesResponse = { ok: true; parks: ParkingPark[] } | { ok: false; error?: string; parks: ParkingPark[] }
+export type ParkingPlace = ParkingPark & { cars: number | null }
+export type ParkingPlacesResponse = { ok: true; parks: ParkingPlace[] } | { ok: false; error?: string; parks: ParkingPlace[] }
 export type MotorcyclePark = ParkingPark & { motorcycle: number }
 export type MotorcyclePlacesResponse = { ok: true; parks: MotorcyclePark[] } | { ok: false; error?: string; parks: MotorcyclePark[] }
 
@@ -11,6 +12,7 @@ const VACANCY_URL = "https://resource.data.one.gov.hk/td/carpark/vacancy_all.jso
 const INFO_MS = 12 * 60 * 60 * 1000
 const VACANCY_MS = 60_000
 export const MOTORCYCLE_POLL_MS = VACANCY_MS
+export const PARKING_POLL_MS = VACANCY_MS
 const WIDE_CAP = 600
 
 export async function loadParkingPlaces(
@@ -18,14 +20,16 @@ export async function loadParkingPlaces(
   lat: number,
   zoom = Number.NaN,
   wide = false,
-): Promise<{ ok: true; parks: ParkingPark[] } | { ok: false }> {
-  const parks = await catalogue()
+): Promise<{ ok: true; parks: ParkingPlace[] } | { ok: false }> {
+  const [parks, vacancy] = await Promise.all([catalogue(), readJson(VACANCY_URL, VACANCY_MS)])
   if (!parks) return { ok: false }
+  const counts = vacancy ? publishedPrivateVacancies(vacancy) : new Map<string, number>()
+  const listed = parks.map((park) => ({ ...park, cars: counts.get(park.id) ?? null }))
   return {
     ok: true,
     parks: wide
-      ? parksNear(parks, lng, lat, soloParkingRadiusMetres(zoom, lat), WIDE_CAP)
-      : parksNear(parks, lng, lat, kmbReachMetres(zoom, lat)),
+      ? parksNear(listed, lng, lat, soloParkingRadiusMetres(zoom, lat), WIDE_CAP)
+      : parksNear(listed, lng, lat, kmbReachMetres(zoom, lat)),
   }
 }
 
