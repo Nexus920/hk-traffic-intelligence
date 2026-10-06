@@ -315,9 +315,9 @@ function separateArrivals(trains: EstimatedTrain[], locate: (code: string) => Ge
     for (let j = i + 1; j < revised.length; j++) {
       if (drop.has(j)) continue
       const right = revised[j]
-      if (!right?.spot || right.spot.from !== right.spot.to || left.train.line !== right.train.line) continue
+      if (!right?.spot || right.spot.from !== right.spot.to) continue
       if (metresBetween(left.spot, right.spot) >= PILE_M) continue
-      if (left.train.ttnt === right.train.ttnt && left.train.dest !== right.train.dest) continue
+      if (left.train.ttnt === right.train.ttnt) continue
       const later = left.train.ttnt > right.train.ttnt ? i : j
       drop.add(later)
       if (later === i) break

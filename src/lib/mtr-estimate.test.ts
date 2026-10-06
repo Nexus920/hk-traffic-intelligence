@@ -178,6 +178,25 @@ const onPlatform = estimateTrains(line, [obs("A", "C", 0, 0), obs("A", "C", 3, 3
 assert.equal(onPlatform.length, 1)
 assert.equal(onPlatform[0]!.ttnt, 0)
 
+place("HOK", 0)
+place("KOW", 2335)
+place("TUC", 5000)
+place("AWE", 8000)
+const sharedCorridor = [
+  { id: "TCL-UT", line: "TCL", stations: ["HOK", "KOW", "TUC"] },
+  { id: "AEL-UT", line: "AEL", stations: ["HOK", "KOW", "AWE"] },
+]
+const stackedLines = estimateTrains(
+  sharedCorridor,
+  [obs("HOK", "TUC", 0, 0, "TCL"), obs("HOK", "AWE", 8, 8, "AEL")],
+  locate,
+)
+assert.equal(stackedLines.length, 1)
+assert.equal(stackedLines[0]!.line, "TCL")
+assert.equal(stackedLines[0]!.ttnt, 0)
+const airportAlone = estimateTrains(sharedCorridor, [obs("HOK", "AWE", 8, 8, "AEL")], locate)
+assert.equal(airportAlone.length, 1)
+
 const carried = carryArrivalClock(
   [{ ...obs("B", "C", 0, 0), observedAt: now - 60_000, dueAt: now - 60_000 }],
   [obs("B", "C", 0, 0)],
