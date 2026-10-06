@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { meterClock, meterFree, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
+import { meterClock, meterFree, meterPlateCount, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
 
 const spaces = `2026-10-04
 
@@ -48,4 +48,27 @@ function crowdedPole(pole: MeterPole, index: number): MeterPole {
   return { ...pole, id: String(index), lng: pole.lng + index * 0.00001 }
 }
 
-console.log("meter-poles ok")
+assert.equal(meterPlateCount(island!), "1")
+
+const full: MeterPole = {
+  id: "full",
+  lng: 114.15,
+  lat: 22.28,
+  streetTc: "香島道",
+  streetEn: "Island Road",
+  sectionTc: "",
+  sectionEn: "",
+  spaces: [
+    { id: "a", kind: "general", vacant: false, updated: "" },
+    { id: "b", kind: "general", vacant: false, updated: "" },
+  ],
+}
+const closed: MeterPole = {
+  ...full,
+  id: "closed",
+  spaces: [{ id: "c", kind: "general", vacant: null, updated: "" }],
+}
+assert.equal(meterPlateCount(full), "0")
+assert.equal(meterPlateCount(closed), null)
+
+console.log("meter plate ok")

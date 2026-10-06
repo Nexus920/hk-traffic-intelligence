@@ -44,7 +44,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
-import type { MeterPole } from "@/lib/meter-poles"
+import { meterTone, type MeterPole } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -2094,15 +2094,6 @@ function chargerCollection(
       }
     }),
   }
-}
-
-function meterTone(pole: MeterPole): "open" | "full" | "closed" {
-  let occupied = false
-  for (const space of pole.spaces) {
-    if (space.vacant === true) return "open"
-    if (space.vacant === false) occupied = true
-  }
-  return occupied ? "full" : "closed"
 }
 
 function meterStroke(tone: "open" | "full" | "closed"): string {

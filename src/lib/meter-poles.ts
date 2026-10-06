@@ -129,6 +129,20 @@ export function meterFree(pole: MeterPole): number {
   return pole.spaces.filter((space) => space.vacant === true).length
 }
 
+export function meterTone(pole: MeterPole): "open" | "full" | "closed" {
+  let occupied = false
+  for (const space of pole.spaces) {
+    if (space.vacant === true) return "open"
+    if (space.vacant === false) occupied = true
+  }
+  return occupied ? "full" : "closed"
+}
+
+export function meterPlateCount(pole: MeterPole): string | null {
+  if (meterTone(pole) === "closed") return null
+  return String(meterFree(pole))
+}
+
 function kindOf(type: string): MeterKind | null {
   switch (type.toUpperCase()) {
     case "A":
