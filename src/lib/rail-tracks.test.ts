@@ -4,6 +4,7 @@ import { segmentLength, segmentSpan, useTrackEdges } from "./rail-tracks.ts"
 
 const start = { lng: 114.15, lat: 22.28 }
 const end = { lng: 114.17, lat: 22.28 }
+useTrackEdges({})
 assert.equal(segmentSpan("ADM", "CEN", start, end).length, 2)
 
 const bend = [

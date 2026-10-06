@@ -1,6 +1,7 @@
 import routesFile from "../../data/light-rail-routes.json"
 import stationsFile from "../../data/light-rail-stations.json"
 import type { EstimateRoute, GeoPoint } from "@/lib/mtr-estimate"
+import { segmentSpan } from "@/lib/rail-tracks"
 
 type StationRecord = { id: string; tc: string; en: string; lng: number; lat: number; aliases?: string[] }
 type RoutesFile = { color: string; routes: EstimateRoute[] }
@@ -50,7 +51,7 @@ export function lrtTrackCollection(): GeoJSON.FeatureCollection {
       const to = lrtPoint(toId)
       if (!from || !to) continue
       const key = [fromId, toId].sort().join(">")
-      if (!edges.has(key)) edges.set(key, [[from.lng, from.lat], [to.lng, to.lat]])
+      if (!edges.has(key)) edges.set(key, segmentSpan(fromId, toId, from, to).map((point) => [point.lng, point.lat]))
     }
   }
   return {

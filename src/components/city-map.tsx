@@ -1223,7 +1223,7 @@ function mountDataLayers(map: Map) {
   map.addSource("mtr-track", {
     type: "geojson",
     data: mtrTrackCollection(),
-    attribution: "© MTR Corporation | © Lands Department",
+    attribution: "© MTR Corporation | © Lands Department | © OpenStreetMap contributors",
   })
   map.addSource("mtr-stations", { type: "geojson", data: mtrStationCollection() })
   map.addSource("mtr-trains", { type: "geojson", data: emptyCollection() })
@@ -1231,7 +1231,7 @@ function mountDataLayers(map: Map) {
   map.addSource("lrt-track", {
     type: "geojson",
     data: lrtTrackCollection(),
-    attribution: "© MTR Corporation",
+    attribution: "© MTR Corporation | © OpenStreetMap contributors",
   })
   map.addSource("lrt-stations", { type: "geojson", data: lrtStationCollection() })
   map.addSource("lrt-trains", { type: "geojson", data: emptyCollection() })

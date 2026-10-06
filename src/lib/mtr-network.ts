@@ -1,5 +1,6 @@
 import networkFile from "../../data/mtr-network.json"
 import { projectTrain, type EstimateRoute, type GeoPoint, type TrainSpot } from "@/lib/mtr-estimate"
+import { segmentSpan } from "@/lib/rail-tracks"
 import type { MtrTrain } from "@/lib/types"
 
 type StationRecord = { en: string; tc: string; lng: number; lat: number }
@@ -70,7 +71,7 @@ export function mtrTrackCollection(): GeoJSON.FeatureCollection {
       const to = stationPoint(toCode)
       if (!from || !to) return
       const key = [fromCode, toCode].sort().join(">")
-      if (!edges.has(key)) edges.set(key, [[from.lng, from.lat], [to.lng, to.lat]])
+      if (!edges.has(key)) edges.set(key, segmentSpan(fromCode, toCode, from, to).map((point) => [point.lng, point.lat]))
     }
     for (const route of network.routes) {
       if (route.line !== line) continue

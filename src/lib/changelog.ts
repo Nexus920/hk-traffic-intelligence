@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-real-rails",
+    date: "2026-10-06",
+    kind: "improved",
+    en: "MTR and light-rail trains follow the real rails.",
+    tc: "港鐵和輕鐵列車沿著真正的路軌行走。",
+    sc: "港铁和轻铁列车沿着真正的路轨行走。",
+  },
+  {
     id: "2026-10-06-gwat-card",
     date: "2026-10-06",
     kind: "fixed",

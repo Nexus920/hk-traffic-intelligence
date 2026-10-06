@@ -1,10 +1,10 @@
 import tableFile from "../../data/rail-tracks.json" with { type: "json" }
 import { lineMetres, orientLine, pointAlong, fractionAlong } from "./rail-geometry.ts"
-import type { GeoPoint } from "./mtr-estimate.ts"
+import { metresBetween, type GeoPoint } from "./mtr-estimate.ts"
 
 type TrackFile = { edges: Record<string, [number, number][]> }
 
-let edges = (tableFile as TrackFile).edges
+let edges = (tableFile as unknown as TrackFile).edges
 
 export function useTrackEdges(next: Record<string, [number, number][]>): void {
   edges = next
@@ -13,8 +13,12 @@ export function useTrackEdges(next: Record<string, [number, number][]>): void {
 export function segmentSpan(fromCode: string, toCode: string, start: GeoPoint, end: GeoPoint): GeoPoint[] {
   const stored = edges[[fromCode, toCode].sort().join(">")]
   if (!stored || stored.length < 2) return [start, end]
-  const line = stored.map(([lng, lat]) => ({ lng, lat }))
-  return orientLine(line, start)
+  const line = orientLine(stored.map(([lng, lat]) => ({ lng, lat })), start)
+  const first = line[0]
+  const last = line[line.length - 1]
+  if (!first || !last) return [start, end]
+  if (metresBetween(first, start) > 150 || metresBetween(last, end) > 150) return [start, end]
+  return line
 }
 
 export function segmentLength(fromCode: string, toCode: string, start: GeoPoint, end: GeoPoint): number {
