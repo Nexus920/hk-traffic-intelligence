@@ -229,6 +229,7 @@ export type Messages = {
   parkingHgv: string
   parkingMotorcycle: string
   parkingSpaces: (n: number) => string
+  plateFree: string
   parkingAsOf: (count: string, time: string) => string
   parkingHeight: (n: number) => string
   meter: string
@@ -447,7 +448,8 @@ const en: Messages = {
   parkingLgv: "Light goods",
   parkingHgv: "Heavy goods",
   parkingMotorcycle: "Motorcycle",
-  parkingSpaces: (n) => `${n} spaces`,
+  parkingSpaces: (n) => `${n} ${n === 1 ? "space" : "spaces"}`,
+  plateFree: "free",
   parkingAsOf: (count, time) => `${count} at ${time}`,
   parkingHeight: (n) => `Height limit ${n} m`,
   meter: "Meters",
@@ -667,6 +669,7 @@ const zhHK: Messages = {
   parkingHgv: "重型貨車",
   parkingMotorcycle: "電單車",
   parkingSpaces: (n) => `${n} 個空位`,
+  plateFree: "空位",
   parkingAsOf: (count, time) => `${count}（${time}）`,
   parkingHeight: (n) => `限高 ${n} 米`,
   meter: "咪錶",
@@ -876,6 +879,7 @@ const zhCN: Messages = {
   parkingHgv: "重型货车",
   parkingMotorcycle: "电单车",
   parkingSpaces: (n) => `${n} 个空位`,
+  plateFree: "空位",
   parkingAsOf: (count, time) => `${count}（${time}）`,
   parkingHeight: (n) => `限高 ${n} 米`,
   meter: "咪表",

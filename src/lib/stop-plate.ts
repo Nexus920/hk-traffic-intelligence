@@ -1,6 +1,9 @@
+export type PlateCount = { value: string; unit: string }
+
 export type StopPlate = {
   title: string
   lines: string[]
+  count?: PlateCount
 }
 
 const PER_LINE = 3
@@ -63,5 +66,6 @@ export function shortStopTitle(name: string): string {
 }
 
 export function stopPlateKey(plate: StopPlate): string {
-  return `${plate.title}|${plate.lines.join("|")}`
+  const count = plate.count ? `${plate.count.value}${plate.count.unit}` : ""
+  return `${plate.title}|${plate.lines.join("|")}|${count}`
 }

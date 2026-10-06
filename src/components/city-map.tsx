@@ -891,9 +891,10 @@ function stopPlateIconId(plate: StopPlate, stroke: string): string {
   return `stop-plate-${stroke.slice(1)}-${encodeURIComponent(stopPlateKey(plate))}`
 }
 
-function placeStopPlate(map: Map, name: string, routes: string[], stroke: string, options?: { perLine?: number; keepOrder?: boolean }): string {
+function placeStopPlate(map: Map, name: string, routes: string[], stroke: string, options?: { perLine?: number; keepOrder?: boolean; count?: { value: string; unit: string } }): string {
   const plate = stopPlate(name, routes, options)
-  if (!plate.title && plate.lines.length === 0) return ""
+  if (options?.count) plate.count = options.count
+  if (!plate.title && plate.lines.length === 0 && !plate.count) return ""
   const icon = stopPlateIconId(plate, stroke)
   ensureStopPlate(map, icon, plate, stroke)
   return map.hasImage(icon) ? icon : ""
@@ -968,19 +969,30 @@ function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
   const family = plateFamily
   const titleFont = `600 ${11 * scale}px ${family}`
   const routeFont = `600 ${10 * scale}px ${family}`
+  const countFont = `600 ${16 * scale}px ${family}`
+  const unitFont = `500 ${9 * scale}px ${family}`
   const probe = document.createElement("canvas").getContext("2d")
   if (!probe) return null
   const rows = plate.title ? [plate.title, ...plate.lines] : plate.lines
-  if (rows.length === 0) return null
+  const count = plate.count
+  if (rows.length === 0 && !count) return null
   const widths = rows.map((row, index) => {
     probe.font = index === 0 && plate.title ? titleFont : routeFont
     return Math.ceil(probe.measureText(row).width)
   })
+  let countWidth = 0
+  if (count) {
+    probe.font = countFont
+    const valueWidth = Math.ceil(probe.measureText(count.value).width)
+    probe.font = unitFont
+    countWidth = valueWidth + 4 * scale + Math.ceil(probe.measureText(count.unit).width)
+  }
   const padX = 6 * scale
   const padY = 4 * scale
   const lineHeight = 13 * scale
-  const width = Math.max(1, Math.max(...widths) + padX * 2)
-  const height = Math.max(1, rows.length * lineHeight + padY * 2)
+  const countHeight = count ? 18 * scale : 0
+  const width = Math.max(1, Math.max(0, ...widths, countWidth) + padX * 2)
+  const height = Math.max(1, rows.length * lineHeight + countHeight + padY * 2)
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
@@ -1002,6 +1014,16 @@ function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
     context.fillStyle = titleRow ? "#fff8e8" : "#ffedd5"
     context.fillText(row, padX, padY + lineHeight * index + lineHeight / 2)
   })
+  if (count) {
+    const y = padY + rows.length * lineHeight + countHeight / 2
+    context.font = countFont
+    context.fillStyle = "#fff8e8"
+    context.fillText(count.value, padX, y)
+    const valueWidth = context.measureText(count.value).width
+    context.font = unitFont
+    context.fillStyle = "#ffedd5"
+    context.fillText(count.unit, padX + valueWidth + 4 * scale, y + scale)
+  }
   return context.getImageData(0, 0, width, height)
 }
 
@@ -1956,8 +1978,7 @@ function parkingCollection(
     type: "FeatureCollection",
     features: parks.map((park) => {
       const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
-      const marks = park.cars == null ? [] : [String(park.cars)]
-      const icon = labels ? placeStopPlate(map, name, marks, "#d97706") : ""
+      const icon = labels ? placeStopPlate(map, name, [], "#d97706", park.cars == null ? undefined : { count: freeFigure(locale, park.cars) }) : ""
       const charger = hosted.get(park.id)
       return {
         type: "Feature" as const,
@@ -2047,7 +2068,7 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: b
       const tone = meterTone(pole)
       const count = meterPlateCount(pole)
       const name = readablePlace(displayText(locale, pole.streetTc, pole.streetEn))
-      const icon = labels ? placeStopPlate(map, name, count == null ? [] : [count], meterStroke(tone)) : ""
+      const icon = labels ? placeStopPlate(map, name, [], meterStroke(tone), count == null ? undefined : { count: freeFigure(locale, Number(count)) }) : ""
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
@@ -2097,6 +2118,10 @@ function chargerCollection(
       }
     }),
   }
+}
+
+function freeFigure(locale: Locale, count: number): { value: string; unit: string } {
+  return { value: String(count), unit: MESSAGES[locale].plateFree }
 }
 
 function meterStroke(tone: "open" | "full" | "closed"): string {
