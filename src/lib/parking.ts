@@ -1,13 +1,16 @@
 import { fetchUpstream } from "@/lib/upstream"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { parseParkingParks, parseParkingSpaces, parksNear, soloParkingRadiusMetres, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
+import { parseParkingParks, parseParkingSpaces, parksNear, publishedMotorcycleVacancies, soloParkingRadiusMetres, type ParkingPark, type ParkingSpace } from "@/lib/parking-parks"
 
 export type ParkingPlacesResponse = { ok: true; parks: ParkingPark[] } | { ok: false; error?: string; parks: ParkingPark[] }
+export type MotorcyclePark = ParkingPark & { motorcycle: number }
+export type MotorcyclePlacesResponse = { ok: true; parks: MotorcyclePark[] } | { ok: false; error?: string; parks: MotorcyclePark[] }
 
 const INFO_URL = "https://resource.data.one.gov.hk/td/carpark/basic_info_all.json"
 const VACANCY_URL = "https://resource.data.one.gov.hk/td/carpark/vacancy_all.json"
 const INFO_MS = 12 * 60 * 60 * 1000
 const VACANCY_MS = 60_000
+export const MOTORCYCLE_POLL_MS = VACANCY_MS
 const WIDE_CAP = 600
 
 export async function loadParkingPlaces(
@@ -23,6 +26,27 @@ export async function loadParkingPlaces(
     parks: wide
       ? parksNear(parks, lng, lat, soloParkingRadiusMetres(zoom, lat), WIDE_CAP)
       : parksNear(parks, lng, lat, kmbReachMetres(zoom, lat)),
+  }
+}
+
+export async function loadMotorcyclePlaces(
+  lng: number,
+  lat: number,
+  zoom = Number.NaN,
+  wide = false,
+): Promise<{ ok: true; parks: MotorcyclePark[] } | { ok: false }> {
+  const [parks, vacancy] = await Promise.all([catalogue(), readJson(VACANCY_URL, VACANCY_MS)])
+  if (!parks || !vacancy) return { ok: false }
+  const counts = publishedMotorcycleVacancies(vacancy)
+  const listed = parks.flatMap((park) => {
+    const motorcycle = counts.get(park.id)
+    return motorcycle == null ? [] : [{ ...park, motorcycle }]
+  })
+  return {
+    ok: true,
+    parks: wide
+      ? parksNear(listed, lng, lat, soloParkingRadiusMetres(zoom, lat), WIDE_CAP)
+      : parksNear(listed, lng, lat, kmbReachMetres(zoom, lat)),
   }
 }
 
@@ -42,7 +66,8 @@ async function readJson(url: string, ttlMs: number): Promise<unknown | null> {
   try {
     const response = await fetchUpstream(url, ttlMs, { timeoutMs: 8_000 })
     if (response.status !== 200) return null
-    return JSON.parse(new TextDecoder().decode(response.body)) as unknown
+    const text = new TextDecoder().decode(response.body).replace(/^\uFEFF/, "")
+    return JSON.parse(text) as unknown
   } catch {
     return null
   }

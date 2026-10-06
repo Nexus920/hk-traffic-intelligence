@@ -219,6 +219,7 @@ export type Messages = {
   ferryNone: string
   parking: string
   parkingFailed: string
+  motorcycleFailed: string
   parkingNone: string
   parkingPrivate: string
   parkingLgv: string
@@ -434,6 +435,7 @@ const en: Messages = {
   ferryNone: "No sailing on the board",
   parking: "Car parks",
   parkingFailed: "Car parks did not load.",
+  motorcycleFailed: "Motorcycle parks did not load.",
   parkingNone: "No published spaces",
   parkingPrivate: "Private car",
   parkingLgv: "Light goods",
@@ -649,6 +651,7 @@ const zhHK: Messages = {
   ferryNone: "未有航班時間",
   parking: "停車場",
   parkingFailed: "未能載入停車場。",
+  motorcycleFailed: "未能載入電單車泊位。",
   parkingNone: "沒有公布空位",
   parkingPrivate: "私家車",
   parkingLgv: "輕型貨車",
@@ -854,6 +857,7 @@ const zhCN: Messages = {
   ferryNone: "未有航班时间",
   parking: "停车场",
   parkingFailed: "未能载入停车场。",
+  motorcycleFailed: "未能载入电单车泊位。",
   parkingNone: "没有公布空位",
   parkingPrivate: "私家车",
   parkingLgv: "轻型货车",

@@ -24,6 +24,7 @@ type LayerDockProps = {
   mtrBusError: string | null
   ferryError: string | null
   parkingError: string | null
+  motorcycleError: string | null
   meterError: string | null
   chargerError: string | null
   aboveMarquee: boolean
@@ -67,6 +68,8 @@ function layerLabel(id: WatchLayer, m: Messages): string {
       return m.ferry
     case "parking":
       return m.parking
+    case "motorcycle":
+      return m.parkingMotorcycle
     case "meter":
       return m.meter
     case "charger":
@@ -111,6 +114,7 @@ const LAYERS: { id: WatchLayer; swatch: string }[] = [
   { id: "mtrbus", swatch: "bg-[#166534]" },
   { id: "ferry", swatch: "bg-[#0369a1]" },
   { id: "parking", swatch: "bg-[#d97706]" },
+  { id: "motorcycle", swatch: "bg-[#7c3aed]" },
   { id: "meter", swatch: "bg-[#1d4ed8]" },
   { id: "charger", swatch: "bg-[#0e7490]" },
 ]
@@ -281,6 +285,11 @@ export function LayerDock(props: LayerDockProps) {
       {props.parkingError ? (
         <p className="basis-full text-xs text-red-100" role="alert">
           {m.locale === "en" ? props.parkingError : m.parkingFailed}
+        </p>
+      ) : null}
+      {props.motorcycleError ? (
+        <p className="basis-full text-xs text-red-100" role="alert">
+          {m.locale === "en" ? props.motorcycleError : m.motorcycleFailed}
         </p>
       ) : null}
       {props.meterError ? (

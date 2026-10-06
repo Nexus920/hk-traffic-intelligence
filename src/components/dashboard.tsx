@@ -9,7 +9,7 @@ import { useLiveJson } from "@/components/use-live-json"
 import { useI18n } from "@/components/locale"
 import { decorateControlPoints } from "@/lib/control-points"
 import { PLACE_POLL_MS, placePinZoom } from "@/lib/kmb-view"
-import type { ParkingPlacesResponse } from "@/lib/parking"
+import { MOTORCYCLE_POLL_MS, type MotorcyclePlacesResponse, type ParkingPlacesResponse } from "@/lib/parking"
 import { METER_POLL_MS, type MeterPlacesResponse } from "@/lib/meter-poles"
 import type { ChargerPlacesResponse } from "@/lib/ev-chargers"
 import { inLantau } from "@/lib/lantau"
@@ -108,7 +108,13 @@ export function Dashboard() {
   const nlbPlacesLive = useLiveJson<NlbPlacesResponse>(nlbPlacesUrl, PLACE_POLL_MS)
   const mtrBusPlacesLive = useLiveJson<CitybusPlacesResponse>(mtrBusPlacesUrl, PLACE_POLL_MS)
   const ferryLive = useLiveJson<FerryResponse>(layers.ferry ? "/api/ferry" : null, 60_000)
+  const motorcycleWide = sole === "motorcycle"
+  const motorcyclePlacesUrl =
+    layers.motorcycle && view && view.zoom >= placePinZoom("motorcycle", sole)
+      ? `/api/parking/motorcycles?lng=${view.lng.toFixed(3)}&lat=${view.lat.toFixed(3)}&zoom=${view.zoom.toFixed(2)}${motorcycleWide ? "&wide=1" : ""}`
+      : null
   const parkingPlacesLive = useLiveJson<ParkingPlacesResponse>(parkingPlacesUrl, PLACE_POLL_MS)
+  const motorcyclePlacesLive = useLiveJson<MotorcyclePlacesResponse>(motorcyclePlacesUrl, MOTORCYCLE_POLL_MS)
   const meterPlacesLive = useLiveJson<MeterPlacesResponse>(meterPlacesUrl, METER_POLL_MS)
   const chargerPlacesLive = useLiveJson<ChargerPlacesResponse>(chargerPlacesUrl, PLACE_POLL_MS)
   const traffic = trafficLive.data
@@ -164,6 +170,7 @@ export function Dashboard() {
         mtrBus={mtrBus}
         ferry={ferry?.ok ? ferry : null}
         parking={parkingPlacesLive.data?.ok ? parkingPlacesLive.data.parks : null}
+        motorcycles={motorcyclePlacesLive.data?.ok ? motorcyclePlacesLive.data.parks : null}
         meters={meterPlacesLive.data?.ok ? meterPlacesLive.data.poles : null}
         chargers={chargerPlacesLive.data?.ok ? chargerPlacesLive.data.places : null}
         onView={setView}
@@ -246,6 +253,7 @@ export function Dashboard() {
           mtrbus: null,
           ferry: null,
           parking: null,
+          motorcycle: null,
           meter: null,
           charger: null,
           control: null,
@@ -264,6 +272,7 @@ export function Dashboard() {
         mtrBusError={liveError(mtrBusPlacesLive.error, mtrBusPlacesLive.data, "MTR bus stops failed")}
         ferryError={liveError(ferryLive.error, ferryLive.data, "Ferry arrivals failed")}
         parkingError={liveError(parkingPlacesLive.error, parkingPlacesLive.data, "Parking catalogue failed")}
+        motorcycleError={liveError(motorcyclePlacesLive.error, motorcyclePlacesLive.data, "Motorcycle parks failed")}
         meterError={liveError(meterPlacesLive.error, meterPlacesLive.data, "Meter catalogue failed")}
         chargerError={liveError(chargerPlacesLive.error, chargerPlacesLive.data, "Charger catalogue failed")}
         aboveMarquee={!intelOpen}

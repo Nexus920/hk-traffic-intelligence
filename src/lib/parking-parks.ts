@@ -27,7 +27,7 @@ export function soloParkingRadiusMetres(zoom: number, lat: number): number {
   return Math.min(WIDE_RADIUS_M, Math.max(800, metresPerPixel(zoom, lat) * 1_600))
 }
 
-export function parksNear(parks: readonly ParkingPark[], lng: number, lat: number, radiusM: number, cap = PARK_CAP): ParkingPark[] {
+export function parksNear<T extends ParkingPark>(parks: readonly T[], lng: number, lat: number, radiusM: number, cap = PARK_CAP): T[] {
   const near = parks.flatMap((park) => {
     const metres = metresBetween(lng, lat, park.lng, park.lat)
     if (metres > radiusM) return []
@@ -91,6 +91,27 @@ function hourlyCategory(value: unknown): Record<string, unknown> | null {
   if (!Array.isArray(value)) return null
   const rows = value.flatMap((item) => (item && typeof item === "object" ? [item as Record<string, unknown>] : []))
   return rows.find((row) => text(row.category) === "HOURLY") ?? rows[0] ?? null
+}
+
+export function publishedMotorcycleVacancies(body: unknown): Map<string, number> {
+  const counts = new Map<string, number>()
+  if (!body || typeof body !== "object" || !("car_park" in body) || !Array.isArray(body.car_park)) return counts
+  for (const item of body.car_park) {
+    if (!item || typeof item !== "object") continue
+    const row = item as Record<string, unknown>
+    const id = text(row.park_id)
+    if (!id || !Array.isArray(row.vehicle_type)) continue
+    for (const typeRow of row.vehicle_type) {
+      if (!typeRow || typeof typeRow !== "object") continue
+      const typed = typeRow as Record<string, unknown>
+      if (text(typed.type) !== "M") continue
+      const category = hourlyCategory(typed.service_category)
+      if (!category || text(category.vacancy_type) !== "A") continue
+      const vacancy = number(category.vacancy)
+      if (vacancy != null && vacancy >= 0) counts.set(id, vacancy)
+    }
+  }
+  return counts
 }
 
 function kindOf(type: string): ParkingKind | null {

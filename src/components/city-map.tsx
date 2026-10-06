@@ -187,7 +187,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "meters", "meters-label", "chargers", "chargers-label"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "motorcycle", "motorcycle-label", "meters", "meters-label", "chargers", "chargers-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -213,6 +213,7 @@ type CityMapProps = {
   mtrBus: NlbResponse | null
   ferry: FerryResponse | null
   parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[] | null
+  motorcycles: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; motorcycle: number }[] | null
   meters: MeterPole[] | null
   chargers: ChargerPlace[] | null
   onView: (view: { lng: number; lat: number; zoom: number }) => void
@@ -246,6 +247,7 @@ export function CityMap({
   mtrBus,
   ferry,
   parking,
+  motorcycles,
   meters,
   chargers,
   onView,
@@ -689,11 +691,22 @@ export function CityMap({
       } else {
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
       }
-      const hosted = layers.parking && layers.charger && parking && chargers ? chargersInsideParks(chargers, parking) : new globalThis.Map<string, ChargerPlace>()
+      const hostParks = [
+        ...(layers.parking && parking ? parking : []),
+        ...(layers.motorcycle && motorcycles ? motorcycles : []),
+      ]
+      const hosted = layers.charger && chargers && hostParks.length > 0 ? chargersInsideParks(chargers, hostParks) : new globalThis.Map<string, ChargerPlace>()
+      const motorcycleIds = layers.motorcycle && motorcycles ? new Set(motorcycles.map((park) => park.id)) : null
       if (!layers.parking || !parking) {
         geoJsonSource(map, "parking")?.setData(emptyCollection())
       } else {
-        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parking, locale, labels, hosted))
+        const parks = motorcycleIds ? parking.filter((park) => !motorcycleIds.has(park.id)) : parking
+        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parks, locale, labels, hosted))
+      }
+      if (!layers.motorcycle || !motorcycles) {
+        geoJsonSource(map, "motorcycle")?.setData(emptyCollection())
+      } else {
+        geoJsonSource(map, "motorcycle")?.setData(motorcycleCollection(map, motorcycles, locale, labels, hosted))
       }
       if (!layers.meter || !meters) {
         geoJsonSource(map, "meters")?.setData(emptyCollection())
@@ -711,7 +724,7 @@ export function CityMap({
     return () => {
       map.off("zoomend", paint)
     }
-  }, [chargers, citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.charger, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.meter, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, meters, mtr, mtrBus, nlb, parking, picture, styleEpoch])
+  }, [chargers, citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.charger, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.meter, layers.motorcycle, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, meters, motorcycles, mtr, mtrBus, nlb, parking, picture, styleEpoch])
 
   useEffect(() => {
     const map = mapRef.current
@@ -733,11 +746,12 @@ export function CityMap({
   useEffect(() => {
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
-    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking", "meter", "charger"]
+    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking", "motorcycle", "meter", "charger"]
     const sole = soleLayer(layers)
     const pinZoom: Partial<Record<string, number>> = {
       "kmb-stops": placePinZoom("kmb", sole),
       parking: placePinZoom("parking", sole),
+      motorcycle: placePinZoom("motorcycle", sole),
       meters: placePinZoom("meter", sole),
       chargers: placePinZoom("charger", sole),
       "citybus-stops": placePinZoom("citybus", sole),
@@ -1219,6 +1233,7 @@ function mountDataLayers(map: Map) {
   map.addSource("ferry-piers", { type: "geojson", data: emptyCollection() })
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
   map.addSource("parking", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
+  map.addSource("motorcycle", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("meters", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("chargers", {
     type: "geojson",
@@ -1351,6 +1366,8 @@ function bindOverlayClicks(
     "ferry-vessel-label": ferryStopPopup,
     parking: parkingPopup,
     "parking-label": parkingPopup,
+    motorcycle: parkingPopup,
+    "motorcycle-label": parkingPopup,
     meters: meterPopup,
     "meters-label": meterPopup,
     chargers: chargerPopup,
@@ -1560,6 +1577,20 @@ function addWatchLayers(map: Map, before: string | undefined) {
     },
   }, before)
   addStopLabel(map, "parking-label", "parking", before, LABEL_MIN_ZOOM, false)
+  addOverlay(map, {
+    id: "motorcycle",
+    type: "circle",
+    source: "motorcycle",
+    minzoom: SOLO_PIN_ZOOM,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
+      "circle-color": "#f5f3ff",
+      "circle-stroke-color": "#7c3aed",
+      "circle-stroke-width": 1.5,
+      "circle-pitch-alignment": "map",
+    },
+  }, before)
+  addStopLabel(map, "motorcycle-label", "motorcycle", before, LABEL_MIN_ZOOM, false)
   addOverlay(map, {
     id: "meters",
     type: "circle",
@@ -1921,6 +1952,40 @@ function parkingCollection(
   }
 }
 
+function motorcycleCollection(
+  map: Map,
+  parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; motorcycle: number }[],
+  locale: Locale,
+  labels: boolean,
+  hosted: ReadonlyMap<string, ChargerPlace>,
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: parks.map((park) => {
+      const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
+      const icon = labels ? placeStopPlate(map, name, [String(park.motorcycle)], "#7c3aed") : ""
+      const charger = hosted.get(park.id)
+      return {
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [park.lng, park.lat] },
+        properties: {
+          id: park.id,
+          nameTc: park.nameTc,
+          nameEn: park.nameEn,
+          addressTc: park.addressTc,
+          addressEn: park.addressEn,
+          heightM: park.heightM,
+          motorcycle: park.motorcycle,
+          ...(charger
+            ? { standard: charger.standard, medium: charger.medium, quick: charger.quick, fast: charger.fast }
+            : {}),
+          ...(icon ? { icon } : {}),
+        },
+      }
+    }),
+  }
+}
+
 function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -2083,6 +2148,8 @@ function layerIds(kind: WatchLayer): string[] {
       return ["ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label"]
     case "parking":
       return ["parking", "parking-label"]
+    case "motorcycle":
+      return ["motorcycle", "motorcycle-label"]
     case "meter":
       return ["meters", "meters-label"]
     case "charger":

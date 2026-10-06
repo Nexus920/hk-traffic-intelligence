@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-motorcycle-parks",
+    date: "2026-10-06",
+    kind: "added",
+    en: "Car parks that publish motorcycle spaces appear on their own. The label shows how many are free, and the same park is not drawn twice.",
+    tc: "有公布電單車空位的停車場會單獨顯示。標記寫著剩餘數目，同一個場不會畫兩次。",
+    sc: "有公布电单车空位的停车场会单独显示。标记写着剩余数目，同一个场不会画两次。",
+  },
+  {
     id: "2026-10-06-charger-district",
     date: "2026-10-06",
     kind: "improved",

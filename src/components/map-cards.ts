@@ -358,9 +358,10 @@ export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
     card.body.append(paragraph("city-card-copy", m.parkingNone))
     return card.root
   }
+  const leadMotorcycle = numberProp(properties, "motorcycle") != null
   const hit = seenParks.get(id)
   if (hit && Date.now() - hit.at < BOARD_MS) {
-    paintParking(card.body, hit.spaces, m)
+    paintParking(card.body, hit.spaces, m, leadMotorcycle)
     return card.root
   }
   card.body.replaceChildren(paragraph("city-card-copy", m.boardLoading))
@@ -374,7 +375,7 @@ export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
         return
       }
       seenParks.set(id, { at: Date.now(), spaces })
-      paintParking(card.body, spaces, m)
+      paintParking(card.body, spaces, m, leadMotorcycle)
     })
     .catch(() => {
       if (!card.body.isConnected) return
@@ -383,15 +384,16 @@ export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
   return card.root
 }
 
-function paintParking(body: HTMLElement, spaces: ParkingSpace[], m: Messages) {
+function paintParking(body: HTMLElement, spaces: ParkingSpace[], m: Messages, leadMotorcycle = false) {
   body.replaceChildren()
   if (spaces.length === 0) {
     body.append(paragraph("city-card-copy", m.parkingNone))
     return
   }
+  const ordered = leadMotorcycle ? [...spaces].sort((a, b) => Number(b.kind === "motorcycle") - Number(a.kind === "motorcycle")) : spaces
   const board = document.createElement("div")
   board.className = "city-card-board"
-  for (const space of spaces) {
+  for (const space of ordered) {
     board.append(serviceRow(parkingKindLabel(space.kind, m), parkingCount(space, m)))
   }
   body.append(board)
