@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-motorcycle-guard",
+    date: "2026-10-06",
+    kind: "fixed",
+    en: "A motorcycle request with a blank map centre is refused, and an old free-count label does not stay on the map.",
+    tc: "沒有地圖中心的電單車請求會被拒絕。舊的空位數目不會留在地圖上。",
+    sc: "没有地图中心的电单车请求会被拒绝。旧的空位数目不会留在地图上。",
+  },
+  {
     id: "2026-10-06-gwat-name",
     date: "2026-10-06",
     kind: "improved",

@@ -708,13 +708,19 @@ export function CityMap({
       }
       if (!layers.motorcycle || !motorcycles) {
         geoJsonSource(map, "motorcycle")?.setData(emptyCollection())
+        dropUnusedPlates(map, "stop-plate-7c3aed-", new Set())
       } else {
-        geoJsonSource(map, "motorcycle")?.setData(motorcycleCollection(map, motorcycles, locale, labels, hosted))
+        const motorcyclesOnMap = motorcycleCollection(map, motorcycles, locale, labels, hosted)
+        geoJsonSource(map, "motorcycle")?.setData(motorcyclesOnMap)
+        dropUnusedPlates(map, "stop-plate-7c3aed-", plateIds(motorcyclesOnMap))
       }
       if (!layers.kerb || !kerbs) {
         geoJsonSource(map, "kerb")?.setData(emptyCollection())
+        dropUnusedPlates(map, "stop-plate-be185d-", new Set())
       } else {
-        geoJsonSource(map, "kerb")?.setData(kerbCollection(map, kerbs, locale, labels))
+        const kerbsOnMap = kerbCollection(map, kerbs, locale, labels)
+        geoJsonSource(map, "kerb")?.setData(kerbsOnMap)
+        dropUnusedPlates(map, "stop-plate-be185d-", plateIds(kerbsOnMap))
       }
       if (!layers.meter || !meters) {
         geoJsonSource(map, "meters")?.setData(emptyCollection())
@@ -897,6 +903,22 @@ function placeStopPlate(map: Map, name: string, routes: string[], stroke: string
   const icon = stopPlateIconId(plate, stroke)
   ensureStopPlate(map, icon, plate, stroke)
   return map.hasImage(icon) ? icon : ""
+}
+
+function dropUnusedPlates(map: Map, prefix: string, keep: ReadonlySet<string>) {
+  for (const id of [...map.listImages()]) {
+    if (!id.startsWith(prefix) || keep.has(id)) continue
+    map.removeImage(id)
+  }
+}
+
+function plateIds(data: GeoJSON.FeatureCollection): Set<string> {
+  const ids = new Set<string>()
+  for (const feature of data.features) {
+    const icon = feature.properties?.icon
+    if (typeof icon === "string" && icon) ids.add(icon)
+  }
+  return ids
 }
 
 function busPlate(map: Map, locale: Locale, name: string, routes: string[], calls: { route: string; destTc: string; destEn: string }[], stroke: string): string {

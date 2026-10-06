@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const latText = url.searchParams.get("lat")
   const lng = Number(lngText)
   const lat = Number(latText)
-  if (lngText == null || latText == null || !Number.isFinite(lng) || !Number.isFinite(lat)) {
+  if (lngText == null || latText == null || lngText.trim() === "" || latText.trim() === "" || !Number.isFinite(lng) || !Number.isFinite(lat)) {
     return Response.json({ ok: false, error: "Motorcycle centre missing", parks: [] }, { status: 400 })
   }
   const zoom = Number(url.searchParams.get("zoom"))
