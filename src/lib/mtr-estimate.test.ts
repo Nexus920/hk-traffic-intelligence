@@ -12,7 +12,7 @@ import {
   type EstimatedTrain,
   type TrainObservation,
 } from "./mtr-estimate.ts"
-import { advanceRuns, mergeRuns, runCollection, type TrainRun } from "./mtr-run.ts"
+import { advanceRuns, mergeRuns, runCollection, runsFromTrains, type TrainRun } from "./mtr-run.ts"
 import { useTrackEdges } from "./rail-tracks.ts"
 
 const now = Date.parse("2026-10-01T05:40:00Z")
@@ -267,7 +267,62 @@ assert.equal(onBend.to, "B")
 assert.ok(onBend.lng > places.A!.lng + 0.001)
 useTrackEdges({})
 
+const first = asFeed(estimateTrains(line, [obs("C", "C", 80, 80)], locate))
+let parked = runsFromTrains(first, locate, () => "#111", now)
+assert.equal(parked.length, 1)
+assert.equal(parked[0]?.speed, 0)
+assert.equal(parked[0]?.distance, 0)
+assert.equal(parked[0]?.plat, "")
+assert.equal(parked[0]?.clamp, "origin")
+for (let second = 1; second <= 70; second += 1) {
+  parked = advanceRuns(parked, 1, locate)
+  if (second % 15 === 0) {
+    const again = runsFromTrains(first, locate, () => "#111", now + second * 1000)
+    parked = mergeRuns(parked, again, now + second * 1000, locate)
+  }
+}
+assert.equal(parked[0]?.distance, 0)
+assert.equal(parked[0]?.speed, 0)
+const parkedDot = runCollection(parked, locate).features[0]
+assert.equal(parkedDot?.properties?.standing, "Y")
+assert.equal(parkedDot?.properties?.from, "A")
+assert.equal(parkedDot?.properties?.to, "A")
+assert.equal(parkedDot?.properties?.next, "B")
+assert.equal(parkedDot?.properties?.clamp, "origin")
+const parkedMinutes = Number(parkedDot?.properties?.minutes)
+assert.ok(parkedMinutes >= 78 && parkedMinutes <= 80, `parked minutes ${parkedMinutes}`)
+assert.equal(parkedDot?.geometry && parkedDot.geometry.type === "Point" ? parkedDot.geometry.coordinates[1] : null, places.A?.lat)
+
+const waitingHere = asFeed(estimateTrains(line, [obs("A", "C", 80, 80)], locate))
+const posted = runsFromTrains(waitingHere, locate, () => "#111", now)
+assert.equal(posted[0]?.plat, "1")
+assert.equal(posted[0]?.clamp, "origin")
+
+const drifted = mergeRuns([{ ...(parked[0] ?? sampleRun(800, 12)), distance: 800, speed: 12 }], posted, now + 1000, locate)
+assert.equal(drifted[0]?.distance, 0)
+assert.equal(drifted[0]?.speed, 0)
+
+const service = asFeed(estimateTrains(line, [obs("B", "C", 1, 1), obs("C", "C", 3, 3)], locate))
+const rolling = runsFromTrains(service, locate, () => "#111", now)
+const leaving = mergeRuns(posted, rolling, now + 1000, locate)
+assert.equal(leaving.length, 1)
+assert.ok((leaving[0]?.speed ?? 0) > 0)
+assert.equal(leaving[0]?.distance, rolling[0]?.distance)
+assert.equal(leaving[0]?.id, posted[0]?.id)
+
+assert.ok((rolling[0]?.speed ?? 0) > 3)
+const before = rolling[0]?.distance ?? 0
+const moved = advanceRuns(rolling, 5, locate)
+assert.ok((moved[0]?.distance ?? 0) > before + 20)
+const rollingDot = runCollection(moved, locate).features[0]
+assert.equal(rollingDot?.properties?.standing, "N")
+assert.notEqual(rollingDot?.properties?.from, rollingDot?.properties?.to)
+
 console.log("mtr estimate ok")
+
+function asFeed(trains: EstimatedTrain[]) {
+  return trains.map((train) => ({ ...train, observedAt: new Date(train.observedAt).toISOString() }))
+}
 
 function sampleRun(distance: number, speed: number): TrainRun {
   return {
@@ -283,6 +338,8 @@ function sampleRun(distance: number, speed: number): TrainRun {
     delay: false,
     timeType: "A",
     seenAt: now,
+    wait: null,
+    clamp: "none",
   }
 }
 
@@ -341,6 +398,8 @@ function spotRun(id: string, distance: number): TrainRun {
     delay: false,
     timeType: "A",
     seenAt: now,
+    wait: null,
+    clamp: "none",
   }
 }
 

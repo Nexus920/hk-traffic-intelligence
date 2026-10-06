@@ -1,4 +1,4 @@
-import { metresBetween, projectTrain, segmentMinutes, type GeoPoint } from "./mtr-estimate.ts"
+import { metresBetween, projectTrain, segmentMinutes, type GeoPoint, type TrainSpot } from "./mtr-estimate.ts"
 import { mixOnSpan, pointOnSpan, segmentLength } from "./rail-tracks.ts"
 import type { MtrTrain } from "./types.ts"
 
@@ -15,6 +15,8 @@ export type TrainRun = {
   delay: boolean
   timeType: "A" | "D"
   seenAt: number
+  wait: number | null
+  clamp: TrainSpot["clamp"]
 }
 
 const MATCH_METRES = 1500
@@ -37,7 +39,9 @@ export function runsFromTrains(
     const spot = projectTrain({ ...train, observedAt }, locate, now)
     if (!spot) continue
     const distance = distanceOfSpot(train.path, spot, locate)
-    const cruise = cruiseAt(train.path, distance, locate)
+    const rolling = cruiseAt(train.path, distance, locate)
+    // A countdown that still places the train at a station is not a train on the move.
+    const standing = spot.from === spot.to
     const id = nextRunId
     nextRunId += 1
     runs.push({
@@ -46,13 +50,15 @@ export function runsFromTrains(
       dest: train.dest,
       path: train.path,
       distance,
-      speed: cruise,
-      cruise,
+      speed: standing ? 0 : rolling,
+      cruise: standing ? 0 : rolling,
       color: colorOf(train.line),
-      plat: train.plat,
+      plat: standing && spot.from !== train.anchor ? "" : train.plat,
       delay: train.delay,
       timeType: train.timeType,
       seenAt: now,
+      wait: standing ? Math.max(0, spot.minutes) : null,
+      clamp: standing ? spot.clamp : "none",
     })
   }
   return runs
@@ -61,16 +67,21 @@ export function runsFromTrains(
 export function advanceRuns(runs: TrainRun[], dtSec: number, locate: (code: string) => GeoPoint | null): TrainRun[] {
   const dt = Math.max(0, dtSec)
   return runs.map((run) => {
+    if (run.speed <= 0) {
+      const wait = run.wait == null ? null : Math.max(0, run.wait - dt / 60)
+      return { ...run, speed: 0, wait }
+    }
     const end = pathEnd(run.path, locate)
-    const cruiseNow = cruiseAt(run.path, run.distance, locate)
-    const speed = run.speed > 0 ? run.speed : cruiseNow
-    const distance = Math.min(end, run.distance + speed * dt)
+    const distance = Math.min(end, run.distance + run.speed * dt)
     const cruise = cruiseAt(run.path, distance, locate)
+    const arrived = distance >= end - 1
     return {
       ...run,
       distance,
-      cruise,
-      speed: distance >= end - 1 ? 0 : cruise,
+      cruise: arrived ? 0 : cruise,
+      speed: arrived ? 0 : cruise,
+      wait: null,
+      clamp: "none",
     }
   })
 }
@@ -103,12 +114,27 @@ export function mergeRuns(
     used.add(best)
     const item = incoming[best]
     if (!item) continue
+    if (item.speed <= 0 || run.speed <= 0) {
+      kept.push({
+        run: {
+          ...item,
+          id: run.id,
+          seenAt: now,
+        },
+        aim: item.distance,
+      })
+      continue
+    }
     const ahead = item.distance - run.distance
-    const speed = ahead > 30 ? Math.min(MAX_SPEED, Math.max(run.cruise, ahead / 30)) : run.cruise
+    const rolling = item.cruise > 0 ? item.cruise : item.speed
+    const speed = ahead > 30 ? Math.min(MAX_SPEED, Math.max(rolling, ahead / 30)) : rolling
     kept.push({
       run: {
         ...run,
         speed,
+        cruise: rolling,
+        wait: null,
+        clamp: "none",
         plat: item.plat,
         delay: item.delay,
         timeType: item.timeType,
@@ -152,7 +178,7 @@ export function runCollection(
   runs: TrainRun[],
   locate: (code: string) => GeoPoint | null,
 ): GeoJSON.FeatureCollection {
-  const drawn: { run: TrainRun; place: { lng: number; lat: number; from: string; to: string; minutes: number } }[] = []
+  const drawn: { run: TrainRun; place: Placed }[] = []
   for (const run of runs) {
     const place = placeRun(run, locate)
     if (!place) continue
@@ -177,7 +203,10 @@ export function runCollection(
       delay: run.delay ? "Y" : "N",
       timeType: run.timeType,
       from: place.from,
-      to: place.to,
+      to: place.standing ? place.from : place.to,
+      next: place.standing && place.to !== place.from ? place.to : "",
+      standing: place.standing ? "Y" : "N",
+      clamp: place.clamp,
       minutes: Math.round(place.minutes),
     },
     geometry: { type: "Point", coordinates: [place.lng, place.lat] },
@@ -196,35 +225,75 @@ function sameService(
   return metresBetween(leftPlace, rightPlace) < SAME_SPOT_M
 }
 
-function placeRun(
-  run: TrainRun,
-  locate: (code: string) => GeoPoint | null,
-): { lng: number; lat: number; from: string; to: string; minutes: number } | null {
+type Placed = {
+  lng: number
+  lat: number
+  from: string
+  to: string
+  minutes: number
+  standing: boolean
+  clamp: TrainSpot["clamp"]
+}
+
+function placeRun(run: TrainRun, locate: (code: string) => GeoPoint | null): Placed | null {
   const cum = cumulative(run.path, locate)
   const end = cum[cum.length - 1] ?? 0
   const distance = Math.max(0, Math.min(end, run.distance))
+  if (run.speed <= 0) {
+    const parked = stationAt(run.path, distance, cum, locate)
+    if (!parked) return null
+    return {
+      lng: parked.point.lng,
+      lat: parked.point.lat,
+      from: parked.here,
+      to: parked.next,
+      minutes: run.wait ?? 0,
+      standing: true,
+      clamp: run.clamp,
+    }
+  }
   let index = 0
   while (index < cum.length - 2 && (cum[index + 1] ?? 0) < distance) index += 1
   const here = run.path[index]
   const next = run.path[index + 1]
   const start = here ? locate(here) : null
   if (!here || !start) return null
-  if (!next || index >= cum.length - 1) return { lng: start.lng, lat: start.lat, from: here, to: here, minutes: 0 }
+  if (!next || index >= cum.length - 1) {
+    return { lng: start.lng, lat: start.lat, from: here, to: here, minutes: 0, standing: true, clamp: "none" }
+  }
   const finish = locate(next)
   const seg = (cum[index + 1] ?? 0) - (cum[index] ?? 0)
-  if (!finish || seg <= 1) return { lng: start.lng, lat: start.lat, from: here, to: here, minutes: 0 }
+  if (!finish || seg <= 1) {
+    return { lng: start.lng, lat: start.lat, from: here, to: here, minutes: 0, standing: true, clamp: "none" }
+  }
   const along = distance - (cum[index] ?? 0)
   const mix = Math.min(1, Math.max(0, along / seg))
   const point = pointOnSpan(here, next, start, finish, mix)
-  const speed = run.speed > 0 ? run.speed : run.cruise
-  const minutesLeft = speed > 0 ? ((seg - along) / speed) / 60 : 0
+  const minutesLeft = ((seg - along) / run.speed) / 60
   return {
     lng: point.lng,
     lat: point.lat,
     from: here,
     to: next,
     minutes: minutesLeft,
+    standing: false,
+    clamp: "none",
   }
+}
+
+function stationAt(
+  path: string[],
+  distance: number,
+  cum: number[],
+  locate: (code: string) => GeoPoint | null,
+): { here: string; next: string; point: GeoPoint } | null {
+  let index = 0
+  while (index < path.length - 1 && (cum[index + 1] ?? 0) <= distance + 1) index += 1
+  const here = path[index]
+  const next = path[index + 1] ?? here
+  const point = here ? locate(here) : null
+  if (!here || !next || !point) return null
+  return { here, next, point }
 }
 
 function distanceOfSpot(

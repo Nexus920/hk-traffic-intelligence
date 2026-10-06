@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-07-terminus-trains",
+    date: "2026-10-07",
+    kind: "fixed",
+    en: "A train that has not left stays at that station. It no longer rolls down the line before the published time.",
+    tc: "未開出的列車留在該站，不會在公布時間之前沿路開出。",
+    sc: "未开出的列车留在该站，不会在公布时间之前沿路开出。",
+  },
+  {
     id: "2026-10-06-harbour-pins",
     date: "2026-10-06",
     kind: "improved",

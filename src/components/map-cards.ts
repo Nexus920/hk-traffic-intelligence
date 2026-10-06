@@ -713,21 +713,32 @@ export function trainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: MtrR
   if (line) card.head.append(paragraph("city-card-detail", line))
   const timeType = textProp(properties, "timeType") === "D" || listed?.timeType === "D" ? "D" : "A"
   const delay = textProp(properties, "delay") === "Y" || listed?.delay === true
-  const plat = textProp(properties, "plat") || listed?.plat || ""
+  const standing = textProp(properties, "standing") === "Y"
+  const plat = textProp(properties, "plat") || (standing ? "" : listed?.plat ?? "")
   const minutesOnDot = numberProp(properties, "minutes")
+  const clampText = textProp(properties, "clamp")
+  const clamp = clampText === "origin" || clampText === "junction" ? clampText : "none"
   const shown =
     from && to && minutesOnDot != null
-      ? { lng: 0, lat: 0, from, to, clamp: "none" as const, minutes: minutesOnDot }
+      ? { lng: 0, lat: 0, from, to, clamp, minutes: minutesOnDot }
       : listed
         ? projectNetworkTrain(listed, Date.now())
         : null
-  const riding = shown != null && shown.from !== shown.to
-  const nextCode = riding && shown ? shown.to : from || listed?.anchor || ""
+  const riding = shown != null && shown.from !== shown.to && !standing
+  const upcoming = textProp(properties, "next")
+  const nextCode = standing ? upcoming : riding && shown ? shown.to : from || listed?.anchor || ""
   const next = stationRecord(nextCode)
   const nextName = next ? displayText(m.locale, next.tc, next.en) : nextCode
-  if (nextName && (riding || timeType !== "D")) card.body.append(fact(m.mtrNext, nextName))
+  if (nextName && (riding || standing || timeType !== "D")) card.body.append(fact(m.mtrNext, nextName))
   const minutes = shown ? Math.max(0, Math.round(shown.minutes)) : listed?.ttnt ?? 0
-  const when = !riding && timeType === "D" ? m.mtrDeparts(minutes) : minutes <= 0 ? m.mtrArriving : m.minutes(minutes)
+  const when =
+    standing && shown?.clamp === "origin" && minutes > 0
+      ? m.mtrDeparts(minutes)
+      : !riding && timeType === "D"
+        ? m.mtrDeparts(minutes)
+        : minutes <= 0
+          ? m.mtrArriving
+          : m.minutes(minutes)
   card.body.append(fact(m.whenLabel, when, delay ? "#8a5a00" : undefined))
   if (plat) card.body.append(fact(m.mtrPlatform, plat))
   if (shown) card.body.append(fact(m.mtrPosition, positionSentence(shown, m)))
@@ -764,7 +775,7 @@ function positionSentence(spot: TrainSpot, m: Messages): string {
   const fromName = from ? displayText(m.locale, from.tc, from.en) : spot.from
   const toName = to ? displayText(m.locale, to.tc, to.en) : spot.to
   if (spot.clamp === "junction") return m.mtrHeld(toName)
-  if (spot.from === spot.to || spot.clamp === "origin") return m.mtrHere(toName)
+  if (spot.clamp === "origin" || spot.from === spot.to) return m.mtrHere(fromName)
   return m.mtrBetween(fromName, toName)
 }
 
