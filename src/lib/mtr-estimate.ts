@@ -1,3 +1,5 @@
+import { pointOnSpan, segmentLength } from "./rail-tracks.ts"
+
 // MTR publishes the minutes until a train reaches a station. It does not publish
 // where that train is. A position is the countdown walked back along the station
 // spacing: a short hop is about 43 km/h, a longer one about 65 km/h. Where two
@@ -213,17 +215,11 @@ function approachStation(
     const start = locate(previous)
     const end = locate(here)
     if (!start || !end) break
-    const segment = segmentMinutes(metresBetween(start, end))
+    const segment = segmentMinutes(segmentLength(previous, here, start, end))
     if (remain <= segment) {
       const mix = segment <= 0 ? 1 : 1 - remain / segment
-      return {
-        lng: start.lng + (end.lng - start.lng) * mix,
-        lat: start.lat + (end.lat - start.lat) * mix,
-        from: previous,
-        to: here,
-        clamp: "none",
-        minutes: remain,
-      }
+      const point = pointOnSpan(previous, here, start, end, mix)
+      return { lng: point.lng, lat: point.lat, from: previous, to: here, clamp: "none", minutes: remain }
     }
     remain -= segment
     at -= 1
@@ -251,17 +247,11 @@ function rideForward(
     const start = locate(here)
     const end = locate(next)
     if (!start || !end) break
-    const segment = segmentMinutes(metresBetween(start, end))
+    const segment = segmentMinutes(segmentLength(here, next, start, end))
     if (remain <= segment) {
       const mix = segment <= 0 ? 1 : remain / segment
-      return {
-        lng: start.lng + (end.lng - start.lng) * mix,
-        lat: start.lat + (end.lat - start.lat) * mix,
-        from: here,
-        to: next,
-        clamp: "none",
-        minutes: Math.max(0, segment - remain),
-      }
+      const point = pointOnSpan(here, next, start, end, mix)
+      return { lng: point.lng, lat: point.lat, from: here, to: next, clamp: "none", minutes: Math.max(0, segment - remain) }
     }
     remain -= segment
     index += 1
@@ -362,7 +352,7 @@ function metresAlong(train: EstimatedTrain, spot: TrainSpot, locate: (code: stri
     const to = train.path[index]
     const start = from ? locate(from) : null
     const finish = to ? locate(to) : null
-    const step = start && finish ? metresBetween(start, finish) : 0
+    const step = start && finish && from && to ? segmentLength(from, to, start, finish) : 0
     if (from === spot.from && to === spot.to && start) return metres + Math.min(step, metresBetween(start, spot))
     if (from === spot.from && spot.from === spot.to) return metres
     metres += step

@@ -1,4 +1,5 @@
 import { metresBetween, projectTrain, segmentMinutes, type GeoPoint } from "./mtr-estimate.ts"
+import { mixOnSpan, pointOnSpan, segmentLength } from "./rail-tracks.ts"
 import type { MtrTrain } from "./types.ts"
 
 export type TrainRun = {
@@ -214,11 +215,12 @@ function placeRun(
   if (!finish || seg <= 1) return { lng: start.lng, lat: start.lat, from: here, to: here, minutes: 0 }
   const along = distance - (cum[index] ?? 0)
   const mix = Math.min(1, Math.max(0, along / seg))
+  const point = pointOnSpan(here, next, start, finish, mix)
   const speed = run.speed > 0 ? run.speed : run.cruise
   const minutesLeft = speed > 0 ? ((seg - along) / speed) / 60 : 0
   return {
-    lng: start.lng + (finish.lng - start.lng) * mix,
-    lat: start.lat + (finish.lat - start.lat) * mix,
+    lng: point.lng,
+    lat: point.lat,
     from: here,
     to: next,
     minutes: minutesLeft,
@@ -236,9 +238,8 @@ function distanceOfSpot(
   if (spot.from === spot.to || path[index + 1] !== spot.to) return cum[index] ?? 0
   const start = locate(spot.from)
   const end = locate(spot.to)
-  const seg = start && end ? metresBetween(start, end) : 0
-  const along = start ? metresBetween(start, spot) : 0
-  const frac = seg > 0 ? Math.min(1, Math.max(0, along / seg)) : 0
+  const seg = start && end ? segmentLength(spot.from, spot.to, start, end) : 0
+  const frac = start && end ? mixOnSpan(spot.from, spot.to, start, end, spot) : 0
   return (cum[index] ?? 0) + frac * seg
 }
 
@@ -265,7 +266,7 @@ function cumulative(path: string[], locate: (code: string) => GeoPoint | null): 
     const to = path[index]
     const start = from ? locate(from) : null
     const finish = to ? locate(to) : null
-    const step = start && finish ? metresBetween(start, finish) : 0
+    const step = start && finish && from && to ? segmentLength(from, to, start, finish) : 0
     cum.push((cum[index - 1] ?? 0) + step)
   }
   return cum
