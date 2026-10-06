@@ -1,7 +1,8 @@
-import { kmbReachMetres } from "./kmb-reach.ts"
-import { metresPerPixel } from "./nearest.ts"
 import { loadClpStations, type ClpStation } from "./clp-chargers.ts"
 import { loadEpdStations, type EpdStation } from "./epd-chargers.ts"
+import { kmbReachMetres } from "./kmb-reach.ts"
+import { PLACE_POLL_MS } from "./kmb-view.ts"
+import { metresPerPixel } from "./nearest.ts"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
 
 export type ChargerPlace = {
@@ -55,15 +56,26 @@ export function parseChargerPlaces(body: unknown): ChargerPlace[] {
   })
 }
 
+let sharedChargers: { expires: number; places: ChargerPlace[] } | null = null
+
 export async function loadChargerPlaces(lng: number, lat: number, zoom = Number.NaN, wide = false): Promise<{ ok: true; places: ChargerPlace[] }> {
-  const [epd, clp] = await Promise.all([loadEpdStations(), loadClpStations()])
-  const places = joinChargers(joinLive(catalogue, epd.map(epdLive), "prefer"), clp)
+  const places = await chargerList()
   return {
     ok: true,
     places: wide
       ? chargersNear(places, lng, lat, soloChargerRadiusMetres(zoom, lat), CHARGER_WIDE_CAP)
       : chargersNear(places, lng, lat, kmbReachMetres(zoom, lat)),
   }
+}
+
+async function chargerList(): Promise<ChargerPlace[]> {
+  if (sharedChargers && sharedChargers.expires > Date.now()) return sharedChargers.places
+  const [epd, clp] = await Promise.all([loadEpdStations(), loadClpStations()])
+  const places = epd.ok
+    ? joinChargers(joinLive(catalogue, epd.stations.map(epdLive), "prefer"), clp)
+    : sharedChargers?.places ?? joinChargers(catalogue, clp)
+  sharedChargers = { expires: Date.now() + PLACE_POLL_MS, places }
+  return places
 }
 
 const CHARGER_NAME_M = 80

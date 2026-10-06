@@ -1,3 +1,4 @@
+import { PLACE_POLL_MS } from "./kmb-view.ts"
 import { fetchUpstream } from "./upstream.ts"
 
 export type ClpStation = {
@@ -14,7 +15,6 @@ export type ClpStation = {
 }
 
 const LIST_URL = "https://api.clp.com.hk/evcharger/list"
-const LIST_MS = 60_000
 
 export function parseClpStations(body: unknown): ClpStation[] {
   if (!body || typeof body !== "object") return []
@@ -57,7 +57,7 @@ export function parseClpStations(body: unknown): ClpStation[] {
 
 export async function loadClpStations(): Promise<ClpStation[]> {
   try {
-    const response = await fetchUpstream(LIST_URL, LIST_MS, {
+    const response = await fetchUpstream(LIST_URL, PLACE_POLL_MS, {
       timeoutMs: 8_000,
       headers: {
         Accept: "application/json, text/plain, */*",

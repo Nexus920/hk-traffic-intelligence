@@ -1,3 +1,4 @@
+import { PLACE_POLL_MS } from "./kmb-view.ts"
 import { fetchUpstream } from "./upstream.ts"
 
 export type EpdStation = {
@@ -15,7 +16,6 @@ export type EpdStation = {
 }
 
 const LIST_URL = "https://ev-charger.epd.gov.hk/resource/ev_charger_avail/evca_ver_1_0.json"
-const LIST_MS = 60_000
 
 export function parseEpdStations(body: unknown): EpdStation[] {
   if (!body || typeof body !== "object" || !("data" in body) || !Array.isArray(body.data)) return []
@@ -52,9 +52,9 @@ export function parseEpdStations(body: unknown): EpdStation[] {
   })
 }
 
-export async function loadEpdStations(): Promise<EpdStation[]> {
+export async function loadEpdStations(): Promise<{ ok: true; stations: EpdStation[] } | { ok: false; stations: [] }> {
   try {
-    const response = await fetchUpstream(LIST_URL, LIST_MS, {
+    const response = await fetchUpstream(LIST_URL, PLACE_POLL_MS, {
       timeoutMs: 12_000,
       headers: {
         Accept: "application/json",
@@ -62,11 +62,11 @@ export async function loadEpdStations(): Promise<EpdStation[]> {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
       },
     })
-    if (response.status !== 200) return []
+    if (response.status !== 200) return { ok: false, stations: [] }
     const body = JSON.parse(new TextDecoder().decode(response.body).replace(/^\uFEFF/, "")) as unknown
-    return parseEpdStations(body)
+    return { ok: true, stations: parseEpdStations(body) }
   } catch {
-    return []
+    return { ok: false, stations: [] }
   }
 }
 
