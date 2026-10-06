@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-gwat-name",
+    date: "2026-10-06",
+    kind: "improved",
+    en: "The street-bay switch is named 電單車骨位.",
+    tc: "路邊劃位的開關叫做電單車骨位。",
+    sc: "路边划位的开关叫做电单车骨位。",
+  },
+  {
     id: "2026-10-06-kerb-bays",
     date: "2026-10-06",
     kind: "added",
