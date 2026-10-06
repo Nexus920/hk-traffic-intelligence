@@ -35,7 +35,6 @@ export type MeterPole = {
 export type MeterPlacesResponse = { ok: true; poles: MeterPole[] } | { ok: false; error?: string; poles: MeterPole[] }
 
 export const METER_CAP = 40
-export const METER_MAP_CAP = 240
 export const METER_WIDE_CAP = 600
 export const METER_POLL_MS = 60_000
 

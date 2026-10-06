@@ -2132,19 +2132,14 @@ function kerbCollection(
   }
 }
 
-function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean, counts: boolean): GeoJSON.FeatureCollection {
+function meterCollection(map: Map, poles: MeterPole[], locale: Locale, _labels: boolean, counts: boolean): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: poles.map((pole) => {
       const tone = meterTone(pole)
       const count = meterPlateCount(pole)
-      const name = readablePlace(displayText(locale, pole.streetTc, pole.streetEn))
       const figure = count == null ? undefined : { count: freeFigure(locale, Number(count)) }
-      const icon = !counts || !figure
-        ? ""
-        : labels
-          ? placeStopPlate(map, name, [], meterStroke(tone), figure)
-          : placeStopPlate(map, "", [], meterStroke(tone), figure)
+      const icon = counts && figure ? placeStopPlate(map, "", [], meterStroke(tone), figure) : ""
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
