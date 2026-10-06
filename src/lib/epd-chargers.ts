@@ -1,4 +1,3 @@
-import { PLACE_POLL_MS } from "./kmb-view.ts"
 import { fetchUpstream } from "./upstream.ts"
 
 export type EpdStation = {
@@ -16,6 +15,7 @@ export type EpdStation = {
 }
 
 const LIST_URL = "https://ev-charger.epd.gov.hk/resource/ev_charger_avail/evca_ver_1_0.json"
+export const CHARGER_POLL_MS = 60_000
 
 export function parseEpdStations(body: unknown): EpdStation[] {
   if (!body || typeof body !== "object" || !("data" in body) || !Array.isArray(body.data)) return []
@@ -54,7 +54,7 @@ export function parseEpdStations(body: unknown): EpdStation[] {
 
 export async function loadEpdStations(): Promise<{ ok: true; stations: EpdStation[] } | { ok: false; stations: [] }> {
   try {
-    const response = await fetchUpstream(LIST_URL, PLACE_POLL_MS, {
+    const response = await fetchUpstream(LIST_URL, CHARGER_POLL_MS, {
       timeoutMs: 12_000,
       headers: {
         Accept: "application/json",

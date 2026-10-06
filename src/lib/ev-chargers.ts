@@ -1,7 +1,6 @@
 import { loadClpStations, type ClpStation } from "./clp-chargers.ts"
-import { loadEpdStations, type EpdStation } from "./epd-chargers.ts"
+import { CHARGER_POLL_MS, loadEpdStations, type EpdStation } from "./epd-chargers.ts"
 import { kmbReachMetres } from "./kmb-reach.ts"
-import { PLACE_POLL_MS } from "./kmb-view.ts"
 import { metresPerPixel } from "./nearest.ts"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
 
@@ -74,7 +73,7 @@ async function chargerList(): Promise<ChargerPlace[]> {
   const places = epd.ok
     ? joinChargers(joinLive(catalogue, epd.stations.map(epdLive), "prefer"), clp)
     : sharedChargers?.places ?? joinChargers(catalogue, clp)
-  sharedChargers = { expires: Date.now() + PLACE_POLL_MS, places }
+  sharedChargers = { expires: Date.now() + CHARGER_POLL_MS, places }
   return places
 }
 

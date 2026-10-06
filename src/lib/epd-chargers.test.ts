@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
-import { parseEpdStations } from "./epd-chargers.ts"
+import { CHARGER_POLL_MS, parseEpdStations } from "./epd-chargers.ts"
+import { METER_POLL_MS } from "./meter-poles.ts"
 
 const body = {
   lastUpdateDate: "2026-10-07T02:54:51.329+0800",
@@ -57,6 +58,7 @@ assert.equal(north?.publishCounts, true)
 assert.equal(stations.find((station) => station.id === "PIS-2")?.free, null)
 assert.equal(stations.find((station) => station.id === "PIS-3")?.free, 0)
 assert.equal(stations.find((station) => station.id === "PIS-3")?.fast, 1)
+assert.equal(CHARGER_POLL_MS, METER_POLL_MS)
 assert.equal(parseEpdStations({ data: [] }).length, 0)
 assert.equal(parseEpdStations(null).length, 0)
 

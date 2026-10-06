@@ -1,4 +1,4 @@
-import { PLACE_POLL_MS } from "./kmb-view.ts"
+import { CHARGER_POLL_MS } from "./epd-chargers.ts"
 import { fetchUpstream } from "./upstream.ts"
 
 export type ClpStation = {
@@ -57,7 +57,7 @@ export function parseClpStations(body: unknown): ClpStation[] {
 
 export async function loadClpStations(): Promise<ClpStation[]> {
   try {
-    const response = await fetchUpstream(LIST_URL, PLACE_POLL_MS, {
+    const response = await fetchUpstream(LIST_URL, CHARGER_POLL_MS, {
       timeoutMs: 8_000,
       headers: {
         Accept: "application/json, text/plain, */*",

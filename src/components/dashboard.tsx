@@ -13,6 +13,7 @@ import { MOTORCYCLE_POLL_MS, PARKING_POLL_MS, type MotorcyclePlacesResponse, typ
 import { KERB_POLL_MS, type KerbPlacesResponse } from "@/lib/kerb"
 import { METER_POLL_MS, type MeterPlacesResponse } from "@/lib/meter-poles"
 import type { ChargerPlacesResponse } from "@/lib/ev-chargers"
+import { CHARGER_POLL_MS } from "@/lib/epd-chargers"
 import { inLantau } from "@/lib/lantau"
 import { PICTURE_POLL_MS } from "@/lib/picture"
 import { boardFaultSnapshot, subscribeBoardFaults } from "@/lib/board-status"
@@ -123,7 +124,7 @@ export function Dashboard() {
   const motorcyclePlacesLive = useLiveJson<MotorcyclePlacesResponse>(motorcyclePlacesUrl, MOTORCYCLE_POLL_MS)
   const kerbPlacesLive = useLiveJson<KerbPlacesResponse>(kerbPlacesUrl, KERB_POLL_MS)
   const meterPlacesLive = useLiveJson<MeterPlacesResponse>(meterPlacesUrl, METER_POLL_MS)
-  const chargerPlacesLive = useLiveJson<ChargerPlacesResponse>(chargerPlacesUrl, PLACE_POLL_MS)
+  const chargerPlacesLive = useLiveJson<ChargerPlacesResponse>(chargerPlacesUrl, CHARGER_POLL_MS)
   const traffic = trafficLive.data
   const approaches = approachesLive.data
   const picture = pictureLive.data
