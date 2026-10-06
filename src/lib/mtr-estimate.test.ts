@@ -13,6 +13,7 @@ import {
   type TrainObservation,
 } from "./mtr-estimate.ts"
 import { advanceRuns, mergeRuns, runCollection, type TrainRun } from "./mtr-run.ts"
+import { useTrackEdges } from "./rail-tracks.ts"
 
 const now = Date.parse("2026-10-01T05:40:00Z")
 
@@ -252,6 +253,19 @@ const bend = runCollection([
   { ...spotRun("back", 1540), path: ["H1", "H2", "H3"], dest: "H3" },
 ], locate)
 assert.equal(bend.features.length, 2)
+
+const railBend = [
+  [places.A!.lng, places.A!.lat],
+  [places.A!.lng + 0.008, ((places.A!.lat ?? 0) + (places.B!.lat ?? 0)) / 2],
+  [places.B!.lng, places.B!.lat],
+]
+useTrackEdges({ "A>B": railBend })
+const onBend = projectTrain({ ...obsTrain("B", "C", 1), path: ["A", "B", "C"], hold: ["A", "B", "C"] }, locate, now)
+assert.ok(onBend)
+assert.equal(onBend.from, "A")
+assert.equal(onBend.to, "B")
+assert.ok(onBend.lng > places.A!.lng + 0.001)
+useTrackEdges({})
 
 console.log("mtr estimate ok")
 

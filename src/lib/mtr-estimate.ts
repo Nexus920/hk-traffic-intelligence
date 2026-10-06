@@ -1,4 +1,4 @@
-import { pointOnSpan, segmentLength } from "./rail-tracks.ts"
+import { mixOnSpan, pointOnSpan, segmentLength } from "./rail-tracks.ts"
 
 // MTR publishes the minutes until a train reaches a station. It does not publish
 // where that train is. A position is the countdown walked back along the station
@@ -353,7 +353,11 @@ function metresAlong(train: EstimatedTrain, spot: TrainSpot, locate: (code: stri
     const start = from ? locate(from) : null
     const finish = to ? locate(to) : null
     const step = start && finish && from && to ? segmentLength(from, to, start, finish) : 0
-    if (from === spot.from && to === spot.to && start) return metres + Math.min(step, metresBetween(start, spot))
+    if (from === spot.from && to === spot.to && start) {
+      if (!finish || !to || step <= 0) return metres
+      const along = step * mixOnSpan(from, to, start, finish, spot)
+      return metres + Math.min(step, Math.max(0, along))
+    }
     if (from === spot.from && spot.from === spot.to) return metres
     metres += step
   }
@@ -541,7 +545,7 @@ function dueError(
     const to = path[cursor + 1]
     const start = from ? locate(from) : null
     const end = to ? locate(to) : null
-    const minutes = start && end ? segmentMinutes(metresBetween(start, end)) : 2
+    const minutes = start && end && from && to ? segmentMinutes(segmentLength(from, to, start, end)) : 2
     travelMs += minutes * 60_000
   }
   return Math.abs(dueAt - (last.dueAt + travelMs))
