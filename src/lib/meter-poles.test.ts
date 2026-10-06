@@ -125,7 +125,19 @@ assert.equal(meterFleet(coachOpen), "other")
 assert.equal(meterMark(goodsOpen), "other-open")
 assert.equal(meterFleet(mixedGoodsFree), "other")
 assert.equal(meterFleet(mixedBothFree), "private")
+assert.equal(meterPlateCount(mixedBothFree), "1")
+assert.equal(meterPlateCount(mixedGoodsFree), "1")
 assert.equal(meterFleet(mixedFull), "private")
+const coachAndGoods: MeterPole = {
+  ...full,
+  id: "coach-goods",
+  spaces: [
+    { id: "c", kind: "coach", vacant: true, updated: "" },
+    { id: "g", kind: "goods", vacant: true, updated: "" },
+  ],
+}
+assert.equal(meterFleet(coachAndGoods), "other")
+assert.equal(meterPlateCount(coachAndGoods), "2")
 assert.equal(meterInk("private", "open").stroke, "#1d4ed8")
 assert.equal(meterInk("other", "open").stroke, "#a21caf")
 assert.equal(meterInk("other", "open").fill, "#fae8ff")

@@ -146,10 +146,10 @@ export function meterFleet(pole: MeterPole): MeterFleet {
   let otherFree = false
   let privateSpace = false
   for (const space of pole.spaces) {
-    const personal = privateKind(space.kind)
-    if (personal) privateSpace = true
+    const fleet = fleetOf(space.kind)
+    if (fleet === "private") privateSpace = true
     if (space.vacant !== true) continue
-    if (personal) privateFree = true
+    if (fleet === "private") privateFree = true
     else otherFree = true
   }
   if (privateFree) return "private"
@@ -205,16 +205,20 @@ export function meterColorStops(part: "fill" | "stroke"): [string, string][] {
 
 export function meterPlateCount(pole: MeterPole): string | null {
   if (meterTone(pole) === "closed") return null
-  return String(meterFree(pole))
+  return String(freeOf(pole, meterFleet(pole)))
 }
 
-function privateKind(kind: MeterKind): boolean {
+function freeOf(pole: MeterPole, fleet: MeterFleet): number {
+  return pole.spaces.filter((space) => space.vacant === true && fleetOf(space.kind) === fleet).length
+}
+
+function fleetOf(kind: MeterKind): MeterFleet {
   switch (kind) {
     case "general":
-      return true
+      return "private"
     case "goods":
     case "coach":
-      return false
+      return "other"
     default: {
       const exhaustive: never = kind
       return exhaustive
