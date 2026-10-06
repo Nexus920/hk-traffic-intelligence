@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-vehicle-labels",
+    date: "2026-10-06",
+    kind: "improved",
+    en: "Train and ferry names appear from a wider view. Stop names stay close.",
+    tc: "列車和渡輪名稱在較遠的地圖就會出現。車站名稱仍然要拉近才顯示。",
+    sc: "列车和渡轮名称在较远的地图就会出现。车站名称仍然要拉近才显示。",
+  },
+  {
     id: "2026-10-05-layer-tap",
     date: "2026-10-05",
     kind: "fixed",

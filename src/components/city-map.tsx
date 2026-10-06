@@ -72,6 +72,8 @@ const OPENING = {
 }
 
 const LABEL_MIN_ZOOM = 16.5
+// Trains and ferries are few. Their names can be read from the city view. Stop names stay close.
+const VEHICLE_LABEL_MIN_ZOOM = 12
 const LABEL_REFRESH_MS = 700
 let plateFamily = ""
 
@@ -475,7 +477,7 @@ export function CityMap({
     }
     const motionReady = { mtr: false, lrt: false, ferry: false, at: 0 }
     const refreshTrainLabels = (map: Map, now: number) => {
-      const show = map.getZoom() >= LABEL_MIN_ZOOM
+      const show = map.getZoom() >= VEHICLE_LABEL_MIN_ZOOM
       if (!show) {
         if (!motionReady.mtr && !motionReady.lrt && !motionReady.ferry) return
         if (motionReady.mtr) geoJsonSource(map, "mtr-train-labels")?.setData(emptyCollection())
@@ -1203,6 +1205,25 @@ function addStopLabel(map: Map, id: string, source: string, before: string | und
   }, before)
 }
 
+function addVehicleLabel(map: Map, id: string, source: string, before: string | undefined) {
+  addOverlay(map, {
+    id,
+    type: "symbol",
+    source,
+    minzoom: VEHICLE_LABEL_MIN_ZOOM,
+    filter: ["has", "icon"],
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-anchor": "bottom",
+      "icon-offset": [0, -10],
+      "icon-allow-overlap": ["step", ["zoom"], false, LABEL_MIN_ZOOM, true],
+      "icon-ignore-placement": ["step", ["zoom"], false, LABEL_MIN_ZOOM, true],
+      "icon-pitch-alignment": "viewport",
+      "icon-rotation-alignment": "viewport",
+    },
+  }, before)
+}
+
 function mountDataLayers(map: Map) {
   map.addSource("cameras", { type: "geojson", data: emptyCollection() })
   map.addSource("works", { type: "geojson", data: emptyCollection() })
@@ -1543,7 +1564,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "mtr-train-label", "mtr-train-labels", before)
+  addVehicleLabel(map, "mtr-train-label", "mtr-train-labels", before)
   addOverlay(map, {
     id: "kmb-stops",
     type: "circle",
@@ -1633,7 +1654,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "lrt-train-label", "lrt-train-labels", before)
+  addVehicleLabel(map, "lrt-train-label", "lrt-train-labels", before)
   addOverlay(map, {
     id: "citybus-stops",
     type: "circle",
@@ -1715,7 +1736,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "ferry-vessel-label", "ferry-vessel-labels", before)
+  addVehicleLabel(map, "ferry-vessel-label", "ferry-vessel-labels", before)
   addOverlay(map, {
     id: "approach-times",
     type: "symbol",
