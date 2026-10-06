@@ -44,7 +44,7 @@ import {
   workPopup,
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
-import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
+import { AVAILABILITY_MIN_ZOOM, GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
 import { meterColorStops, meterInk, meterPin, meterPlateCount, type MeterPole } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
@@ -763,17 +763,21 @@ export function CityMap({
     const pinZoom: Partial<Record<string, number>> = {
       "kmb-stops": placePinZoom("kmb", sole),
       parking: placePinZoom("parking", sole),
+      "parking-label": placePinZoom("parking", sole),
       motorcycle: placePinZoom("motorcycle", sole),
+      "motorcycle-label": placePinZoom("motorcycle", sole),
       kerb: placePinZoom("kerb", sole),
       meters: placePinZoom("meter", sole),
+      "meters-label": placePinZoom("meter", sole),
       chargers: placePinZoom("charger", sole),
+      "chargers-label": placePinZoom("charger", sole),
       "citybus-stops": placePinZoom("citybus", sole),
       "gmb-stops": placePinZoom("gmb", sole),
       "nlb-stops": placePinZoom("nlb", sole),
       "mtrbus-stops": placePinZoom("mtrbus", sole),
-      "cameras-harbour": sole === "cameras" ? SOLO_PIN_ZOOM : CAMERA_OVERVIEW_ZOOM,
-      "cameras-portal": sole === "cameras" ? SOLO_PIN_ZOOM : CAMERA_OVERVIEW_ZOOM,
-      "cameras-city": sole === "cameras" ? SOLO_PIN_ZOOM : CAMERA_CITY_ZOOM,
+      "cameras-harbour": placePinZoom("cameras", sole),
+      "cameras-portal": placePinZoom("cameras", sole),
+      "cameras-city": placePinZoom("cameras", sole),
     }
     for (const kind of kinds) {
       for (const layerId of layerIds(kind)) {
@@ -1596,9 +1600,9 @@ function addWatchLayers(map: Map, before: string | undefined) {
     }, before)
   }
   if (map.hasImage("camera-cone")) {
-    addCameraLayer(map, "cameras-harbour", ["==", ["get", "harbour"], 1], CAMERA_OVERVIEW_ZOOM, before)
-    addCameraLayer(map, "cameras-portal", ["all", ["==", ["get", "portal"], 1], ["!=", ["get", "harbour"], 1]], CAMERA_OVERVIEW_ZOOM, before)
-    addCameraLayer(map, "cameras-city", ["all", ["!=", ["get", "harbour"], 1], ["!=", ["get", "portal"], 1]], CAMERA_CITY_ZOOM, before)
+    addCameraLayer(map, "cameras-harbour", ["==", ["get", "harbour"], 1], AVAILABILITY_MIN_ZOOM, before)
+    addCameraLayer(map, "cameras-portal", ["all", ["==", ["get", "portal"], 1], ["!=", ["get", "harbour"], 1]], AVAILABILITY_MIN_ZOOM, before)
+    addCameraLayer(map, "cameras-city", ["all", ["!=", ["get", "harbour"], 1], ["!=", ["get", "portal"], 1]], AVAILABILITY_MIN_ZOOM, before)
   }
   addOverlay(map, {
     id: "mtr-track-casing",
@@ -1908,9 +1912,6 @@ function incidentMark(): ImageData | null {
   context.fill()
   return context.getImageData(0, 0, size, size)
 }
-
-const CAMERA_OVERVIEW_ZOOM = 11.6
-const CAMERA_CITY_ZOOM = 14
 
 function addCameraLayer(map: Map, id: string, filter: FilterSpecification, minzoom: number, beforeId: string | undefined) {
   addOverlay(map, {

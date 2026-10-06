@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-harbour-pins",
+    date: "2026-10-06",
+    kind: "improved",
+    en: "The harbour view keeps the live road colours. Cameras and free-count pins return once the map is closer.",
+    tc: "海港全景只保留路面車速。快拍和空位數目會在地圖再近一些時出現。",
+    sc: "海港全景只保留路面车速。快拍和空位数目会在地图再近一些时出现。",
+  },
+  {
     id: "2026-10-06-charger-place-district",
     date: "2026-10-06",
     kind: "added",
