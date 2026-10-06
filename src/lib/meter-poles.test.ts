@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { meterClock, meterFleet, meterFree, meterInk, meterMark, meterPlateCount, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
+import { meterClock, meterColorStops, meterFleet, meterFree, meterInk, meterMark, meterPin, meterPlateCount, meterPolesNear, meterPolesWide, meterUnionsCovered, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
 
 const spaces = `2026-10-04
 
@@ -132,5 +132,17 @@ assert.equal(meterInk("other", "open").fill, "#fae8ff")
 assert.equal(meterInk("other", "full").stroke, "#86198f")
 assert.equal(meterInk("other", "closed").stroke, "#c084fc")
 assert.equal(meterInk("private", "full").stroke, "#475569")
+assert.deepEqual(meterPin(goodsOpen), { mark: "other-open", stroke: "#a21caf" })
+assert.deepEqual(meterPin(full), { mark: "private-full", stroke: "#475569" })
+assert.equal(meterUnionsCovered, true)
+const strokeStops = meterColorStops("stroke")
+const fillStops = meterColorStops("fill")
+assert.deepEqual(
+  strokeStops.map(([mark]) => mark),
+  ["private-open", "private-full", "private-closed", "other-open", "other-full", "other-closed"],
+)
+assert.deepEqual(strokeStops.map(([mark]) => mark), fillStops.map(([mark]) => mark))
+assert.equal(strokeStops.find(([mark]) => mark === "other-open")?.[1], meterInk("other", "open").stroke)
+assert.equal(fillStops.find(([mark]) => mark === "private-closed")?.[1], meterInk("private", "closed").fill)
 
 console.log("meter plate ok")

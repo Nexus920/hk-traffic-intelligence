@@ -45,7 +45,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
-import { meterFleet, meterInk, meterMark, meterPlateCount, meterTone, type MeterFleet, type MeterPole, type MeterTone } from "@/lib/meter-poles"
+import { meterColorStops, meterInk, meterPin, meterPlateCount, type MeterPole } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -2137,11 +2137,10 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, _labels: 
   return {
     type: "FeatureCollection",
     features: poles.map((pole) => {
-      const tone = meterTone(pole)
-      const fleet = meterFleet(pole)
+      const pin = meterPin(pole)
       const count = meterPlateCount(pole)
       const figure = count == null ? undefined : { count: freeFigure(locale, Number(count)) }
-      const icon = counts && figure ? placeStopPlate(map, "", [], meterInk(fleet, tone).stroke, figure) : ""
+      const icon = counts && figure ? placeStopPlate(map, "", [], pin.stroke, figure) : ""
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
@@ -2151,7 +2150,7 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, _labels: 
           streetEn: pole.streetEn,
           sectionTc: pole.sectionTc,
           sectionEn: pole.sectionEn,
-          mark: meterMark(pole),
+          mark: pin.mark,
           free: count == null ? 0 : Number(count),
           spaces: JSON.stringify(pole.spaces),
           ...(icon ? { icon } : {}),
@@ -2199,24 +2198,10 @@ function freeFigure(locale: Locale, count: number): { value: string; unit: strin
 }
 
 function meterColor(part: "fill" | "stroke"): ExpressionSpecification {
-  const ink = (fleet: MeterFleet, tone: MeterTone) => meterInk(fleet, tone)[part]
-  return [
-    "match",
-    ["get", "mark"],
-    "private-open",
-    ink("private", "open"),
-    "private-full",
-    ink("private", "full"),
-    "private-closed",
-    ink("private", "closed"),
-    "other-open",
-    ink("other", "open"),
-    "other-full",
-    ink("other", "full"),
-    "other-closed",
-    ink("other", "closed"),
-    ink("private", "closed"),
-  ]
+  const expression: unknown[] = ["match", ["get", "mark"]]
+  for (const [mark, color] of meterColorStops(part)) expression.push(mark, color)
+  expression.push(meterInk("private", "closed")[part])
+  return expression as ExpressionSpecification
 }
 
 function kmbStopCollection(map: Map, kmb: KmbResponse, locale: Locale, labels: boolean): GeoJSON.FeatureCollection {

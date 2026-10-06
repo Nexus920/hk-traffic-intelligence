@@ -157,8 +157,25 @@ export function meterFleet(pole: MeterPole): MeterFleet {
   return privateSpace ? "private" : "other"
 }
 
+const METER_FLEETS = ["private", "other"] as const
+const METER_TONES = ["open", "full", "closed"] as const
+type Same<Left, Right> = (<T>() => T extends Left ? 1 : 2) extends <T>() => T extends Right ? 1 : 2 ? true : false
+const fleetsCovered: Same<(typeof METER_FLEETS)[number], MeterFleet> = true
+const tonesCovered: Same<(typeof METER_TONES)[number], MeterTone> = true
+export const meterUnionsCovered = fleetsCovered && tonesCovered
+
+function meterKey(fleet: MeterFleet, tone: MeterTone): string {
+  return `${fleet}-${tone}`
+}
+
 export function meterMark(pole: MeterPole): string {
-  return `${meterFleet(pole)}-${meterTone(pole)}`
+  return meterKey(meterFleet(pole), meterTone(pole))
+}
+
+export function meterPin(pole: MeterPole): { mark: string; stroke: string } {
+  const tone = meterTone(pole)
+  const fleet = meterFleet(pole)
+  return { mark: meterKey(fleet, tone), stroke: meterInk(fleet, tone).stroke }
 }
 
 const METER_INK: Record<MeterFleet, Record<MeterTone, { fill: string; stroke: string }>> = {
@@ -176,6 +193,14 @@ const METER_INK: Record<MeterFleet, Record<MeterTone, { fill: string; stroke: st
 
 export function meterInk(fleet: MeterFleet, tone: MeterTone): { fill: string; stroke: string } {
   return METER_INK[fleet][tone]
+}
+
+export function meterColorStops(part: "fill" | "stroke"): [string, string][] {
+  const stops: [string, string][] = []
+  for (const fleet of METER_FLEETS) {
+    for (const tone of METER_TONES) stops.push([meterKey(fleet, tone), meterInk(fleet, tone)[part]])
+  }
+  return stops
 }
 
 export function meterPlateCount(pole: MeterPole): string | null {
