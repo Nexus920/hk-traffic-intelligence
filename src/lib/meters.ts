@@ -1,6 +1,6 @@
 import { fetchUpstream } from "@/lib/upstream"
 import { kmbReachMetres } from "@/lib/kmb-reach"
-import { joinMeterOccupancy, meterPolesNear, meterPolesWide, parseMeterSites, type MeterPole, type MeterSite } from "@/lib/meter-poles"
+import { joinMeterOccupancy, meterPolesWide, parseMeterSites, METER_MAP_CAP, type MeterPole, type MeterSite } from "@/lib/meter-poles"
 
 const SPACE_URL = "https://resource.data.one.gov.hk/td/psiparkingspaces/spaceinfo/parkingspaces.csv"
 const OCCUPANCY_URL = "https://resource.data.one.gov.hk/td/psiparkingspaces/occupancystatus/occupancystatus.csv"
@@ -19,7 +19,7 @@ export async function loadMeterPlaces(
   const poles = await catalogue()
   if (!poles) return { ok: false }
   const radius = kmbReachMetres(zoom, lat)
-  return { ok: true, poles: wide ? meterPolesWide(poles, lng, lat, radius) : meterPolesNear(poles, lng, lat, radius) }
+  return { ok: true, poles: meterPolesWide(poles, lng, lat, radius, wide ? undefined : METER_MAP_CAP) }
 }
 
 async function catalogue(): Promise<MeterPole[] | null> {

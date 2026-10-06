@@ -44,7 +44,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
-import { meterPlateCount, meterStretches, meterTone, type MeterPole } from "@/lib/meter-poles"
+import { meterPlateCount, meterTone, type MeterPole } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -75,7 +75,7 @@ const OPENING = {
 }
 
 const LABEL_MIN_ZOOM = 16.5
-const COUNT_MIN_ZOOM = 14
+const COUNT_MIN_ZOOM = 13
 // Halfway between the city view and the close view. Stop names stay at the close view.
 const VEHICLE_LABEL_MIN_ZOOM = 14.25
 let plateFamily = ""
@@ -1276,7 +1276,7 @@ function addOverlay(map: Map, layer: Parameters<Map["addLayer"]>[0], before: str
   else map.addLayer(layer)
 }
 
-function addStopLabel(map: Map, id: string, source: string, before: string | undefined, minzoom = LABEL_MIN_ZOOM, allowOverlap = true) {
+function addStopLabel(map: Map, id: string, source: string, before: string | undefined, minzoom = LABEL_MIN_ZOOM, allowOverlap = true, sortKey?: string) {
   addOverlay(map, {
     id,
     type: "symbol",
@@ -1289,6 +1289,7 @@ function addStopLabel(map: Map, id: string, source: string, before: string | und
       "icon-offset": [0, -10],
       "icon-allow-overlap": allowOverlap,
       "icon-ignore-placement": allowOverlap,
+      ...(sortKey ? { "symbol-sort-key": ["get", sortKey] } : {}),
       "icon-pitch-alignment": "viewport",
       "icon-rotation-alignment": "viewport",
     },
@@ -1673,7 +1674,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "parking-label", "parking", before, COUNT_MIN_ZOOM, false)
+  addStopLabel(map, "parking-label", "parking", before, COUNT_MIN_ZOOM, true, "free")
   addOverlay(map, {
     id: "motorcycle",
     type: "circle",
@@ -1715,7 +1716,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "meters-label", "meters", before, COUNT_MIN_ZOOM, false)
+  addStopLabel(map, "meters-label", "meters", before, COUNT_MIN_ZOOM, true, "free")
   addOverlay(map, {
     id: "chargers",
     type: "circle",
@@ -2060,6 +2061,7 @@ function parkingCollection(
           addressEn: park.addressEn,
           heightM: park.heightM,
           cars: park.cars,
+          free: park.cars ?? 0,
           ...(charger
             ? { standard: charger.standard, medium: charger.medium, quick: charger.quick, fast: charger.fast }
             : {}),
@@ -2131,36 +2133,18 @@ function kerbCollection(
 }
 
 function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean, counts: boolean): GeoJSON.FeatureCollection {
-  if (counts && !labels) {
-    return {
-      type: "FeatureCollection",
-      features: meterStretches(poles).map((stretch) => {
-        const figure = stretch.tone === "closed" ? undefined : { count: freeFigure(locale, stretch.free) }
-        const icon = figure ? placeStopPlate(map, "", [], meterStroke(stretch.tone), figure) : ""
-        return {
-          type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [stretch.lng, stretch.lat] },
-          properties: {
-            id: stretch.id,
-            streetTc: stretch.streetTc,
-            streetEn: stretch.streetEn,
-            sectionTc: "",
-            sectionEn: "",
-            tone: stretch.tone,
-            spaces: JSON.stringify(stretch.spaces),
-            ...(icon ? { icon } : {}),
-          },
-        }
-      }),
-    }
-  }
   return {
     type: "FeatureCollection",
     features: poles.map((pole) => {
       const tone = meterTone(pole)
       const count = meterPlateCount(pole)
       const name = readablePlace(displayText(locale, pole.streetTc, pole.streetEn))
-      const icon = labels ? placeStopPlate(map, name, [], meterStroke(tone), count == null ? undefined : { count: freeFigure(locale, Number(count)) }) : ""
+      const figure = count == null ? undefined : { count: freeFigure(locale, Number(count)) }
+      const icon = !counts || !figure
+        ? ""
+        : labels
+          ? placeStopPlate(map, name, [], meterStroke(tone), figure)
+          : placeStopPlate(map, "", [], meterStroke(tone), figure)
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
@@ -2171,6 +2155,7 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: b
           sectionTc: pole.sectionTc,
           sectionEn: pole.sectionEn,
           tone,
+          free: count == null ? 0 : Number(count),
           spaces: JSON.stringify(pole.spaces),
           ...(icon ? { icon } : {}),
         },

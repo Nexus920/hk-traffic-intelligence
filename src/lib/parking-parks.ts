@@ -1,4 +1,4 @@
-import { metresPerPixel } from "./nearest.ts"
+import { metresPerPixel, spreadWithin } from "./nearest.ts"
 
 export type ParkingPark = {
   id: string
@@ -20,6 +20,7 @@ export type ParkingSpace = {
 }
 
 const PARK_CAP = 40
+export const PARK_MAP_CAP = 160
 const WIDE_RADIUS_M = 80_000
 
 export function soloParkingRadiusMetres(zoom: number, lat: number): number {
@@ -28,13 +29,7 @@ export function soloParkingRadiusMetres(zoom: number, lat: number): number {
 }
 
 export function parksNear<T extends ParkingPark>(parks: readonly T[], lng: number, lat: number, radiusM: number, cap = PARK_CAP): T[] {
-  const near = parks.flatMap((park) => {
-    const metres = metresBetween(lng, lat, park.lng, park.lat)
-    if (metres > radiusM) return []
-    return [{ park, metres }]
-  })
-  near.sort((a, b) => a.metres - b.metres)
-  return near.slice(0, cap).map((item) => item.park)
+  return spreadWithin(parks, lng, lat, radiusM, cap)
 }
 
 export function parseParkingParks(body: unknown): ParkingPark[] {
@@ -148,16 +143,6 @@ function kindOf(type: string): ParkingKind | null {
     default:
       return null
   }
-}
-
-function metresBetween(lng: number, lat: number, parkLng: number, parkLat: number): number {
-  const radius = 6_371_000
-  const fromLat = (lat * Math.PI) / 180
-  const toLat = (parkLat * Math.PI) / 180
-  const dLat = ((parkLat - lat) * Math.PI) / 180
-  const dLng = ((parkLng - lng) * Math.PI) / 180
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(fromLat) * Math.cos(toLat) * Math.sin(dLng / 2) ** 2
-  return 2 * radius * Math.asin(Math.sqrt(a))
 }
 
 function text(value: unknown): string {
