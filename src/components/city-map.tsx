@@ -728,7 +728,7 @@ export function CityMap({
       if (!layers.charger || !chargers) {
         geoJsonSource(map, "chargers")?.setData(emptyCollection())
       } else {
-        geoJsonSource(map, "chargers")?.setData(chargerCollection(map, chargers, locale, labels, hosted))
+        geoJsonSource(map, "chargers")?.setData(chargerCollection(map, chargers, locale, labels, counts, hosted))
       }
     }
     paint()
@@ -1731,7 +1731,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "chargers-label", "chargers", before, LABEL_MIN_ZOOM, false)
+  addStopLabel(map, "chargers-label", "chargers", before, COUNT_MIN_ZOOM, true, "free")
   addOverlay(map, {
     id: "lrt-track-casing",
     type: "line",
@@ -2172,6 +2172,7 @@ function chargerCollection(
   places: ChargerPlace[],
   locale: Locale,
   labels: boolean,
+  counts: boolean,
   hosted: ReadonlyMap<string, ChargerPlace>,
 ): GeoJSON.FeatureCollection {
   const inside = new Set([...hosted.values()].map((place) => place.id))
@@ -2180,7 +2181,12 @@ function chargerCollection(
     features: places.flatMap((place) => {
       if (inside.has(place.id)) return []
       const name = readablePlace(displayText(locale, place.nameTc, place.nameEn))
-      const icon = labels ? placeStopPlate(map, name, [], "#0e7490") : ""
+      const figure = place.free == null ? undefined : { count: freeFigure(locale, place.free) }
+      const icon = labels
+        ? placeStopPlate(map, name, [], "#0e7490", figure)
+        : counts && figure
+          ? placeStopPlate(map, "", [], "#0e7490", figure)
+          : ""
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [place.lng, place.lat] },
@@ -2193,6 +2199,7 @@ function chargerCollection(
           medium: place.medium,
           quick: place.quick,
           fast: place.fast,
+          free: place.free ?? -1,
           ...(icon ? { icon } : {}),
         },
       }

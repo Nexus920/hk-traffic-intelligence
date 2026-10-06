@@ -12,5 +12,5 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "Charger centre missing", places: [] }, { status: 400 })
   }
   const zoom = Number(url.searchParams.get("zoom"))
-  return Response.json(loadChargerPlaces(lng, lat, zoom, url.searchParams.get("wide") === "1"))
+  return Response.json(await loadChargerPlaces(lng, lat, zoom, url.searchParams.get("wide") === "1"))
 }

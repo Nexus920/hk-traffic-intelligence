@@ -1,4 +1,4 @@
-import { openFeedCache } from "@/lib/feed-cache"
+import { openFeedCache } from "./feed-cache.ts"
 
 type UpstreamBody = { status: number; body: ArrayBuffer; contentType: string }
 

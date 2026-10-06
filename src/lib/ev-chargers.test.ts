@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
-import { CHARGER_CAP, chargersInsideParks, chargersNear, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
+import { CHARGER_CAP, chargersInsideParks, chargersNear, joinChargers, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
 
 const places = parseChargerPlaces(catalogueFile)
 const citic = places.find((place) => place.nameTc === "中信大廈")
@@ -38,5 +38,15 @@ const outside = chargersInsideParks(
   [{ id: "park", lng: citic.lng, lat: citic.lat }],
 )
 assert.equal(outside.size, 0)
+
+const joined = joinChargers(
+  [{ ...citic, id: "june", nameEn: "Citygate", lng: 113.94, lat: 22.29, free: null }],
+  [{ id: "9", name: "Citygate", provider: "CLP", lng: 113.94001, lat: 22.29001, address: "", free: 2, updated: "", quick: 2, semiQuick: 0 }],
+)
+assert.equal(joined.find((place) => place.id === "june")?.free, 2)
+assert.equal(joined.some((place) => place.id === "clp:9"), false)
+const added = joinChargers([], [{ id: "9", name: "Citygate", provider: "CLP", lng: 113.94, lat: 22.29, address: "", free: null, updated: "", quick: 1, semiQuick: 0 }])
+assert.equal(added[0]?.id, "clp:9")
+assert.equal(added[0]?.free, null)
 
 console.log("ev-chargers ok")

@@ -13,6 +13,22 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-onestop-parks",
+    date: "2026-10-06",
+    kind: "added",
+    en: "Kowloon East car parks, including Amoy Plaza and Telford Plaza, show how many spaces are free. A closed car park is marked closed.",
+    tc: "九龍東的停車場，包括淘大和德福，顯示空位數目。關閉的場會寫明關閉。",
+    sc: "九龙东的停车场，包括淘大和德福，显示空位数目。关闭的场会写明关闭。",
+  },
+  {
+    id: "2026-10-06-clp-chargers",
+    date: "2026-10-06",
+    kind: "added",
+    en: "A CLP charger shows how many plugs are free when CLP publishes that number.",
+    tc: "中電充電站在中電有公布時顯示空置插頭數目。",
+    sc: "中电充电站在中电有公布时显示空置插头数目。",
+  },
+  {
     id: "2026-10-06-motorcycle-counts",
     date: "2026-10-06",
     kind: "fixed",
