@@ -689,7 +689,7 @@ export function CityMap({
       } else {
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
       }
-      const hosted = layers.parking && layers.charger && parking && chargers ? chargersInsideParks(chargers, parking) : new Map<string, ChargerPlace>()
+      const hosted = layers.parking && layers.charger && parking && chargers ? chargersInsideParks(chargers, parking) : new globalThis.Map<string, ChargerPlace>()
       if (!layers.parking || !parking) {
         geoJsonSource(map, "parking")?.setData(emptyCollection())
       } else {
