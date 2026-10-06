@@ -60,8 +60,11 @@ export async function loadClpStations(): Promise<ClpStation[]> {
     const response = await fetchUpstream(LIST_URL, LIST_MS, {
       timeoutMs: 8_000,
       headers: {
-        Accept: "application/json",
-        "User-Agent": "Mozilla/5.0",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en-HK,en;q=0.9,zh-HK;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        Referer: "https://data.gov.hk/",
+        Origin: "https://data.gov.hk",
       },
     })
     if (response.status !== 200) return []

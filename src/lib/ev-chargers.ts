@@ -1,6 +1,7 @@
 import { kmbReachMetres } from "./kmb-reach.ts"
 import { metresPerPixel } from "./nearest.ts"
 import { loadClpStations, type ClpStation } from "./clp-chargers.ts"
+import { loadEpdStations, type EpdStation } from "./epd-chargers.ts"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
 
 export type ChargerPlace = {
@@ -20,7 +21,7 @@ export type ChargerPlace = {
 export type ChargerPlacesResponse = { ok: true; places: ChargerPlace[] } | { ok: false; error?: string; places: ChargerPlace[] }
 
 export const CHARGER_CAP = 40
-export const CHARGER_WIDE_CAP = 600
+export const CHARGER_WIDE_CAP = 1_600
 export const PARKED_CHARGER_M = 15
 const WIDE_RADIUS_M = 80_000
 
@@ -55,8 +56,8 @@ export function parseChargerPlaces(body: unknown): ChargerPlace[] {
 }
 
 export async function loadChargerPlaces(lng: number, lat: number, zoom = Number.NaN, wide = false): Promise<{ ok: true; places: ChargerPlace[] }> {
-  const live = await loadClpStations()
-  const places = joinChargers(catalogue, live)
+  const [epd, clp] = await Promise.all([loadEpdStations(), loadClpStations()])
+  const places = joinChargers(joinLive(catalogue, epd.map(epdLive), "prefer"), clp)
   return {
     ok: true,
     places: wide
@@ -68,38 +69,128 @@ export async function loadChargerPlaces(lng: number, lat: number, zoom = Number.
 const CHARGER_NAME_M = 80
 const CHARGER_POINT_M = 15
 
-export function joinChargers(june: readonly ChargerPlace[], live: readonly ClpStation[]): ChargerPlace[] {
-  const used = new Set<string>()
-  const places = june.map((place) => {
-    const match = live.find((station) => !used.has(station.id) && sameCharger(place, station))
-    if (!match) return place
-    used.add(match.id)
-    return { ...place, free: match.free }
-  })
-  for (const station of live) {
-    if (used.has(station.id)) continue
-    places.push({
-      id: `clp:${station.id}`,
-      nameTc: station.name,
-      nameEn: station.name,
-      districtTc: "",
-      lng: station.lng,
-      lat: station.lat,
-      standard: 0,
-      medium: station.semiQuick,
-      quick: station.quick,
-      fast: 0,
-      free: station.free,
-    })
-  }
-  return places
+type LiveCharger = {
+  id: string
+  source: "clp" | "epd"
+  name: string
+  nameTc: string
+  lng: number
+  lat: number
+  free: number | null
+  standard: number
+  medium: number
+  quick: number
+  fast: number
+  publishCounts: boolean
 }
 
-function sameCharger(place: ChargerPlace, station: ClpStation): boolean {
+export function joinChargers(june: readonly ChargerPlace[], live: readonly ClpStation[]): ChargerPlace[] {
+  return joinLive(june, live.map(clpLive), "fill")
+}
+
+export function joinLive(places: readonly ChargerPlace[], stations: readonly LiveCharger[], mode: "prefer" | "fill"): ChargerPlace[] {
+  const pairs: { placeIndex: number; stationIndex: number; metres: number }[] = []
+  for (let placeIndex = 0; placeIndex < places.length; placeIndex += 1) {
+    const place = places[placeIndex]
+    if (!place) continue
+    for (let stationIndex = 0; stationIndex < stations.length; stationIndex += 1) {
+      const station = stations[stationIndex]
+      if (!station) continue
+      const metres = chargerMetres(place, station)
+      if (metres == null) continue
+      pairs.push({ placeIndex, stationIndex, metres })
+    }
+  }
+  pairs.sort((left, right) => left.metres - right.metres || left.placeIndex - right.placeIndex)
+  const usedPlaces = new Set<number>()
+  const usedStations = new Set<number>()
+  const next = places.map((place) => ({ ...place }))
+  for (const pair of pairs) {
+    if (usedPlaces.has(pair.placeIndex) || usedStations.has(pair.stationIndex)) continue
+    const place = next[pair.placeIndex]
+    const station = stations[pair.stationIndex]
+    if (!place || !station) continue
+    usedPlaces.add(pair.placeIndex)
+    usedStations.add(pair.stationIndex)
+    applyStation(place, station, mode)
+  }
+  for (let index = 0; index < stations.length; index += 1) {
+    if (usedStations.has(index)) continue
+    const station = stations[index]
+    if (!station) continue
+    next.push(placeFromStation(station))
+  }
+  return next
+}
+
+function applyStation(place: ChargerPlace, station: LiveCharger, mode: "prefer" | "fill"): void {
+  if (station.publishCounts) {
+    place.standard = station.standard
+    place.medium = station.medium
+    place.quick = station.quick
+    place.fast = station.fast
+  }
+  if (station.free == null) return
+  switch (mode) {
+    case "prefer":
+      place.free = station.free
+      return
+    case "fill":
+      if (place.free == null) place.free = station.free
+      return
+    default: {
+      const unread: never = mode
+      return unread
+    }
+  }
+}
+
+function placeFromStation(station: LiveCharger): ChargerPlace {
+  return {
+    id: `${station.source}:${station.id}`,
+    nameTc: station.nameTc || station.name,
+    nameEn: station.name || station.nameTc,
+    districtTc: "",
+    lng: station.lng,
+    lat: station.lat,
+    standard: station.standard,
+    medium: station.medium,
+    quick: station.quick,
+    fast: station.fast,
+    free: station.free,
+  }
+}
+
+function clpLive(station: ClpStation): LiveCharger {
+  return {
+    id: station.id,
+    source: "clp",
+    name: station.name,
+    nameTc: "",
+    lng: station.lng,
+    lat: station.lat,
+    free: station.free,
+    standard: 0,
+    medium: station.semiQuick,
+    quick: station.quick,
+    fast: 0,
+    publishCounts: false,
+  }
+}
+
+function epdLive(station: EpdStation): LiveCharger {
+  return { ...station, source: "epd" }
+}
+
+function chargerMetres(place: ChargerPlace, station: LiveCharger): number | null {
   const metres = metresBetween(place.lng, place.lat, station.lng, station.lat)
-  if (metres <= CHARGER_POINT_M) return true
-  if (metres > CHARGER_NAME_M) return false
-  return namesMatch(place.nameEn, station.name) || namesMatch(place.nameTc, station.name)
+  if (metres <= CHARGER_POINT_M) return metres
+  if (metres > CHARGER_NAME_M) return null
+  const named = namesMatch(place.nameEn, station.name)
+    || namesMatch(place.nameTc, station.name)
+    || namesMatch(place.nameTc, station.nameTc)
+    || namesMatch(place.nameEn, station.nameTc)
+  return named ? metres : null
 }
 
 function namesMatch(left: string, right: string): boolean {

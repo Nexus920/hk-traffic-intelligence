@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
-import { CHARGER_CAP, chargersInsideParks, chargersNear, joinChargers, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
+import { CHARGER_CAP, chargersInsideParks, chargersNear, joinChargers, joinLive, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
 
 const places = parseChargerPlaces(catalogueFile)
 const citic = places.find((place) => place.nameTc === "中信大廈")
@@ -48,5 +48,48 @@ assert.equal(joined.some((place) => place.id === "clp:9"), false)
 const added = joinChargers([], [{ id: "9", name: "Citygate", provider: "CLP", lng: 113.94, lat: 22.29, address: "", free: null, updated: "", quick: 1, semiQuick: 0 }])
 assert.equal(added[0]?.id, "clp:9")
 assert.equal(added[0]?.free, null)
+const kept = joinChargers(
+  [{ ...citic, id: "june", nameEn: "Citygate", lng: 113.94, lat: 22.29, free: 4 }],
+  [{ id: "9", name: "Citygate", provider: "CLP", lng: 113.94, lat: 22.29, address: "", free: null, updated: "", quick: 1, semiQuick: 0 }],
+)
+assert.equal(kept.find((place) => place.id === "june")?.free, 4)
+assert.equal(kept.some((place) => place.id === "clp:9"), false)
+
+const north = { ...citic, id: "north", nameEn: "North", nameTc: "北角", lng: 114.2, lat: 22.29, free: null as number | null, standard: 1, medium: 1, quick: 1, fast: 1 }
+const published = joinLive([north], [{
+  id: "PIS-1",
+  source: "epd",
+  name: "North Point",
+  nameTc: "北角政府合署",
+  lng: 114.20002,
+  lat: 22.29002,
+  free: 0,
+  standard: 0,
+  medium: 29,
+  quick: 0,
+  fast: 0,
+  publishCounts: true,
+}], "prefer")
+assert.equal(published.find((place) => place.id === "north")?.free, 0)
+assert.equal(published.find((place) => place.id === "north")?.medium, 29)
+assert.equal(published.find((place) => place.id === "north")?.standard, 0)
+const unpublished = joinLive(
+  [{ ...north, free: 4 }],
+  [{ id: "PIS-2", source: "epd", name: "North Point", nameTc: "北角", lng: 114.2, lat: 22.29, free: null, standard: 0, medium: 4, quick: 0, fast: 0, publishCounts: true }],
+  "prefer",
+)
+assert.equal(unpublished.find((place) => place.id === "north")?.free, 4)
+
+const closer = joinLive(
+  [{ ...north }],
+  [
+    { id: "far", source: "epd", name: "Far", nameTc: "遠站", lng: 114.20008, lat: 22.29, free: 9, standard: 0, medium: 1, quick: 0, fast: 0, publishCounts: true },
+    { id: "near", source: "epd", name: "Near", nameTc: "近站", lng: 114.20001, lat: 22.29, free: 2, standard: 0, medium: 3, quick: 0, fast: 0, publishCounts: true },
+  ],
+  "prefer",
+)
+assert.equal(closer.find((place) => place.id === "north")?.free, 2)
+assert.equal(closer.some((place) => place.id === "epd:far"), true)
+assert.equal(closer.some((place) => place.id === "epd:near"), false)
 
 console.log("ev-chargers ok")
