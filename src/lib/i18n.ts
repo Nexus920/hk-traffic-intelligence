@@ -220,6 +220,9 @@ export type Messages = {
   parking: string
   parkingFailed: string
   motorcycleFailed: string
+  kerb: string
+  kerbFailed: string
+  kerbBays: (n: number) => string
   parkingNone: string
   parkingPrivate: string
   parkingLgv: string
@@ -436,6 +439,9 @@ const en: Messages = {
   parking: "Car parks",
   parkingFailed: "Car parks did not load.",
   motorcycleFailed: "Motorcycle parks did not load.",
+  kerb: "Motorcycle bays",
+  kerbFailed: "Motorcycle bays did not load.",
+  kerbBays: (n) => `${n} bays`,
   parkingNone: "No published spaces",
   parkingPrivate: "Private car",
   parkingLgv: "Light goods",
@@ -652,6 +658,9 @@ const zhHK: Messages = {
   parking: "停車場",
   parkingFailed: "未能載入停車場。",
   motorcycleFailed: "未能載入電單車泊位。",
+  kerb: "電單車位",
+  kerbFailed: "未能載入電單車位。",
+  kerbBays: (n) => `${n} 個位`,
   parkingNone: "沒有公布空位",
   parkingPrivate: "私家車",
   parkingLgv: "輕型貨車",
@@ -858,6 +867,9 @@ const zhCN: Messages = {
   parking: "停车场",
   parkingFailed: "未能载入停车场。",
   motorcycleFailed: "未能载入电单车泊位。",
+  kerb: "电单车位",
+  kerbFailed: "未能载入电单车位。",
+  kerbBays: (n) => `${n} 个位`,
   parkingNone: "没有公布空位",
   parkingPrivate: "私家车",
   parkingLgv: "轻型货车",

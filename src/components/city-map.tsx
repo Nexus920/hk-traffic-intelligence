@@ -20,6 +20,7 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import { useI18n } from "@/components/locale"
 import {
   approachPopup,
+  kerbPopup,
   cameraPopup,
   controlPointPopup,
   kmbStopPopup,
@@ -187,7 +188,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "motorcycle", "motorcycle-label", "meters", "meters-label", "chargers", "chargers-label"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "motorcycle", "motorcycle-label", "kerb", "kerb-label", "meters", "meters-label", "chargers", "chargers-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -214,6 +215,7 @@ type CityMapProps = {
   ferry: FerryResponse | null
   parking: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[] | null
   motorcycles: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; motorcycle: number }[] | null
+  kerbs: { id: string; streetTc: string; streetEn: string; lng: number; lat: number; bays: number }[] | null
   meters: MeterPole[] | null
   chargers: ChargerPlace[] | null
   onView: (view: { lng: number; lat: number; zoom: number }) => void
@@ -248,6 +250,7 @@ export function CityMap({
   ferry,
   parking,
   motorcycles,
+  kerbs,
   meters,
   chargers,
   onView,
@@ -708,6 +711,11 @@ export function CityMap({
       } else {
         geoJsonSource(map, "motorcycle")?.setData(motorcycleCollection(map, motorcycles, locale, labels, hosted))
       }
+      if (!layers.kerb || !kerbs) {
+        geoJsonSource(map, "kerb")?.setData(emptyCollection())
+      } else {
+        geoJsonSource(map, "kerb")?.setData(kerbCollection(map, kerbs, locale, labels))
+      }
       if (!layers.meter || !meters) {
         geoJsonSource(map, "meters")?.setData(emptyCollection())
       } else {
@@ -724,7 +732,7 @@ export function CityMap({
     return () => {
       map.off("zoomend", paint)
     }
-  }, [chargers, citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, layers.charger, layers.citybus, layers.ferry, layers.gmb, layers.kmb, layers.lrt, layers.meter, layers.motorcycle, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, meters, motorcycles, mtr, mtrBus, nlb, parking, picture, styleEpoch])
+  }, [chargers, citybus, controlPoints, disabled, ferry, gmb, incidents, kmb, kerbs, layers.charger, layers.citybus, layers.ferry, layers.gmb, layers.kerb, layers.kmb, layers.lrt, layers.meter, layers.motorcycle, layers.mtrbus, layers.nlb, layers.parking, locale, lrt, mapReady, meters, motorcycles, mtr, mtrBus, nlb, parking, picture, styleEpoch])
 
   useEffect(() => {
     const map = mapRef.current
@@ -746,12 +754,13 @@ export function CityMap({
   useEffect(() => {
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
-    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking", "motorcycle", "meter", "charger"]
+    const kinds: WatchLayer[] = ["speed", "cameras", "works", "tolls", "incidents", "control", "mtr", "kmb", "lrt", "citybus", "gmb", "nlb", "mtrbus", "ferry", "parking", "motorcycle", "kerb", "meter", "charger"]
     const sole = soleLayer(layers)
     const pinZoom: Partial<Record<string, number>> = {
       "kmb-stops": placePinZoom("kmb", sole),
       parking: placePinZoom("parking", sole),
       motorcycle: placePinZoom("motorcycle", sole),
+      kerb: placePinZoom("kerb", sole),
       meters: placePinZoom("meter", sole),
       chargers: placePinZoom("charger", sole),
       "citybus-stops": placePinZoom("citybus", sole),
@@ -1234,6 +1243,7 @@ function mountDataLayers(map: Map) {
   map.addSource("ferry-vessels", { type: "geojson", data: emptyCollection() })
   map.addSource("parking", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("motorcycle", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
+  map.addSource("kerb", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("meters", { type: "geojson", data: emptyCollection(), attribution: "© Transport Department" })
   map.addSource("chargers", {
     type: "geojson",
@@ -1368,6 +1378,8 @@ function bindOverlayClicks(
     "parking-label": parkingPopup,
     motorcycle: parkingPopup,
     "motorcycle-label": parkingPopup,
+    kerb: kerbPopup,
+    "kerb-label": kerbPopup,
     meters: meterPopup,
     "meters-label": meterPopup,
     chargers: chargerPopup,
@@ -1591,6 +1603,20 @@ function addWatchLayers(map: Map, before: string | undefined) {
     },
   }, before)
   addStopLabel(map, "motorcycle-label", "motorcycle", before, LABEL_MIN_ZOOM, false)
+  addOverlay(map, {
+    id: "kerb",
+    type: "circle",
+    source: "kerb",
+    minzoom: SOLO_PIN_ZOOM,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
+      "circle-color": "#fdf2f8",
+      "circle-stroke-color": "#be185d",
+      "circle-stroke-width": 1.5,
+      "circle-pitch-alignment": "map",
+    },
+  }, before)
+  addStopLabel(map, "kerb-label", "kerb", before, LABEL_MIN_ZOOM, false)
   addOverlay(map, {
     id: "meters",
     type: "circle",
@@ -1986,6 +2012,32 @@ function motorcycleCollection(
   }
 }
 
+function kerbCollection(
+  map: Map,
+  rows: { id: string; streetTc: string; streetEn: string; lng: number; lat: number; bays: number }[],
+  locale: Locale,
+  labels: boolean,
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: rows.map((row) => {
+      const name = readablePlace(displayText(locale, row.streetTc, row.streetEn))
+      const icon = labels ? placeStopPlate(map, name, [String(row.bays)], "#be185d") : ""
+      return {
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [row.lng, row.lat] },
+        properties: {
+          id: row.id,
+          streetTc: row.streetTc,
+          streetEn: row.streetEn,
+          bays: row.bays,
+          ...(icon ? { icon } : {}),
+        },
+      }
+    }),
+  }
+}
+
 function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -2150,6 +2202,8 @@ function layerIds(kind: WatchLayer): string[] {
       return ["parking", "parking-label"]
     case "motorcycle":
       return ["motorcycle", "motorcycle-label"]
+    case "kerb":
+      return ["kerb", "kerb-label"]
     case "meter":
       return ["meters", "meters-label"]
     case "charger":

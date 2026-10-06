@@ -20,6 +20,7 @@ const LAYER_IDS: readonly WatchLayer[] = [
   "ferry",
   "parking",
   "motorcycle",
+  "kerb",
   "meter",
   "charger",
 ]
@@ -58,6 +59,7 @@ export const PREFERENCE_DEFAULTS: Preferences = {
     ferry: true,
     parking: true,
     motorcycle: true,
+    kerb: false,
     meter: true,
     charger: false,
   },

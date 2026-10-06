@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-kerb-bays",
+    date: "2026-10-06",
+    kind: "added",
+    en: "Painted motorcycle bays can be switched on. Each pin is a row, and the number is how many bays are painted.",
+    tc: "路邊電單車位可以打開。每個標記是一列車位，數目是劃了多少個。",
+    sc: "路边电单车位可以打开。每个标记是一列车位，数目是划了多少个。",
+  },
+  {
     id: "2026-10-06-motorcycle-parks",
     date: "2026-10-06",
     kind: "added",

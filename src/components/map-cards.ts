@@ -345,6 +345,14 @@ export function mtrBusStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messag
 
 const seenParks = new Map<string, { at: number; spaces: ParkingSpace[] }>()
 
+export function kerbPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+  const street = readablePlace(displayText(m.locale, textProp(properties, "streetTc"), textProp(properties, "streetEn")))
+  const card = openCard(street || m.kerb)
+  const bays = numberProp(properties, "bays")
+  card.body.append(paragraph("city-card-copy", bays != null && bays > 0 ? m.kerbBays(bays) : m.kerbFailed))
+  return card.root
+}
+
 export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.parking
   const card = openCard(heading)
