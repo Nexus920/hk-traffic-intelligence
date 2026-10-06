@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { meterClock, meterFree, meterPlateCount, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
+import { meterClock, meterFleet, meterFree, meterInk, meterMark, meterPlateCount, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
 
 const spaces = `2026-10-04
 
@@ -70,5 +70,67 @@ const closed: MeterPole = {
 }
 assert.equal(meterPlateCount(full), "0")
 assert.equal(meterPlateCount(closed), null)
+
+assert.equal(meterFleet(island!), "private")
+assert.equal(meterMark(island!), "private-open")
+assert.equal(meterFleet(full), "private")
+assert.equal(meterMark(full), "private-full")
+assert.equal(meterFleet(closed), "private")
+assert.equal(meterMark(closed), "private-closed")
+assert.equal(meterFleet(coach!), "other")
+assert.equal(meterMark(coach!), "other-closed")
+
+const goodsOpen: MeterPole = {
+  ...full,
+  id: "goods-open",
+  spaces: [{ id: "g", kind: "goods", vacant: true, updated: "" }],
+}
+const goodsFull: MeterPole = {
+  ...goodsOpen,
+  id: "goods-full",
+  spaces: [{ id: "g", kind: "goods", vacant: false, updated: "" }],
+}
+const coachOpen: MeterPole = {
+  ...goodsOpen,
+  id: "coach-open",
+  spaces: [{ id: "c", kind: "coach", vacant: true, updated: "" }],
+}
+const mixedGoodsFree: MeterPole = {
+  ...full,
+  id: "mixed-goods",
+  spaces: [
+    { id: "a", kind: "general", vacant: false, updated: "" },
+    { id: "g", kind: "goods", vacant: true, updated: "" },
+  ],
+}
+const mixedBothFree: MeterPole = {
+  ...full,
+  id: "mixed-both",
+  spaces: [
+    { id: "a", kind: "general", vacant: true, updated: "" },
+    { id: "g", kind: "goods", vacant: true, updated: "" },
+  ],
+}
+const mixedFull: MeterPole = {
+  ...full,
+  id: "mixed-full",
+  spaces: [
+    { id: "a", kind: "general", vacant: false, updated: "" },
+    { id: "c", kind: "coach", vacant: false, updated: "" },
+  ],
+}
+assert.equal(meterFleet(goodsOpen), "other")
+assert.equal(meterFleet(goodsFull), "other")
+assert.equal(meterFleet(coachOpen), "other")
+assert.equal(meterMark(goodsOpen), "other-open")
+assert.equal(meterFleet(mixedGoodsFree), "other")
+assert.equal(meterFleet(mixedBothFree), "private")
+assert.equal(meterFleet(mixedFull), "private")
+assert.equal(meterInk("private", "open").stroke, "#1d4ed8")
+assert.equal(meterInk("other", "open").stroke, "#a21caf")
+assert.equal(meterInk("other", "open").fill, "#fae8ff")
+assert.equal(meterInk("other", "full").stroke, "#86198f")
+assert.equal(meterInk("other", "closed").stroke, "#c084fc")
+assert.equal(meterInk("private", "full").stroke, "#475569")
 
 console.log("meter plate ok")

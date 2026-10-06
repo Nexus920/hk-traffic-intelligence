@@ -10,6 +10,7 @@ import {
   Popup,
   setWorkerUrl,
   type ErrorEvent,
+  type ExpressionSpecification,
   type FilterSpecification,
   type LngLat,
   type MapGeoJSONFeature,
@@ -44,7 +45,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
-import { meterPlateCount, meterTone, type MeterPole } from "@/lib/meter-poles"
+import { meterFleet, meterInk, meterMark, meterPlateCount, meterTone, type MeterFleet, type MeterPole, type MeterTone } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -1710,8 +1711,8 @@ function addWatchLayers(map: Map, before: string | undefined) {
     minzoom: SOLO_PIN_ZOOM,
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3.2, 13, 3.5, 16, 6],
-      "circle-color": ["match", ["get", "tone"], "open", "#dbeafe", "full", "#e2e8f0", "#f8fafc"],
-      "circle-stroke-color": ["match", ["get", "tone"], "open", "#1d4ed8", "full", "#475569", "#94a3b8"],
+      "circle-color": meterColor("fill"),
+      "circle-stroke-color": meterColor("stroke"),
       "circle-stroke-width": 1.5,
       "circle-pitch-alignment": "map",
     },
@@ -2137,9 +2138,10 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, _labels: 
     type: "FeatureCollection",
     features: poles.map((pole) => {
       const tone = meterTone(pole)
+      const fleet = meterFleet(pole)
       const count = meterPlateCount(pole)
       const figure = count == null ? undefined : { count: freeFigure(locale, Number(count)) }
-      const icon = counts && figure ? placeStopPlate(map, "", [], meterStroke(tone), figure) : ""
+      const icon = counts && figure ? placeStopPlate(map, "", [], meterInk(fleet, tone).stroke, figure) : ""
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
@@ -2149,7 +2151,7 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, _labels: 
           streetEn: pole.streetEn,
           sectionTc: pole.sectionTc,
           sectionEn: pole.sectionEn,
-          tone,
+          mark: meterMark(pole),
           free: count == null ? 0 : Number(count),
           spaces: JSON.stringify(pole.spaces),
           ...(icon ? { icon } : {}),
@@ -2196,19 +2198,25 @@ function freeFigure(locale: Locale, count: number): { value: string; unit: strin
   return { value: String(count), unit: MESSAGES[locale].plateFree }
 }
 
-function meterStroke(tone: "open" | "full" | "closed"): string {
-  switch (tone) {
-    case "open":
-      return "#1d4ed8"
-    case "full":
-      return "#475569"
-    case "closed":
-      return "#94a3b8"
-    default: {
-      const exhaustive: never = tone
-      return exhaustive
-    }
-  }
+function meterColor(part: "fill" | "stroke"): ExpressionSpecification {
+  const ink = (fleet: MeterFleet, tone: MeterTone) => meterInk(fleet, tone)[part]
+  return [
+    "match",
+    ["get", "mark"],
+    "private-open",
+    ink("private", "open"),
+    "private-full",
+    ink("private", "full"),
+    "private-closed",
+    ink("private", "closed"),
+    "other-open",
+    ink("other", "open"),
+    "other-full",
+    ink("other", "full"),
+    "other-closed",
+    ink("other", "closed"),
+    ink("private", "closed"),
+  ]
 }
 
 function kmbStopCollection(map: Map, kmb: KmbResponse, locale: Locale, labels: boolean): GeoJSON.FeatureCollection {

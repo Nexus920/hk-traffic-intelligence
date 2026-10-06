@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-meter-kind-colour",
+    date: "2026-10-06",
+    kind: "improved",
+    en: "Goods-vehicle and coach meters are magenta. Private-car and light-van meters stay blue.",
+    tc: "貨車和旅遊巴咪錶是洋紅色。私家車和輕型貨車咪錶仍然是藍色。",
+    sc: "货车和旅游巴咪表是洋红色。私家车和轻型货车咪表仍然是蓝色。",
+  },
+  {
     id: "2026-10-06-count-sooner",
     date: "2026-10-06",
     kind: "improved",

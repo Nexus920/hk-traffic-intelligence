@@ -129,7 +129,10 @@ export function meterFree(pole: MeterPole): number {
   return pole.spaces.filter((space) => space.vacant === true).length
 }
 
-export function meterTone(pole: MeterPole): "open" | "full" | "closed" {
+export type MeterTone = "open" | "full" | "closed"
+export type MeterFleet = "private" | "other"
+
+export function meterTone(pole: MeterPole): MeterTone {
   let occupied = false
   for (const space of pole.spaces) {
     if (space.vacant === true) return "open"
@@ -138,9 +141,60 @@ export function meterTone(pole: MeterPole): "open" | "full" | "closed" {
   return occupied ? "full" : "closed"
 }
 
+export function meterFleet(pole: MeterPole): MeterFleet {
+  let privateFree = false
+  let otherFree = false
+  let privateSpace = false
+  for (const space of pole.spaces) {
+    const personal = privateKind(space.kind)
+    if (personal) privateSpace = true
+    if (space.vacant !== true) continue
+    if (personal) privateFree = true
+    else otherFree = true
+  }
+  if (privateFree) return "private"
+  if (otherFree) return "other"
+  return privateSpace ? "private" : "other"
+}
+
+export function meterMark(pole: MeterPole): string {
+  return `${meterFleet(pole)}-${meterTone(pole)}`
+}
+
+const METER_INK: Record<MeterFleet, Record<MeterTone, { fill: string; stroke: string }>> = {
+  private: {
+    open: { fill: "#dbeafe", stroke: "#1d4ed8" },
+    full: { fill: "#e2e8f0", stroke: "#475569" },
+    closed: { fill: "#f8fafc", stroke: "#94a3b8" },
+  },
+  other: {
+    open: { fill: "#fae8ff", stroke: "#a21caf" },
+    full: { fill: "#fdf4ff", stroke: "#86198f" },
+    closed: { fill: "#faf5ff", stroke: "#c084fc" },
+  },
+}
+
+export function meterInk(fleet: MeterFleet, tone: MeterTone): { fill: string; stroke: string } {
+  return METER_INK[fleet][tone]
+}
+
 export function meterPlateCount(pole: MeterPole): string | null {
   if (meterTone(pole) === "closed") return null
   return String(meterFree(pole))
+}
+
+function privateKind(kind: MeterKind): boolean {
+  switch (kind) {
+    case "general":
+      return true
+    case "goods":
+    case "coach":
+      return false
+    default: {
+      const exhaustive: never = kind
+      return exhaustive
+    }
+  }
 }
 
 function kindOf(type: string): MeterKind | null {
