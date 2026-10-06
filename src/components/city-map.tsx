@@ -682,9 +682,6 @@ export function CityMap({
         geoJsonSource(map, "ferry-vessels")?.setData(emptyCollection())
       } else {
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
-        const moving = ferryMotionFeatures(ferryMotionRef.current, Date.now())
-        if (map.getZoom() >= VEHICLE_LABEL_MIN_ZOOM) withFerryMarks(map, moving, locale)
-        geoJsonSource(map, "ferry-vessels")?.setData(moving)
       }
       if (!layers.parking || !parking) {
         geoJsonSource(map, "parking")?.setData(emptyCollection())
@@ -1177,25 +1174,6 @@ function addStopLabel(map: Map, id: string, source: string, before: string | und
   }, before)
 }
 
-function addVehicleLabel(map: Map, id: string, source: string, before: string | undefined) {
-  addOverlay(map, {
-    id,
-    type: "symbol",
-    source,
-    minzoom: VEHICLE_LABEL_MIN_ZOOM,
-    filter: ["has", "icon"],
-    layout: {
-      "icon-image": ["get", "icon"],
-      "icon-anchor": "bottom",
-      "icon-offset": [0, -10],
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-      "icon-pitch-alignment": "viewport",
-      "icon-rotation-alignment": "viewport",
-    },
-  }, before)
-}
-
 function mountDataLayers(map: Map) {
   map.addSource("cameras", { type: "geojson", data: emptyCollection() })
   map.addSource("works", { type: "geojson", data: emptyCollection() })
@@ -1533,7 +1511,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addVehicleLabel(map, "mtr-train-label", "mtr-trains", before)
+  addStopLabel(map, "mtr-train-label", "mtr-trains", before, VEHICLE_LABEL_MIN_ZOOM)
   addOverlay(map, {
     id: "kmb-stops",
     type: "circle",
@@ -1623,7 +1601,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addVehicleLabel(map, "lrt-train-label", "lrt-trains", before)
+  addStopLabel(map, "lrt-train-label", "lrt-trains", before, VEHICLE_LABEL_MIN_ZOOM)
   addOverlay(map, {
     id: "citybus-stops",
     type: "circle",
@@ -1705,7 +1683,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addVehicleLabel(map, "ferry-vessel-label", "ferry-vessels", before)
+  addStopLabel(map, "ferry-vessel-label", "ferry-vessels", before, VEHICLE_LABEL_MIN_ZOOM)
   addOverlay(map, {
     id: "approach-times",
     type: "symbol",
