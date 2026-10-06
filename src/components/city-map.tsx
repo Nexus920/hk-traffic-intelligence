@@ -44,7 +44,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
-import { meterTone, type MeterPole } from "@/lib/meter-poles"
+import { meterPlateCount, meterTone, type MeterPole } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -1947,7 +1947,7 @@ function ferryPierCollection(map: Map, ferry: FerryResponse | null, locale: Loca
 
 function parkingCollection(
   map: Map,
-  parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[],
+  parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; cars: number | null }[],
   locale: Locale,
   labels: boolean,
   hosted: ReadonlyMap<string, ChargerPlace>,
@@ -1956,7 +1956,8 @@ function parkingCollection(
     type: "FeatureCollection",
     features: parks.map((park) => {
       const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
-      const icon = labels ? placeStopPlate(map, name, [], "#d97706") : ""
+      const marks = park.cars == null ? [] : [String(park.cars)]
+      const icon = labels ? placeStopPlate(map, name, marks, "#d97706") : ""
       const charger = hosted.get(park.id)
       return {
         type: "Feature" as const,
@@ -1968,6 +1969,7 @@ function parkingCollection(
           addressTc: park.addressTc,
           addressEn: park.addressEn,
           heightM: park.heightM,
+          cars: park.cars,
           ...(charger
             ? { standard: charger.standard, medium: charger.medium, quick: charger.quick, fast: charger.fast }
             : {}),
@@ -2043,8 +2045,9 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: b
     type: "FeatureCollection",
     features: poles.map((pole) => {
       const tone = meterTone(pole)
+      const count = meterPlateCount(pole)
       const name = readablePlace(displayText(locale, pole.streetTc, pole.streetEn))
-      const icon = labels ? placeStopPlate(map, name, [], meterStroke(tone)) : ""
+      const icon = labels ? placeStopPlate(map, name, count == null ? [] : [count], meterStroke(tone)) : ""
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [pole.lng, pole.lat] },
