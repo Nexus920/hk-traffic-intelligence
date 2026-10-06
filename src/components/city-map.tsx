@@ -713,7 +713,7 @@ export function CityMap({
       if (!layers.motorcycle || !motorcycles) {
         geoJsonSource(map, "motorcycle")?.setData(emptyCollection())
       } else {
-        geoJsonSource(map, "motorcycle")?.setData(motorcycleCollection(map, motorcycles, locale, labels, hosted))
+        geoJsonSource(map, "motorcycle")?.setData(motorcycleCollection(map, motorcycles, locale, labels, counts, hosted))
       }
       if (!layers.kerb || !kerbs) {
         geoJsonSource(map, "kerb")?.setData(emptyCollection())
@@ -1689,7 +1689,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "motorcycle-label", "motorcycle", before, LABEL_MIN_ZOOM, false)
+  addStopLabel(map, "motorcycle-label", "motorcycle", before, COUNT_MIN_ZOOM, true, "free")
   addOverlay(map, {
     id: "kerb",
     type: "circle",
@@ -2078,13 +2078,19 @@ function motorcycleCollection(
   parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; motorcycle: number }[],
   locale: Locale,
   labels: boolean,
+  counts: boolean,
   hosted: ReadonlyMap<string, ChargerPlace>,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: parks.map((park) => {
       const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
-      const icon = labels ? placeStopPlate(map, name, [String(park.motorcycle)], "#7c3aed") : ""
+      const figure = { count: freeFigure(locale, park.motorcycle) }
+      const icon = labels
+        ? placeStopPlate(map, name, [], "#7c3aed", figure)
+        : counts
+          ? placeStopPlate(map, "", [], "#7c3aed", figure)
+          : ""
       const charger = hosted.get(park.id)
       return {
         type: "Feature" as const,
@@ -2097,6 +2103,7 @@ function motorcycleCollection(
           addressEn: park.addressEn,
           heightM: park.heightM,
           motorcycle: park.motorcycle,
+          free: park.motorcycle,
           ...(charger
             ? { standard: charger.standard, medium: charger.medium, quick: charger.quick, fast: charger.fast }
             : {}),

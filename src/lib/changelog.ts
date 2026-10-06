@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-motorcycle-counts",
+    date: "2026-10-06",
+    kind: "fixed",
+    en: "A motorcycle park shows how many spaces are free.",
+    tc: "電單車停車場顯示空位數目。",
+    sc: "电单车停车场显示空位数目。",
+  },
+  {
     id: "2026-10-06-meter-kind-colour",
     date: "2026-10-06",
     kind: "improved",
