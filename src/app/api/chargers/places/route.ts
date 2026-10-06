@@ -1,3 +1,4 @@
+import { epdRead } from "@/lib/epd-chargers"
 import { loadChargerPlaces } from "@/lib/ev-chargers"
 
 export const dynamic = "force-dynamic"
@@ -12,5 +13,12 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "Charger centre missing", places: [] }, { status: 400 })
   }
   const zoom = Number(url.searchParams.get("zoom"))
-  return Response.json(await loadChargerPlaces(lng, lat, zoom, url.searchParams.get("wide") === "1"))
+  const places = await loadChargerPlaces(lng, lat, zoom, url.searchParams.get("wide") === "1")
+  const epd = epdRead()
+  return Response.json(places, {
+    headers: {
+      "x-epd-status": String(epd.status),
+      "x-epd-count": String(epd.count),
+    },
+  })
 }
