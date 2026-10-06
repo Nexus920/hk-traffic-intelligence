@@ -16,9 +16,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     id: "2026-10-06-vacancy-on-the-pin",
     date: "2026-10-06",
     kind: "improved",
-    en: "A car park and a meter show how many spaces are free, under the name.",
-    tc: "停車場和咪錶在名字下寫明空位數目。",
-    sc: "停车场和咪表在名字下写明空位数目。",
+    en: "A car park and a meter show how many spaces are free, beside the name.",
+    tc: "停車場和咪錶在名字旁寫明空位數目。",
+    sc: "停车场和咪表在名字旁写明空位数目。",
   },
   {
     id: "2026-10-06-real-rails",

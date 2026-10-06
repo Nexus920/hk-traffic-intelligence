@@ -969,8 +969,6 @@ function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
   const family = plateFamily
   const titleFont = `600 ${11 * scale}px ${family}`
   const routeFont = `600 ${10 * scale}px ${family}`
-  const countFont = `600 ${16 * scale}px ${family}`
-  const unitFont = `500 ${9 * scale}px ${family}`
   const probe = document.createElement("canvas").getContext("2d")
   if (!probe) return null
   const rows = plate.title ? [plate.title, ...plate.lines] : plate.lines
@@ -980,19 +978,64 @@ function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
     probe.font = index === 0 && plate.title ? titleFont : routeFont
     return Math.ceil(probe.measureText(row).width)
   })
-  let countWidth = 0
-  if (count) {
-    probe.font = countFont
-    const valueWidth = Math.ceil(probe.measureText(count.value).width)
-    probe.font = unitFont
-    countWidth = valueWidth + 4 * scale + Math.ceil(probe.measureText(count.unit).width)
-  }
   const padX = 6 * scale
   const padY = 4 * scale
   const lineHeight = 13 * scale
-  const countHeight = count ? 18 * scale : 0
-  const width = Math.max(1, Math.max(0, ...widths, countWidth) + padX * 2)
-  const height = Math.max(1, rows.length * lineHeight + countHeight + padY * 2)
+  if (!count) {
+    const width = Math.max(1, Math.max(...widths) + padX * 2)
+    const height = Math.max(1, rows.length * lineHeight + padY * 2)
+    return paintPlate(width, height, scale, stroke, (context) => {
+      context.textAlign = "left"
+      context.textBaseline = "middle"
+      rows.forEach((row, index) => {
+        const titleRow = index === 0 && plate.title
+        context.font = titleRow ? titleFont : routeFont
+        context.fillStyle = titleRow ? "#fff8e8" : "#ffedd5"
+        context.fillText(row, padX, padY + lineHeight * index + lineHeight / 2)
+      })
+    })
+  }
+  const countFont = `600 ${15 * scale}px ${family}`
+  const unitFont = `500 ${8 * scale}px ${family}`
+  probe.font = countFont
+  const valueWidth = Math.ceil(probe.measureText(count.value).width)
+  probe.font = unitFont
+  const unitWidth = Math.ceil(probe.measureText(count.unit).width)
+  const chipPadX = 7 * scale
+  const chipWidth = Math.max(valueWidth, unitWidth) + chipPadX * 2
+  const chipHeight = 28 * scale
+  const textHeight = Math.max(lineHeight, rows.length * lineHeight)
+  const width = Math.max(1, padX + Math.max(0, ...widths) + 8 * scale + chipWidth + padX)
+  const height = Math.max(chipHeight + padY * 2, textHeight + padY * 2)
+  return paintPlate(width, height, scale, stroke, (context) => {
+    context.textAlign = "left"
+    context.textBaseline = "middle"
+    rows.forEach((row, index) => {
+      const titleRow = index === 0 && plate.title
+      const block = rows.length * lineHeight
+      const top = (height - block) / 2
+      context.font = titleRow ? titleFont : routeFont
+      context.fillStyle = titleRow ? "#fff8e8" : "#ffedd5"
+      context.fillText(row, padX, top + lineHeight * index + lineHeight / 2)
+    })
+    const chipX = width - padX - chipWidth
+    const chipY = (height - chipHeight) / 2
+    context.beginPath()
+    context.roundRect(chipX, chipY, chipWidth, chipHeight, 4 * scale)
+    context.fillStyle = stroke
+    context.fill()
+    context.textAlign = "center"
+    const center = chipX + chipWidth / 2
+    context.font = countFont
+    context.fillStyle = "#fff8e8"
+    context.fillText(count.value, center, chipY + 11 * scale)
+    context.font = unitFont
+    context.fillStyle = "rgba(255, 248, 232, 0.86)"
+    context.fillText(count.unit, center, chipY + 22 * scale)
+  })
+}
+
+function paintPlate(width: number, height: number, scale: number, stroke: string, paint: (context: CanvasRenderingContext2D) => void): ImageData | null {
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
@@ -1006,24 +1049,7 @@ function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
   context.lineWidth = scale
   context.strokeStyle = stroke
   context.stroke()
-  context.textAlign = "left"
-  context.textBaseline = "middle"
-  rows.forEach((row, index) => {
-    const titleRow = index === 0 && plate.title
-    context.font = titleRow ? titleFont : routeFont
-    context.fillStyle = titleRow ? "#fff8e8" : "#ffedd5"
-    context.fillText(row, padX, padY + lineHeight * index + lineHeight / 2)
-  })
-  if (count) {
-    const y = padY + rows.length * lineHeight + countHeight / 2
-    context.font = countFont
-    context.fillStyle = "#fff8e8"
-    context.fillText(count.value, padX, y)
-    const valueWidth = context.measureText(count.value).width
-    context.font = unitFont
-    context.fillStyle = "#ffedd5"
-    context.fillText(count.unit, padX + valueWidth + 4 * scale, y + scale)
-  }
+  paint(context)
   return context.getImageData(0, 0, width, height)
 }
 
