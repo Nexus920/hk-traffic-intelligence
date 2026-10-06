@@ -17,12 +17,6 @@ export type EpdStation = {
 const LIST_URL = "https://ev-charger.epd.gov.hk/resource/ev_charger_avail/evca_ver_1_0.json"
 const LIST_MS = 60_000
 
-let lastRead = { status: 0, count: 0 }
-
-export function epdRead(): { status: number; count: number } {
-  return lastRead
-}
-
 export function parseEpdStations(body: unknown): EpdStation[] {
   if (!body || typeof body !== "object" || !("data" in body) || !Array.isArray(body.data)) return []
   return body.data.flatMap((item) => {
@@ -68,16 +62,10 @@ export async function loadEpdStations(): Promise<EpdStation[]> {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
       },
     })
-    if (response.status !== 200) {
-      lastRead = { status: response.status, count: 0 }
-      return []
-    }
+    if (response.status !== 200) return []
     const body = JSON.parse(new TextDecoder().decode(response.body).replace(/^\uFEFF/, "")) as unknown
-    const stations = parseEpdStations(body)
-    lastRead = { status: response.status, count: stations.length }
-    return stations
+    return parseEpdStations(body)
   } catch {
-    lastRead = { status: 0, count: 0 }
     return []
   }
 }
