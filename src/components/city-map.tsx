@@ -44,7 +44,7 @@ import {
 } from "@/components/map-cards"
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
-import { meterPlateCount, meterTone, type MeterPole } from "@/lib/meter-poles"
+import { meterPlateCount, meterStretches, meterTone, type MeterPole } from "@/lib/meter-poles"
 import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
@@ -75,6 +75,7 @@ const OPENING = {
 }
 
 const LABEL_MIN_ZOOM = 16.5
+const COUNT_MIN_ZOOM = 14
 // Halfway between the city view and the close view. Stop names stay at the close view.
 const VEHICLE_LABEL_MIN_ZOOM = 14.25
 let plateFamily = ""
@@ -651,7 +652,9 @@ export function CityMap({
     const map = mapRef.current
     if (disabled || !map || !mapReady) return
     const paint = () => {
-      const labels = map.getZoom() >= LABEL_MIN_ZOOM
+      const zoom = map.getZoom()
+      const labels = zoom >= LABEL_MIN_ZOOM
+      const counts = zoom >= COUNT_MIN_ZOOM
       geoJsonSource(map, "cameras")?.setData(picture?.cameras ?? emptyCollection())
       geoJsonSource(map, "works")?.setData(picture?.works ?? emptyCollection())
       geoJsonSource(map, "tolls")?.setData(picture?.tolls ?? emptyCollection())
@@ -704,7 +707,7 @@ export function CityMap({
         geoJsonSource(map, "parking")?.setData(emptyCollection())
       } else {
         const parks = motorcycleIds ? parking.filter((park) => !motorcycleIds.has(park.id)) : parking
-        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parks, locale, labels, hosted))
+        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parks, locale, labels, counts, hosted))
       }
       if (!layers.motorcycle || !motorcycles) {
         geoJsonSource(map, "motorcycle")?.setData(emptyCollection())
@@ -719,7 +722,7 @@ export function CityMap({
       if (!layers.meter || !meters) {
         geoJsonSource(map, "meters")?.setData(emptyCollection())
       } else {
-        geoJsonSource(map, "meters")?.setData(meterCollection(map, meters, locale, labels))
+        geoJsonSource(map, "meters")?.setData(meterCollection(map, meters, locale, labels, counts))
       }
       if (!layers.charger || !chargers) {
         geoJsonSource(map, "chargers")?.setData(emptyCollection())
@@ -963,6 +966,39 @@ function ensureStopPlate(map: Map, id: string, plate: StopPlate, stroke: string)
   if (image) map.addImage(id, image, { pixelRatio: 2 })
 }
 
+function countChip(count: { value: string; unit: string }, stroke: string, family: string, scale: number): ImageData | null {
+  const probe = document.createElement("canvas").getContext("2d")
+  if (!probe) return null
+  const countFont = `600 ${13 * scale}px ${family}`
+  const unitFont = `500 ${8 * scale}px ${family}`
+  probe.font = countFont
+  const valueWidth = Math.ceil(probe.measureText(count.value).width)
+  probe.font = unitFont
+  const unitWidth = Math.ceil(probe.measureText(count.unit).width)
+  const width = Math.max(valueWidth, unitWidth) + 12 * scale
+  const height = 26 * scale
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.max(1, width)
+  canvas.height = height
+  const context = canvas.getContext("2d", { willReadFrequently: true })
+  if (!context) return null
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.beginPath()
+  context.roundRect(scale, scale, canvas.width - scale * 2, canvas.height - scale * 2, 5 * scale)
+  context.fillStyle = stroke
+  context.fill()
+  context.textAlign = "center"
+  context.textBaseline = "middle"
+  const center = canvas.width / 2
+  context.font = countFont
+  context.fillStyle = "#fff8e8"
+  context.fillText(count.value, center, 10 * scale)
+  context.font = unitFont
+  context.fillStyle = "rgba(255, 248, 232, 0.86)"
+  context.fillText(count.unit, center, 19 * scale)
+  return context.getImageData(0, 0, canvas.width, canvas.height)
+}
+
 function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
   const scale = 2
   plateFamily ||= getComputedStyle(document.body).fontFamily || "sans-serif"
@@ -974,6 +1010,7 @@ function stopPlateImage(plate: StopPlate, stroke: string): ImageData | null {
   const rows = plate.title ? [plate.title, ...plate.lines] : plate.lines
   const count = plate.count
   if (rows.length === 0 && !count) return null
+  if (count && rows.length === 0) return countChip(count, stroke, family, scale)
   const widths = rows.map((row, index) => {
     probe.font = index === 0 && plate.title ? titleFont : routeFont
     return Math.ceil(probe.measureText(row).width)
@@ -1636,7 +1673,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "parking-label", "parking", before, LABEL_MIN_ZOOM, false)
+  addStopLabel(map, "parking-label", "parking", before, COUNT_MIN_ZOOM, false)
   addOverlay(map, {
     id: "motorcycle",
     type: "circle",
@@ -1678,7 +1715,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-pitch-alignment": "map",
     },
   }, before)
-  addStopLabel(map, "meters-label", "meters", before, LABEL_MIN_ZOOM, false)
+  addStopLabel(map, "meters-label", "meters", before, COUNT_MIN_ZOOM, false)
   addOverlay(map, {
     id: "chargers",
     type: "circle",
@@ -1998,13 +2035,19 @@ function parkingCollection(
   parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null; cars: number | null }[],
   locale: Locale,
   labels: boolean,
+  counts: boolean,
   hosted: ReadonlyMap<string, ChargerPlace>,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: parks.map((park) => {
       const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
-      const icon = labels ? placeStopPlate(map, name, [], "#d97706", park.cars == null ? undefined : { count: freeFigure(locale, park.cars) }) : ""
+      const figure = park.cars == null ? undefined : { count: freeFigure(locale, park.cars) }
+      const icon = labels
+        ? placeStopPlate(map, name, [], "#d97706", figure)
+        : counts && figure
+          ? placeStopPlate(map, "", [], "#d97706", figure)
+          : ""
       const charger = hosted.get(park.id)
       return {
         type: "Feature" as const,
@@ -2087,7 +2130,30 @@ function kerbCollection(
   }
 }
 
-function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
+function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: boolean, counts: boolean): GeoJSON.FeatureCollection {
+  if (counts && !labels) {
+    return {
+      type: "FeatureCollection",
+      features: meterStretches(poles).map((stretch) => {
+        const figure = stretch.tone === "closed" ? undefined : { count: freeFigure(locale, stretch.free) }
+        const icon = figure ? placeStopPlate(map, "", [], meterStroke(stretch.tone), figure) : ""
+        return {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [stretch.lng, stretch.lat] },
+          properties: {
+            id: stretch.id,
+            streetTc: stretch.streetTc,
+            streetEn: stretch.streetEn,
+            sectionTc: "",
+            sectionEn: "",
+            tone: stretch.tone,
+            spaces: JSON.stringify(stretch.spaces),
+            ...(icon ? { icon } : {}),
+          },
+        }
+      }),
+    }
+  }
   return {
     type: "FeatureCollection",
     features: poles.map((pole) => {

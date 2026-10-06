@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { meterClock, meterFree, meterPlateCount, meterPolesNear, meterPolesWide, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
+import { meterClock, meterFree, meterPlateCount, meterPolesNear, meterPolesWide, meterStretches, parseMeterPoles, parseMeterSites, METER_CAP, METER_WIDE_CAP, type MeterPole } from "./meter-poles.ts"
 
 const spaces = `2026-10-04
 
@@ -70,5 +70,13 @@ const closed: MeterPole = {
 }
 assert.equal(meterPlateCount(full), "0")
 assert.equal(meterPlateCount(closed), null)
+
+const nearPole: MeterPole = { ...full, id: "near", lng: full.lng + 0.00019, spaces: [{ id: "n", kind: "general", vacant: true, updated: "" }] }
+const farPole: MeterPole = { ...full, id: "far", streetEn: "Other Road", streetTc: "別路", lng: full.lng + 0.00019 }
+const stretches = meterStretches([full, nearPole, farPole])
+assert.equal(stretches.length, 2)
+const joined = stretches.find((stretch) => stretch.free === 1)
+assert.equal(joined?.tone, "open")
+assert.equal(stretches.find((stretch) => stretch.id === "far")?.free, 0)
 
 console.log("meter plate ok")

@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-count-sooner",
+    date: "2026-10-06",
+    kind: "improved",
+    en: "Car park and meter counts appear before the names.",
+    tc: "停車場和咪錶的空位數目在名字出現之前已經顯示。",
+    sc: "停车场和咪表的空位数目在名字出现之前已经显示。",
+  },
+  {
     id: "2026-10-06-vacancy-on-the-pin",
     date: "2026-10-06",
     kind: "improved",

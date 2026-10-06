@@ -1,5 +1,5 @@
 import { parseCsv } from "./csv.ts"
-import { pointsWithin, spreadWithin } from "./nearest.ts"
+import { groundMetres, pointsWithin, spreadWithin } from "./nearest.ts"
 
 export type MeterKind = "general" | "goods" | "coach"
 
@@ -141,6 +141,92 @@ export function meterTone(pole: MeterPole): "open" | "full" | "closed" {
 export function meterPlateCount(pole: MeterPole): string | null {
   if (meterTone(pole) === "closed") return null
   return String(meterFree(pole))
+}
+
+export const METER_STRETCH_METRES = 40
+
+export type MeterStretch = {
+  id: string
+  lng: number
+  lat: number
+  streetTc: string
+  streetEn: string
+  free: number
+  tone: "open" | "full" | "closed"
+  spaces: MeterSpace[]
+}
+
+export function meterStretches(poles: readonly MeterPole[], metres = METER_STRETCH_METRES): MeterStretch[] {
+  const parent = poles.map((_, index) => index)
+  const find = (index: number): number => {
+    let cursor = index
+    while (parent[cursor] !== cursor) {
+      parent[cursor] = parent[parent[cursor]] ?? cursor
+      cursor = parent[cursor] ?? cursor
+    }
+    return cursor
+  }
+  const cell = 0.0005
+  const cells = new Map<string, number[]>()
+  poles.forEach((pole, index) => {
+    const key = `${Math.floor(pole.lng / cell)},${Math.floor(pole.lat / cell)}`
+    const list = cells.get(key) ?? []
+    list.push(index)
+    cells.set(key, list)
+  })
+  for (let index = 0; index < poles.length; index += 1) {
+    const pole = poles[index]
+    if (!pole) continue
+    const cx = Math.floor(pole.lng / cell)
+    const cy = Math.floor(pole.lat / cell)
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (const otherIndex of cells.get(`${cx + dx},${cy + dy}`) ?? []) {
+          if (otherIndex <= index) continue
+          const other = poles[otherIndex]
+          if (!other || other.streetEn !== pole.streetEn || other.streetTc !== pole.streetTc) continue
+          if (groundMetres(pole.lng, pole.lat, other.lng, other.lat) > metres) continue
+          const left = find(index)
+          const right = find(otherIndex)
+          if (left !== right) parent[right] = left
+        }
+      }
+    }
+  }
+  const groups = new Map<number, MeterPole[]>()
+  poles.forEach((pole, index) => {
+    const root = find(index)
+    const list = groups.get(root) ?? []
+    list.push(pole)
+    groups.set(root, list)
+  })
+  return [...groups.values()].map((members) => {
+    const first = members[0]
+    if (!first) return null
+    let id = first.id
+    let lng = 0
+    let lat = 0
+    let free = 0
+    let taken = false
+    for (const member of members) {
+      if (member.id.localeCompare(id, undefined, { numeric: true }) < 0) id = member.id
+      lng += member.lng
+      lat += member.lat
+      free += meterFree(member)
+      if (member.spaces.some((space) => space.vacant === false)) taken = true
+    }
+    const tone = free > 0 ? "open" : taken ? "full" : "closed"
+    return {
+      id,
+      lng: lng / members.length,
+      lat: lat / members.length,
+      streetTc: first.streetTc,
+      streetEn: first.streetEn,
+      free,
+      tone,
+      spaces: members.flatMap((member) => member.spaces),
+    }
+  }).flatMap((stretch) => stretch ? [stretch] : [])
 }
 
 function kindOf(type: string): MeterKind | null {
