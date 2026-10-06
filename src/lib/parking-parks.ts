@@ -13,8 +13,11 @@ export type ParkingPark = {
 
 export type ParkingKind = "private" | "lgv" | "hgv" | "motorcycle"
 
+export type ParkingState = "number" | "unpublished" | "closed"
+
 export type ParkingSpace = {
   kind: ParkingKind
+  state: ParkingState
   vacancy: number | null
   updated: string
 }
@@ -86,11 +89,11 @@ export function parseParkingSpaces(body: unknown, id: string): ParkingSpace[] {
     if (!kind) continue
     const category = hourlyCategory(row.service_category)
     if (!category) continue
-    const published = text(category.vacancy_type) === "A"
-    const vacancy = number(category.vacancy)
+    const reading = vacancyState(text(category.vacancy_type), number(category.vacancy))
     spaces.push({
       kind,
-      vacancy: published && vacancy != null && vacancy >= 0 ? vacancy : null,
+      state: reading.state,
+      vacancy: reading.vacancy,
       updated: text(category.lastupdate),
     })
   }
@@ -143,6 +146,148 @@ export function publishedMotorcycleVacancies(body: unknown): Map<string, number>
     }
   }
   return counts
+}
+
+const SAME_SITE_M = 80
+
+export function parseOneStopParks(chinese: unknown, english: unknown): ParkingPark[] {
+  const englishNames = new Map<string, { name: string; address: string }>()
+  for (const row of results(english)) {
+    const id = text(row.park_Id)
+    if (!id) continue
+    englishNames.set(id, { name: text(row.name), address: text(row.displayAddress) })
+  }
+  const parks = results(chinese).flatMap((row) => {
+    const id = text(row.park_Id)
+    const lng = number(row.longitude)
+    const lat = number(row.latitude)
+    if (!id || lng == null || lat == null) return []
+    const translated = englishNames.get(id)
+    return [
+      {
+        id,
+        nameTc: text(row.name),
+        nameEn: translated?.name ?? "",
+        addressTc: text(row.displayAddress),
+        addressEn: translated?.address ?? "",
+        lng,
+        lat,
+        heightM: heightOf(row.heightLimits),
+      },
+    ]
+  })
+  return collapseSameSites(parks)
+}
+
+export function collapseSameSites(parks: readonly ParkingPark[]): ParkingPark[] {
+  const parent = parks.map((_, index) => index)
+  const find = (index: number): number => {
+    const root = parent[index]
+    if (root === undefined || root === index) return index
+    const next = find(root)
+    parent[index] = next
+    return next
+  }
+  for (let left = 0; left < parks.length; left += 1) {
+    for (let right = left + 1; right < parks.length; right += 1) {
+      const a = parks[left]
+      const b = parks[right]
+      if (!a || !b || !sameSite(a, b)) continue
+      parent[find(right)] = find(left)
+    }
+  }
+  const groups = new Map<number, ParkingPark>()
+  for (let index = 0; index < parks.length; index += 1) {
+    const park = parks[index]
+    if (!park) continue
+    const root = find(index)
+    const current = groups.get(root)
+    groups.set(root, current ? preferPark(current, park) : park)
+  }
+  return [...groups.values()]
+}
+
+export function parseOneStopSpaces(body: unknown, id: string): ParkingSpace[] {
+  const park = results(body).find((row) => text(row.park_Id) === id)
+  if (!park) return []
+  const spaces: ParkingSpace[] = []
+  for (const [field, kind] of ONE_STOP_KINDS) {
+    const row = firstReading(park[field])
+    if (!row) continue
+    const reading = vacancyState(text(row.vacancy_type), number(row.vacancy))
+    spaces.push({ kind, state: reading.state, vacancy: reading.vacancy, updated: text(row.lastupdate) })
+  }
+  return spaces
+}
+
+export function oneStopCount(body: unknown, field: "privateCar" | "motorCycle"): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const park of results(body)) {
+    const id = text(park.park_Id)
+    const row = firstReading(park[field])
+    if (!id || !row) continue
+    const reading = vacancyState(text(row.vacancy_type), number(row.vacancy))
+    if (reading.state === "number" && reading.vacancy != null) counts.set(id, reading.vacancy)
+  }
+  return counts
+}
+
+const ONE_STOP_KINDS = [
+  ["privateCar", "private"],
+  ["LGV", "lgv"],
+  ["HGV", "hgv"],
+  ["motorCycle", "motorcycle"],
+] as const
+
+function results(body: unknown): Record<string, unknown>[] {
+  if (!body || typeof body !== "object" || !("results" in body) || !Array.isArray(body.results)) return []
+  return body.results.flatMap((item) => (item && typeof item === "object" ? [item as Record<string, unknown>] : []))
+}
+
+function heightOf(value: unknown): number | null {
+  if (!Array.isArray(value)) return null
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue
+    const height = number((item as Record<string, unknown>).height)
+    if (height != null && height > 0) return height
+  }
+  return null
+}
+
+function sameSite(left: ParkingPark, right: ParkingPark): boolean {
+  const name = compact(left.nameTc) || compact(left.nameEn)
+  const other = compact(right.nameTc) || compact(right.nameEn)
+  if (!name || name !== other) return false
+  return metresBetween(left.lng, left.lat, right.lng, right.lat) <= SAME_SITE_M
+}
+
+function preferPark(left: ParkingPark, right: ParkingPark): ParkingPark {
+  const leftHeight = left.heightM ?? 0
+  const rightHeight = right.heightM ?? 0
+  if (leftHeight > 0 && rightHeight <= 0) return left
+  if (rightHeight > 0 && leftHeight <= 0) return right
+  if (left.id.startsWith("td") && !right.id.startsWith("td")) return left
+  if (right.id.startsWith("td") && !left.id.startsWith("td")) return right
+  return left.id < right.id ? left : right
+}
+
+function compact(value: string): string {
+  return value.replace(/\s+/g, "")
+}
+
+function firstReading(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    const row = value.find((item) => item && typeof item === "object")
+    return row && typeof row === "object" ? row as Record<string, unknown> : null
+  }
+  if (value && typeof value === "object") return value as Record<string, unknown>
+  return null
+}
+
+function vacancyState(type: string, vacancy: number | null): { state: ParkingState; vacancy: number | null } {
+  if (type === "C") return { state: "closed", vacancy: null }
+  if (type === "A" && vacancy != null && vacancy >= 0) return { state: "number", vacancy }
+  return { state: "unpublished", vacancy: null }
 }
 
 function kindOf(type: string): ParkingKind | null {

@@ -411,7 +411,9 @@ function paintParking(body: HTMLElement, spaces: ParkingSpace[], m: Messages, le
 }
 
 function parkingCount(space: ParkingSpace, m: Messages): string {
-  const count = space.vacancy == null ? m.parkingNone : m.parkingSpaces(space.vacancy)
+  if (space.state === "closed") return m.parkingClosed
+  if (space.state === "unpublished") return m.parkingUnpublished
+  const count = space.vacancy == null ? m.parkingUnpublished : m.parkingSpaces(space.vacancy)
   const time = /(\d{2}:\d{2})/.exec(space.updated)?.[1] ?? ""
   return time ? m.parkingAsOf(count, time) : count
 }
@@ -526,10 +528,15 @@ function readParkingSpaces(payload: unknown): ParkingSpace[] | null {
   if (!("spaces" in payload) || !Array.isArray(payload.spaces)) return null
   return payload.spaces.flatMap((item) => {
     if (!item || typeof item !== "object") return []
-    const row = item as { kind?: unknown; vacancy?: unknown; updated?: unknown }
+    const row = item as { kind?: unknown; state?: unknown; vacancy?: unknown; updated?: unknown }
     if (row.kind !== "private" && row.kind !== "lgv" && row.kind !== "hgv" && row.kind !== "motorcycle") return []
     const vacancy = typeof row.vacancy === "number" && Number.isFinite(row.vacancy) ? row.vacancy : null
-    return [{ kind: row.kind, vacancy, updated: typeof row.updated === "string" ? row.updated : "" }]
+    const state = row.state === "number" || row.state === "unpublished" || row.state === "closed"
+      ? row.state
+      : vacancy == null
+        ? "unpublished"
+        : "number"
+    return [{ kind: row.kind, state, vacancy, updated: typeof row.updated === "string" ? row.updated : "" }]
   })
 }
 
