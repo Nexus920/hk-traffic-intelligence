@@ -44,7 +44,7 @@ import {
 import { directedRouteMarks, stopPlate, stopPlateKey, type StopPlate } from "@/lib/stop-plate"
 import { GMB_MIN_ZOOM, SOLO_PIN_ZOOM, mapViewKey, placePinZoom } from "@/lib/kmb-view"
 import type { MeterPole } from "@/lib/meter-poles"
-import type { ChargerPlace } from "@/lib/ev-chargers"
+import { chargersInsideParks, type ChargerPlace } from "@/lib/ev-chargers"
 import { soleLayer } from "@/lib/preferences"
 import { displayText, MESSAGES, type Locale, type Messages } from "@/lib/i18n"
 import { lineRecord, mtrStationCollection, mtrTrackCollection, stationPoint, stationRecord } from "@/lib/mtr-network"
@@ -689,10 +689,11 @@ export function CityMap({
       } else {
         geoJsonSource(map, "ferry-piers")?.setData(ferryPierCollection(map, ferry, locale, labels))
       }
+      const hosted = layers.parking && layers.charger && parking && chargers ? chargersInsideParks(chargers, parking) : new Map<string, ChargerPlace>()
       if (!layers.parking || !parking) {
         geoJsonSource(map, "parking")?.setData(emptyCollection())
       } else {
-        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parking, locale, labels))
+        geoJsonSource(map, "parking")?.setData(parkingCollection(map, parking, locale, labels, hosted))
       }
       if (!layers.meter || !meters) {
         geoJsonSource(map, "meters")?.setData(emptyCollection())
@@ -702,7 +703,7 @@ export function CityMap({
       if (!layers.charger || !chargers) {
         geoJsonSource(map, "chargers")?.setData(emptyCollection())
       } else {
-        geoJsonSource(map, "chargers")?.setData(chargerCollection(map, chargers, locale, labels))
+        geoJsonSource(map, "chargers")?.setData(chargerCollection(map, chargers, locale, labels, hosted))
       }
     }
     paint()
@@ -1892,12 +1893,14 @@ function parkingCollection(
   parks: { id: string; nameTc: string; nameEn: string; addressTc: string; addressEn: string; lng: number; lat: number; heightM: number | null }[],
   locale: Locale,
   labels: boolean,
+  hosted: ReadonlyMap<string, ChargerPlace>,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: parks.map((park) => {
       const name = readablePlace(displayText(locale, park.nameTc, park.nameEn))
       const icon = labels ? placeStopPlate(map, name, [], "#d97706") : ""
+      const charger = hosted.get(park.id)
       return {
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: [park.lng, park.lat] },
@@ -1908,6 +1911,9 @@ function parkingCollection(
           addressTc: park.addressTc,
           addressEn: park.addressEn,
           heightM: park.heightM,
+          ...(charger
+            ? { standard: charger.standard, medium: charger.medium, quick: charger.quick, fast: charger.fast }
+            : {}),
           ...(icon ? { icon } : {}),
         },
       }
@@ -1940,10 +1946,18 @@ function meterCollection(map: Map, poles: MeterPole[], locale: Locale, labels: b
   }
 }
 
-function chargerCollection(map: Map, places: ChargerPlace[], locale: Locale, labels: boolean): GeoJSON.FeatureCollection {
+function chargerCollection(
+  map: Map,
+  places: ChargerPlace[],
+  locale: Locale,
+  labels: boolean,
+  hosted: ReadonlyMap<string, ChargerPlace>,
+): GeoJSON.FeatureCollection {
+  const inside = new Set([...hosted.values()].map((place) => place.id))
   return {
     type: "FeatureCollection",
-    features: places.map((place) => {
+    features: places.flatMap((place) => {
+      if (inside.has(place.id)) return []
       const name = readablePlace(displayText(locale, place.nameTc, place.nameEn))
       const icon = labels ? placeStopPlate(map, name, [], "#0e7490") : ""
       return {

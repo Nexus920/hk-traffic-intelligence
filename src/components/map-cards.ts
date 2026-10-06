@@ -351,6 +351,7 @@ export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
   if (address) card.head.append(paragraph("city-card-detail", address))
   const height = numberProp(properties, "heightM")
   if (height != null && height > 0) card.head.append(paragraph("city-card-detail", m.parkingHeight(height)))
+  appendChargerCounts(card.head, properties, m)
   const id = textProp(properties, "id")
   if (!id) {
     card.body.append(paragraph("city-card-copy", m.parkingNone))
@@ -423,7 +424,11 @@ export function chargerPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
   const card = openCard(heading)
   const district = textProp(properties, "districtTc")
   if (district) card.head.append(paragraph("city-card-detail", district))
-  card.head.append(paragraph("city-card-detail", m.chargerList))
+  appendChargerCounts(card.head, properties, m)
+  return card.root
+}
+
+function appendChargerCounts(parent: HTMLElement, properties: GeoJSON.GeoJsonProperties, m: Messages) {
   const rows = [
     [m.chargerStandard, countProp(properties, "standard")],
     [m.chargerMedium, countProp(properties, "medium")],
@@ -431,12 +436,12 @@ export function chargerPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
     [m.chargerFast, countProp(properties, "fast")],
   ] as const
   const shown = rows.filter(([, count]) => count > 0)
-  if (shown.length === 0) return card.root
+  if (shown.length === 0) return
+  parent.append(paragraph("city-card-detail", m.chargerList))
   const board = document.createElement("div")
   board.className = "city-card-board"
   for (const [label, count] of shown) board.append(serviceRow(label, m.chargerPlugs(count)))
-  card.body.append(board)
-  return card.root
+  parent.append(board)
 }
 
 function countProp(properties: GeoJSON.GeoJsonProperties, key: string): number {

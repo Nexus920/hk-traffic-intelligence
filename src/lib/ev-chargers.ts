@@ -19,6 +19,7 @@ export type ChargerPlacesResponse = { ok: true; places: ChargerPlace[] } | { ok:
 
 export const CHARGER_CAP = 40
 export const CHARGER_WIDE_CAP = 600
+export const PARKED_CHARGER_M = 15
 const WIDE_RADIUS_M = 80_000
 
 const catalogue = parseChargerPlaces(catalogueFile)
@@ -78,6 +79,25 @@ export function chargersNear(
   })
   near.sort((left, right) => left.metres - right.metres)
   return near.slice(0, cap).map((item) => item.place)
+}
+
+export function chargersInsideParks<T extends { id: string; lng: number; lat: number }>(
+  places: readonly ChargerPlace[],
+  parks: readonly T[],
+): Map<string, ChargerPlace> {
+  const hosted = new Map<string, { place: ChargerPlace; metres: number }>()
+  for (const place of places) {
+    let nearest: { id: string; metres: number } | null = null
+    for (const park of parks) {
+      const metres = metresBetween(place.lng, place.lat, park.lng, park.lat)
+      if (metres > PARKED_CHARGER_M) continue
+      if (!nearest || metres < nearest.metres) nearest = { id: park.id, metres }
+    }
+    if (!nearest) continue
+    const current = hosted.get(nearest.id)
+    if (!current || nearest.metres < current.metres) hosted.set(nearest.id, { place, metres: nearest.metres })
+  }
+  return new Map([...hosted].map(([id, hit]) => [id, hit.place]))
 }
 
 function metresBetween(lng: number, lat: number, placeLng: number, placeLat: number): number {

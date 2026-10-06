@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import catalogueFile from "../../data/ev-chargers.json" with { type: "json" }
-import { CHARGER_CAP, chargersNear, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
+import { CHARGER_CAP, chargersInsideParks, chargersNear, parseChargerPlaces, type ChargerPlace } from "./ev-chargers.ts"
 
 const places = parseChargerPlaces(catalogueFile)
 const citic = places.find((place) => place.nameTc === "中信大廈")
@@ -27,5 +27,16 @@ const crowded = Array.from({ length: CHARGER_CAP + 5 }, (_, index): ChargerPlace
 }))
 assert.equal(chargersNear(crowded, citic.lng, citic.lat, 5_000).length, CHARGER_CAP)
 assert.equal(parseChargerPlaces({ places: [{ id: "x", nameTc: "外", lng: 10, lat: 10 }] }).length, 0)
+
+const inside = chargersInsideParks(
+  [{ ...citic, id: "inside", lng: citic.lng, lat: citic.lat + 0.00005 }],
+  [{ id: "park", lng: citic.lng, lat: citic.lat }],
+)
+assert.equal(inside.get("park")?.id, "inside")
+const outside = chargersInsideParks(
+  [{ ...citic, id: "outside", lng: citic.lng + 0.001, lat: citic.lat }],
+  [{ id: "park", lng: citic.lng, lat: citic.lat }],
+)
+assert.equal(outside.size, 0)
 
 console.log("ev-chargers ok")

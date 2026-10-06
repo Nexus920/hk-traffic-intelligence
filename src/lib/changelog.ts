@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-06-charger-in-park",
+    date: "2026-10-06",
+    kind: "fixed",
+    en: "A charger inside a car park no longer draws a second dot. The plug counts are on the car park card.",
+    tc: "停車場裡的充電樁不再多畫一個點。插頭數目寫在停車場卡片上。",
+    sc: "停车场里的充电桩不再多画一个点。插头数目写在停车场卡片上。",
+  },
+  {
     id: "2026-10-06-public-chargers",
     date: "2026-10-06",
     kind: "added",
