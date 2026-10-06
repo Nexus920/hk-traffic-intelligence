@@ -1003,6 +1003,16 @@ export function districtFromTraditional(locale: Locale, traditional: string): st
   return displayText(locale, traditional, DISTRICT_FROM_TRADITIONAL.get(traditional) ?? "")
 }
 
+export function canonicalDistrict(traditional: string): string {
+  const name = traditional.trim()
+  if (DISTRICT_FROM_TRADITIONAL.has(name)) return name
+  if (name.endsWith("區")) {
+    const shorter = name.slice(0, -1)
+    if (DISTRICT_FROM_TRADITIONAL.has(shorter)) return shorter
+  }
+  return name
+}
+
 const REGIONS: Record<string, string> = {
   "Hong Kong Island": "香港島",
   Kowloon: "九龍",

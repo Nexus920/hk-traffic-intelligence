@@ -1,4 +1,5 @@
 import { loadClpStations, type ClpStation } from "./clp-chargers.ts"
+import { loadChargerDistricts, withDistricts } from "./charger-districts.ts"
 import { CHARGER_POLL_MS, loadEpdStations, type EpdStation } from "./epd-chargers.ts"
 import { kmbReachMetres } from "./kmb-reach.ts"
 import { metresPerPixel } from "./nearest.ts"
@@ -69,10 +70,11 @@ export async function loadChargerPlaces(lng: number, lat: number, zoom = Number.
 
 async function chargerList(): Promise<ChargerPlace[]> {
   if (sharedChargers && sharedChargers.expires > Date.now()) return sharedChargers.places
-  const [epd, clp] = await Promise.all([loadEpdStations(), loadClpStations()])
-  const places = epd.ok
+  const [epd, clp, districts] = await Promise.all([loadEpdStations(), loadClpStations(), loadChargerDistricts()])
+  const joined = epd.ok
     ? joinChargers(joinLive(catalogue, epd.stations.map(epdLive), "prefer"), clp)
     : sharedChargers?.places ?? joinChargers(catalogue, clp)
+  const places = withDistricts(joined, districts)
   sharedChargers = { expires: Date.now() + CHARGER_POLL_MS, places }
   return places
 }
