@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { LocalCctvPanel } from "./local-cctv-panel"
 import maplibregl, {
   type GeoJSONSource,
   type Map,
@@ -575,10 +576,16 @@ export function LocalTrafficDashboard() {
             </div>
 
           </section>
+          <LocalCctvPanel
+  roads={LOCAL_ROADS.map(
+    (road) => road.coordinates,
+  )}
+  radiusMetres={500}
+/>
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-3 sm:p-5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 max-h-dvh overflow-y-auto p-3 sm:p-5">
         <div className="mx-auto max-w-6xl">
 
           <div className="inline-flex rounded-lg border border-white/10 bg-slate-950/85 px-3 py-2 text-[10px] text-white/50 backdrop-blur-md">
