@@ -54,6 +54,33 @@ type JourneyTime = {
   error: string | null
 }
 
+type CctvFeature = {
+  type?: string
+  geometry?: {
+    type?: string
+    coordinates?: number[]
+  }
+  properties?: {
+    id?: string
+    KEY?: string
+    name?: string
+    DESCRIPTION?: string
+    district?: string
+    DISTRICT?: string
+    url?: string
+    URL?: string
+  }
+}
+
+type CctvResponse = {
+  cameras?: {
+    type?: string
+    features?: CctvFeature[]
+  }
+}
+
+const CCTV_RADIUS_METRES = 80
+
 const LOCAL_ROADS: Omit<
   Road,
   "band" | "speedKmh" | "dataQuality" | "nearbyRoads"
@@ -101,33 +128,143 @@ const STATUS_TEXT: Record<RoadBand, string> = {
   unknown: "沒有數據",
 }
 
-function distanceKm(
+function distanceMetres(
   a: [number, number],
   b: [number, number],
 ) {
-  const rad = Math.PI / 180
-  const dLat = (b[1] - a[1]) * rad
-  const dLng = (b[0] - a[0]) * rad
-  const lat = ((a[1] + b[1]) / 2) * rad
+  const R = 6371000
 
-  const x = dLng * Math.cos(lat)
-  const y = dLat
+  const lat1 = (a[1] * Math.PI) / 180
+  const lat2 = (b[1] * Math.PI) / 180
+  const dLat = ((b[1] - a[1]) * Math.PI) / 180
+  const dLon = ((b[0] - a[0]) * Math.PI) / 180
 
-  return Math.sqrt(x * x + y * y) * 6371
+  const sinLat = Math.sin(dLat / 2)
+  const sinLon = Math.sin(dLon / 2)
+
+  const h =
+    sinLat * sinLat +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      sinLon *
+      sinLon
+
+  return (
+    2 *
+    R *
+    Math.atan2(
+      Math.sqrt(h),
+      Math.sqrt(1 - h),
+    )
+  )
 }
 
-function nearestDistanceKm(
-  local: [number, number][],
-  traffic: [number, number][],
+function distancePointToPolylineMetres(
+  point: [number, number],
+  line: readonly [number, number][],
 ) {
-  let best = Number.POSITIVE_INFINITY
+  if (line.length === 0) {
+    return Number.POSITIVE_INFINITY
+  }
 
-  for (const a of local) {
-    for (const b of traffic) {
-      best = Math.min(
-        best,
-        distanceKm(a, b),
+  if (line.length === 1) {
+    return distanceMetres(point, line[0])
+  }
+
+  const lat0 =
+    (point[1] * Math.PI) / 180
+
+  const metersPerDegLat = 111320
+  const metersPerDegLon =
+    111320 * Math.cos(lat0)
+
+  let best =
+    Number.POSITIVE_INFINITY
+
+  for (
+    let i = 0;
+    i < line.length - 1;
+    i += 1
+  ) {
+    const a = line[i]
+    const b = line[i + 1]
+
+    const ax =
+      (a[0] - point[0]) *
+      metersPerDegLon
+
+    const ay =
+      (a[1] - point[1]) *
+      metersPerDegLat
+
+    const bx =
+      (b[0] - point[0]) *
+      metersPerDegLon
+
+    const by =
+      (b[1] - point[1]) *
+      metersPerDegLat
+
+    const abx = bx - ax
+    const aby = by - ay
+
+    const ab2 =
+      abx * abx + aby * aby
+
+    let t = 0
+
+    if (ab2 > 0) {
+      t =
+        ((-ax * abx) +
+          (-ay * aby)) /
+        ab2
+
+      t = Math.max(
+        0,
+        Math.min(1, t),
       )
+    }
+
+    const closestX =
+      ax + abx * t
+
+    const closestY =
+      ay + aby * t
+
+    const dx = -closestX
+    const dy = -closestY
+
+    const distance = Math.sqrt(
+      dx * dx + dy * dy,
+    )
+
+    if (distance < best) {
+      best = distance
+    }
+  }
+
+  return best
+}
+
+function nearestRoadDistance(
+  point: [number, number],
+  roads: readonly (readonly [
+    number,
+    number,
+  ][])[],
+) {
+  let best =
+    Number.POSITIVE_INFINITY
+
+  for (const road of roads) {
+    const distance =
+      distancePointToPolylineMetres(
+        point,
+        road,
+      )
+
+    if (distance < best) {
+      best = distance
     }
   }
 
@@ -153,12 +290,25 @@ function makeFeatureCollection(
   }
 }
 
+function makeCctvFeatureCollection(
+  features: GeoJSON.Feature[],
+) {
+  return {
+    type: "FeatureCollection" as const,
+    features,
+  }
+}
+
 function average(values: number[]) {
-  if (values.length === 0) return null
+  if (values.length === 0) {
+    return null
+  }
 
   return (
-    values.reduce((a, b) => a + b, 0) /
-    values.length
+    values.reduce(
+      (a, b) => a + b,
+      0,
+    ) / values.length
   )
 }
 
@@ -176,28 +326,56 @@ function formatJourneyTime(
     return "少於 1 分鐘"
   }
 
-  return `約 ${Math.ceil(minutes)} 分鐘`
+  return `約 ${Math.ceil(
+    minutes,
+  )} 分鐘`
+}
+
+function formatCctvDistance(
+  metres: number,
+) {
+  if (!Number.isFinite(metres)) {
+    return "—"
+  }
+
+  return `${Math.round(metres)}m`
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;")
 }
 
 export function LocalTrafficDashboard() {
   const mapElement =
     useRef<HTMLDivElement | null>(null)
 
-  const mapRef = useRef<Map | null>(null)
+  const mapRef =
+    useRef<Map | null>(null)
 
-  const [roads, setRoads] = useState<Road[]>(
-    () =>
-      LOCAL_ROADS.map((road) => ({
-        ...road,
-        band: "unknown",
-        speedKmh: null,
-        dataQuality: "NO_DATA",
-        nearbyRoads: [],
-      })),
-  )
+  const [roads, setRoads] =
+    useState<Road[]>(
+      () =>
+        LOCAL_ROADS.map(
+          (road) => ({
+            ...road,
+            band: "unknown",
+            speedKmh: null,
+            dataQuality:
+              "NO_DATA",
+            nearbyRoads: [],
+          }),
+        ),
+    )
 
   const [journeyTimes, setJourneyTimes] =
-    useState<Record<string, JourneyTime>>({})
+    useState<
+      Record<string, JourneyTime>
+    >({})
 
   const [mapReady, setMapReady] =
     useState(false)
@@ -224,132 +402,157 @@ export function LocalTrafficDashboard() {
     try {
       setLoading(true)
 
-      const response = await fetch(
-        "/api/traffic",
-        {
-          cache: "no-store",
-        },
-      )
+      const response =
+        await fetch(
+          "/api/traffic",
+          {
+            cache: "no-store",
+          },
+        )
 
-      const body = await response.json()
+      const body =
+        await response.json()
 
-      if (!response.ok || !body.ok) {
+      if (
+        !response.ok ||
+        !body.ok
+      ) {
         throw new Error(
           body.error ??
             "Traffic data unavailable",
         )
       }
 
-      const corridors: TrafficCorridor[] =
+      const corridors:
+        TrafficCorridor[] =
         body.corridors ?? []
 
-      const updated = LOCAL_ROADS.map(
-        (road) => {
-          const matches = corridors
-            .map((corridor) => ({
-              corridor,
-              distanceKm:
-                nearestDistanceKm(
-                  road.coordinates,
-                  corridor.coordinates,
-                ),
-            }))
-            .filter(
-              (item) =>
-                item.distanceKm <= 0.25,
-            )
-            .sort(
-              (a, b) =>
-                a.distanceKm -
-                b.distanceKm,
-            )
-            .slice(0, 5)
+      const updated =
+        LOCAL_ROADS.map(
+          (road) => {
+            const matches =
+              corridors
+                .map(
+                  (corridor) => ({
+                    corridor,
+                    distanceKm:
+                      nearestRoadDistance(
+                        road.coordinates,
+                        [
+                          corridor.coordinates,
+                        ],
+                      ) / 1000,
+                  }),
+                )
+                .filter(
+                  (item) =>
+                    item.distanceKm <=
+                    0.25,
+                )
+                .sort(
+                  (a, b) =>
+                    a.distanceKm -
+                    b.distanceKm,
+                )
+                .slice(0, 5)
 
-          const direct = matches.filter(
-            (item) =>
-              item.corridor.roadTc
-                ?.toLowerCase()
-                .includes(
-                  road.nameTc.toLowerCase(),
-                ) ||
-              item.corridor.roadEn
-                ?.toLowerCase()
-                .includes(
-                  road.nameEn.toLowerCase(),
-                ),
-          )
+            const direct =
+              matches.filter(
+                (item) =>
+                  item.corridor.roadTc
+                    ?.toLowerCase()
+                    .includes(
+                      road.nameTc.toLowerCase(),
+                    ) ||
+                  item.corridor.roadEn
+                    ?.toLowerCase()
+                    .includes(
+                      road.nameEn.toLowerCase(),
+                    ),
+              )
 
-          const selected =
-            direct.length > 0
-              ? direct
-              : matches
+            const selected =
+              direct.length > 0
+                ? direct
+                : matches
 
-          const speeds = selected
-            .map(
-              (item) =>
-                item.corridor.speedKmh,
-            )
-            .filter(
-              (
-                speed,
-              ): speed is number =>
-                typeof speed ===
-                  "number" &&
-                Number.isFinite(speed),
-            )
+            const speeds =
+              selected
+                .map(
+                  (item) =>
+                    item.corridor
+                      .speedKmh,
+                )
+                .filter(
+                  (
+                    speed,
+                  ): speed is number =>
+                    typeof speed ===
+                      "number" &&
+                    Number.isFinite(
+                      speed,
+                    ),
+                )
 
-          const speedKmh =
-            average(speeds)
+            const speedKmh =
+              average(speeds)
 
-          const band =
-            selected.length > 0
-              ? selected
+            const band =
+              selected.length > 0
+                ? selected
+                    .map(
+                      (item) =>
+                        item.corridor
+                          .band,
+                    )
+                    .sort(
+                      (a, b) => {
+                        const rank:
+                          Record<
+                            RoadBand,
+                            number
+                          > = {
+                            congested: 3,
+                            slow: 2,
+                            free: 1,
+                            unknown: 0,
+                          }
+
+                        return (
+                          rank[b] -
+                          rank[a]
+                        )
+                      },
+                    )[0] ??
+                  "unknown"
+                : "unknown"
+
+            return {
+              ...road,
+              speedKmh,
+              band:
+                speedKmh == null
+                  ? "unknown"
+                  : band,
+              dataQuality:
+                direct.length > 0
+                  ? "DIRECT"
+                  : selected.length > 0
+                    ? "NEARBY"
+                    : "NO_DATA",
+              nearbyRoads:
+                selected
                   .map(
                     (item) =>
-                      item.corridor.band,
+                      item.corridor
+                        .roadTc ||
+                      item.corridor
+                        .roadEn,
                   )
-                  .sort((a, b) => {
-                    const rank: Record<
-                      RoadBand,
-                      number
-                    > = {
-                      congested: 3,
-                      slow: 2,
-                      free: 1,
-                      unknown: 0,
-                    }
-
-                    return (
-                      rank[b] -
-                      rank[a]
-                    )
-                  })[0] ??
-                "unknown"
-              : "unknown"
-
-          return {
-            ...road,
-            speedKmh,
-            band:
-              speedKmh == null
-                ? "unknown"
-                : band,
-            dataQuality:
-              direct.length > 0
-                ? "DIRECT"
-                : selected.length > 0
-                  ? "NEARBY"
-                  : "NO_DATA",
-            nearbyRoads: selected
-              .map(
-                (item) =>
-                  item.corridor.roadTc ||
-                  item.corridor.roadEn,
-              )
-              .filter(Boolean),
-          }
-        },
-      )
+                  .filter(Boolean),
+            }
+          },
+        )
 
       setRoads(updated)
 
@@ -374,14 +577,16 @@ export function LocalTrafficDashboard() {
     try {
       setJourneyLoading(true)
 
-      const response = await fetch(
-        "/api/journey-time",
-        {
-          cache: "no-store",
-        },
-      )
+      const response =
+        await fetch(
+          "/api/journey-time",
+          {
+            cache: "no-store",
+          },
+        )
 
-      const body = await response.json()
+      const body =
+        await response.json()
 
       if (!response.ok) {
         throw new Error(
@@ -390,13 +595,13 @@ export function LocalTrafficDashboard() {
         )
       }
 
-      const routes: JourneyTime[] =
+      const routes:
+        JourneyTime[] =
         body.routes ?? []
 
-      const next: Record<
-        string,
-        JourneyTime
-      > = {}
+      const next:
+        Record<string, JourneyTime> =
+        {}
 
       for (const route of routes) {
         next[route.id] = route
@@ -431,20 +636,24 @@ export function LocalTrafficDashboard() {
   useEffect(() => {
     loadAllData()
 
-    const timer = window.setInterval(
-      loadAllData,
-      60_000,
-    )
+    const timer =
+      window.setInterval(
+        loadAllData,
+        60_000,
+      )
 
     return () =>
       window.clearInterval(timer)
   }, [])
 
-  const featureCollection = useMemo(
-    () =>
-      makeFeatureCollection(roads),
-    [roads],
-  )
+  const featureCollection =
+    useMemo(
+      () =>
+        makeFeatureCollection(
+          roads,
+        ),
+      [roads],
+    )
 
   useEffect(() => {
     if (
@@ -454,14 +663,19 @@ export function LocalTrafficDashboard() {
       return
     }
 
-    const map = new maplibregl.Map({
-      container: mapElement.current,
-      style:
-        "https://tiles.openfreemap.org/styles/bright",
-      center: [114.1814, 22.3283],
-      zoom: 15.8,
-      pitch: 0,
-    })
+    const map =
+      new maplibregl.Map({
+        container:
+          mapElement.current,
+        style:
+          "https://tiles.openfreemap.org/styles/bright",
+        center: [
+          114.1814,
+          22.3283,
+        ],
+        zoom: 15.8,
+        pitch: 0,
+      })
 
     map.addControl(
       new maplibregl.NavigationControl(),
@@ -471,28 +685,36 @@ export function LocalTrafficDashboard() {
     mapRef.current = map
 
     map.on("load", () => {
-      map.addSource("local-roads", {
-        type: "geojson",
-        data: featureCollection,
-      })
+      map.addSource(
+        "local-roads",
+        {
+          type: "geojson",
+          data: featureCollection,
+        },
+      )
 
       map.addLayer({
         id: "local-roads-casing",
         type: "line",
-        source: "local-roads",
+        source:
+          "local-roads",
         paint: {
-          "line-color": "#111827",
+          "line-color":
+            "#111827",
           "line-width": 11,
           "line-opacity": 0.9,
-          "line-cap": "round",
-          "line-join": "round",
+          "line-cap":
+            "round",
+          "line-join":
+            "round",
         },
       })
 
       map.addLayer({
         id: "local-roads-status",
         type: "line",
-        source: "local-roads",
+        source:
+          "local-roads",
         paint: {
           "line-color": [
             "match",
@@ -507,17 +729,21 @@ export function LocalTrafficDashboard() {
           ],
           "line-width": 7,
           "line-opacity": 0.95,
-          "line-cap": "round",
-          "line-join": "round",
+          "line-cap":
+            "round",
+          "line-join":
+            "round",
         },
       })
 
       map.addLayer({
         id: "local-road-labels",
         type: "symbol",
-        source: "local-roads",
+        source:
+          "local-roads",
         layout: {
-          "symbol-placement": "line",
+          "symbol-placement":
+            "line",
           "text-field": [
             "match",
             ["get", "id"],
@@ -528,12 +754,18 @@ export function LocalTrafficDashboard() {
             "",
           ],
           "text-size": 13,
-          "text-offset": [0, -1.4],
-          "text-allow-overlap": true,
+          "text-offset": [
+            0,
+            -1.4,
+          ],
+          "text-allow-overlap":
+            true,
         },
         paint: {
-          "text-color": "#111827",
-          "text-halo-color": "#ffffff",
+          "text-color":
+            "#111827",
+          "text-halo-color":
+            "#ffffff",
           "text-halo-width": 2,
         },
       })
@@ -541,23 +773,30 @@ export function LocalTrafficDashboard() {
       const bounds =
         new maplibregl.LngLatBounds()
 
-      for (const road of LOCAL_ROADS) {
-        for (const point of road.coordinates) {
+      for (
+        const road of LOCAL_ROADS
+      ) {
+        for (
+          const point of road.coordinates
+        ) {
           bounds.extend(point)
         }
       }
 
       if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, {
-          padding: {
-            top: 280,
-            bottom: 80,
-            left: 60,
-            right: 60,
+        map.fitBounds(
+          bounds,
+          {
+            padding: {
+              top: 280,
+              bottom: 80,
+              left: 60,
+              right: 60,
+            },
+            maxZoom: 16.7,
+            duration: 0,
           },
-          maxZoom: 16.7,
-          duration: 0,
-        })
+        )
       }
 
       setMapReady(true)
@@ -572,19 +811,406 @@ export function LocalTrafficDashboard() {
   useEffect(() => {
     const map = mapRef.current
 
-    if (!map || !mapReady) return
+    if (
+      !map ||
+      !mapReady
+    ) {
+      return
+    }
 
-    const source = map.getSource(
-      "local-roads",
-    ) as GeoJSONSource | undefined
+    const source =
+      map.getSource(
+        "local-roads",
+      ) as
+        | GeoJSONSource
+        | undefined
 
     if (source) {
-      source.setData(featureCollection)
+      source.setData(
+        featureCollection,
+      )
     }
   }, [
     featureCollection,
     mapReady,
   ])
+
+  /*
+   * Step 6:
+   * CCTV markers on the map.
+   *
+   * We deliberately use the same 80m corridor rule
+   * as LocalCctvPanel so the map and CCTV panel remain
+   * consistent.
+   */
+  useEffect(() => {
+    if (
+      !mapReady ||
+      !mapRef.current
+    ) {
+      return
+    }
+
+    const map = mapRef.current
+
+    let cancelled = false
+
+    async function loadCctvMarkers() {
+      try {
+        const response =
+          await fetch(
+            "/api/picture",
+            {
+              cache: "no-store",
+            },
+          )
+
+        if (!response.ok) {
+          throw new Error(
+            `CCTV API returned ${response.status}`,
+          )
+        }
+
+        const body =
+          (await response.json()) as CctvResponse
+
+        const features =
+          Array.isArray(
+            body.cameras
+              ?.features,
+          )
+            ? body.cameras
+                ?.features
+            : []
+
+        const matched:
+          GeoJSON.Feature[] =
+          []
+
+        features.forEach(
+          (
+            feature,
+            index,
+          ) => {
+            const coordinates =
+              feature.geometry
+                ?.coordinates
+
+            if (
+              !Array.isArray(
+                coordinates,
+              ) ||
+              coordinates.length <
+                2
+            ) {
+              return
+            }
+
+            const longitude =
+              Number(
+                coordinates[0],
+              )
+
+            const latitude =
+              Number(
+                coordinates[1],
+              )
+
+            if (
+              !Number.isFinite(
+                longitude,
+              ) ||
+              !Number.isFinite(
+                latitude,
+              )
+            ) {
+              return
+            }
+
+            const properties =
+              feature.properties ??
+              {}
+
+            const imageUrl =
+              String(
+                properties.URL ??
+                  properties.url ??
+                  "",
+              ).trim()
+
+            if (!imageUrl) {
+              return
+            }
+
+            const point:
+              [number, number] = [
+                longitude,
+                latitude,
+              ]
+
+            const distance =
+              nearestRoadDistance(
+                point,
+                LOCAL_ROADS.map(
+                  (road) =>
+                    road.coordinates,
+                ),
+              )
+
+            if (
+              distance >
+              CCTV_RADIUS_METRES
+            ) {
+              return
+            }
+
+            const id =
+              String(
+                properties.KEY ??
+                  properties.id ??
+                  `local-cctv-${index}`,
+              ).trim()
+
+            const name =
+              String(
+                properties.DESCRIPTION ??
+                  properties.name ??
+                  "Traffic Camera",
+              ).trim()
+
+            const district =
+              String(
+                properties.DISTRICT ??
+                  properties.district ??
+                  "",
+              ).trim()
+
+            matched.push({
+              type: "Feature",
+              properties: {
+                id,
+                name,
+                district,
+                imageUrl,
+                distanceMetres:
+                  Math.round(
+                    distance,
+                  ),
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [
+                  longitude,
+                  latitude,
+                ],
+              },
+            })
+          },
+        )
+
+        matched.sort(
+          (a, b) =>
+            Number(
+              a.properties
+                ?.distanceMetres ??
+                999999,
+            ) -
+            Number(
+              b.properties
+                ?.distanceMetres ??
+                999999,
+            ),
+        )
+
+        const collection =
+          makeCctvFeatureCollection(
+            matched.slice(0, 8),
+          )
+
+        if (
+          cancelled ||
+          !mapRef.current
+        ) {
+          return
+        }
+
+        const currentMap =
+          mapRef.current
+
+        const existing =
+          currentMap.getSource(
+            "local-cctv",
+          ) as
+            | GeoJSONSource
+            | undefined
+
+        if (existing) {
+          existing.setData(
+            collection,
+          )
+          return
+        }
+
+        currentMap.addSource(
+          "local-cctv",
+          {
+            type: "geojson",
+            data: collection,
+          },
+        )
+
+        currentMap.addLayer({
+          id: "local-cctv-points",
+          type: "circle",
+          source:
+            "local-cctv",
+          paint: {
+            "circle-radius": 8,
+            "circle-color":
+              "#06b6d4",
+            "circle-stroke-color":
+              "#ffffff",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.95,
+          },
+        })
+
+        currentMap.on(
+          "mouseenter",
+          "local-cctv-points",
+          () => {
+            currentMap.getCanvas().style.cursor =
+              "pointer"
+          },
+        )
+
+        currentMap.on(
+          "mouseleave",
+          "local-cctv-points",
+          () => {
+            currentMap.getCanvas().style.cursor =
+              ""
+          },
+        )
+
+        currentMap.on(
+          "click",
+          "local-cctv-points",
+          (event) => {
+            const feature =
+              event.features?.[0]
+
+            if (!feature) {
+              return
+            }
+
+            const props =
+              feature.properties
+
+            if (!props) {
+              return
+            }
+
+            const name =
+              String(
+                props.name ??
+                  "Traffic Camera",
+              )
+
+            const imageUrl =
+              String(
+                props.imageUrl ??
+                  "",
+              )
+
+            const distance =
+              String(
+                props.distanceMetres ??
+                  "",
+              )
+
+            const district =
+              String(
+                props.district ??
+                  "",
+              )
+
+            const imageSrc =
+              `/api/camera?url=${encodeURIComponent(
+                imageUrl,
+              )}`
+
+            const html = `
+              <div style="width:260px;font-family:system-ui,sans-serif;color:#0f172a">
+                <div style="font-weight:700;font-size:14px;margin-bottom:6px">
+                  ${escapeHtml(name)}
+                </div>
+
+                ${
+                  district
+                    ? `<div style="font-size:11px;color:#64748b;margin-bottom:6px">${escapeHtml(
+                        district,
+                      )}</div>`
+                    : ""
+                }
+
+                <div style="font-size:11px;color:#0891b2;margin-bottom:8px">
+                  距離目標道路中心線約 ${escapeHtml(
+                    distance,
+                  )}m
+                </div>
+
+                <img
+                  src="${escapeHtml(
+                    imageSrc,
+                  )}"
+                  alt="${escapeHtml(
+                    name,
+                  )}"
+                  style="display:block;width:100%;border-radius:8px;background:#0f172a"
+                />
+
+                <div style="font-size:10px;color:#64748b;margin-top:7px">
+                  香港運輸署交通情況快拍圖像
+                </div>
+              </div>
+            `
+
+            new maplibregl.Popup({
+              closeButton: true,
+              closeOnClick: true,
+              maxWidth: "290px",
+            })
+              .setLngLat(
+                event.lngLat,
+              )
+              .setHTML(html)
+              .addTo(
+                currentMap,
+              )
+          },
+        )
+      } catch (error) {
+        console.error(
+          "Failed to load CCTV map markers:",
+          error,
+        )
+      }
+    }
+
+    loadCctvMarkers()
+
+    const timer =
+      window.setInterval(
+        loadCctvMarkers,
+        5 * 60 * 1000,
+      )
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [mapReady])
 
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-slate-950 text-white">
@@ -598,12 +1224,11 @@ export function LocalTrafficDashboard() {
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
-        {/* Single scroll container */}
         <div className="mx-auto h-full max-w-6xl overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-5">
 
           <div className="pointer-events-auto space-y-3 pb-8">
 
-            {/* Header / Traffic Status */}
+            {/* Header */}
             <section className="rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
 
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -653,12 +1278,13 @@ export function LocalTrafficDashboard() {
                 </div>
               )}
 
-              {/* Traffic cards */}
               <div className="mt-4 grid gap-3 md:grid-cols-2">
 
                 {roads.map((road) => {
                   const journey =
-                    journeyTimes[road.id]
+                    journeyTimes[
+                      road.id
+                    ]
 
                   return (
                     <article
@@ -685,7 +1311,8 @@ export function LocalTrafficDashboard() {
                               STATUS_COLOR[
                                 road.band
                               ],
-                            color: "#071018",
+                            color:
+                              "#071018",
                           }}
                         >
                           {
@@ -699,7 +1326,6 @@ export function LocalTrafficDashboard() {
 
                       <div className="mt-3 grid grid-cols-2 gap-3">
 
-                        {/* Speed */}
                         <div>
                           <div className="text-[9px] uppercase tracking-wider text-white/40">
                             SPEED
@@ -715,7 +1341,6 @@ export function LocalTrafficDashboard() {
                           </div>
                         </div>
 
-                        {/* Data quality */}
                         <div>
                           <div className="text-[9px] uppercase tracking-wider text-white/40">
                             DATA QUALITY
@@ -734,7 +1359,6 @@ export function LocalTrafficDashboard() {
 
                       </div>
 
-                      {/* Journey Time */}
                       <div className="mt-4 rounded-lg border border-cyan-400/10 bg-cyan-400/5 px-3 py-2">
 
                         <div className="flex items-center justify-between gap-3">
@@ -798,7 +1422,6 @@ export function LocalTrafficDashboard() {
 
               </div>
 
-              {/* Legend / Updated time */}
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/40">
 
                 <span>
@@ -818,6 +1441,10 @@ export function LocalTrafficDashboard() {
                 </span>
 
                 <span>
+                  📹 CCTV 80m
+                </span>
+
+                <span>
                   TD 即時交通資料
                 </span>
 
@@ -830,8 +1457,10 @@ export function LocalTrafficDashboard() {
                       "zh-HK",
                       {
                         hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
+                        minute:
+                          "2-digit",
+                        second:
+                          "2-digit",
                       },
                     )}
                   </span>
@@ -846,8 +1475,10 @@ export function LocalTrafficDashboard() {
                       "zh-HK",
                       {
                         hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
+                        minute:
+                          "2-digit",
+                        second:
+                          "2-digit",
                       },
                     )}
                   </span>
@@ -863,7 +1494,9 @@ export function LocalTrafficDashboard() {
                 (road) =>
                   road.coordinates,
               )}
-              radiusMetres={80}
+              radiusMetres={
+                CCTV_RADIUS_METRES
+              }
             />
 
             {/* Road Works */}
@@ -875,7 +1508,7 @@ export function LocalTrafficDashboard() {
               radiusMetres={500}
             />
 
-            {/* Traffic Incidents */}
+            {/* Incidents */}
             <LocalTrafficIncidentsPanel
               roads={LOCAL_ROADS.map(
                 (road) =>
@@ -884,9 +1517,10 @@ export function LocalTrafficDashboard() {
               radiusMetres={500}
             />
 
-            {/* Status badge */}
             <div className="inline-flex rounded-lg border border-white/10 bg-slate-950/85 px-3 py-2 text-[10px] text-white/50 backdrop-blur-md">
-              LIVE TRAFFIC · CCTV · ROAD WORKS · INCIDENTS · ETA
+              LIVE TRAFFIC · CCTV ·
+              ROAD WORKS · INCIDENTS ·
+              ETA
 
               <span className="ml-2 text-cyan-300">
                 Phase 2
