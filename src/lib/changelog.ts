@@ -13,6 +13,14 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    id: "2026-10-07-minibus-names",
+    date: "2026-10-07",
+    kind: "fixed",
+    en: "Green minibus stops are named from the same zoom as the other bus stops.",
+    tc: "綠色專線小巴車站與其他巴士同時顯示站名。",
+    sc: "绿色专线小巴车站与其他巴士同时显示站名。",
+  },
+  {
     id: "2026-10-07-terminus-trains",
     date: "2026-10-07",
     kind: "fixed",

@@ -5,7 +5,7 @@ import { isListedKmbRow, kmbReachMetres, STOP_CAP } from "./kmb-reach.ts"
 const close = kmbReachMetres(16.5, 22.38274)
 assert.ok(close > 650)
 assert.ok(kmbReachMetres(13, 22.38274) > 650)
-assert.equal(GMB_MIN_ZOOM, 17)
+assert.equal(GMB_MIN_ZOOM, 16.5)
 assert.equal(placePinZoom("kmb", "kmb"), SOLO_PIN_ZOOM)
 assert.equal(placePinZoom("kmb", null), KMB_MIN_ZOOM)
 assert.equal(placePinZoom("kmb", "citybus"), KMB_MIN_ZOOM)

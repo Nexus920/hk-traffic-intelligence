@@ -677,9 +677,9 @@ export function CityMap({
       } else if (citybus?.ok) {
         geoJsonSource(map, "citybus-stops")?.setData(busStopCollection(map, citybus, locale, labels, "#c2410c"))
       }
-      if (!layers.gmb || !gmb?.ok) {
+      if (!layers.gmb) {
         geoJsonSource(map, "gmb-stops")?.setData(emptyCollection())
-      } else {
+      } else if (gmb?.ok) {
         geoJsonSource(map, "gmb-stops")?.setData(busStopCollection(map, gmb, locale, labels, "#65a30d"))
       }
       if (!layers.nlb) {
