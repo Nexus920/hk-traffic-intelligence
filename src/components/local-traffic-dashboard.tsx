@@ -431,79 +431,89 @@ export function LocalTrafficDashboard() {
         LOCAL_ROADS.map(
           (road) => {
             const matches =
-              corridors
-                .map(
-                  (corridor) => ({
-                    corridor,
-                   distanceKm:
-  road.coordinates.reduce(
-    (best, point) =>
-      Math.min(
-        best,
-        nearestRoadDistance(
-          point,
-          [corridor.coordinates],
-        ),
-      ),
-    Number.POSITIVE_INFINITY,
-  ) / 1000,
-                  }),
-                )
-                .filter(
-                  (item) =>
-                    item.distanceKm <=
-                    0.25,
-                )
-                .sort(
-                  (a, b) =>
-                    a.distanceKm -
-                    b.distanceKm,
-                )
-                .slice(0, 5)
-
-            const direct =
-              matches.filter(
-                (item) =>
-                  item.corridor.roadTc
-                    ?.toLowerCase()
-                    .includes(
-                      road.nameTc.toLowerCase(),
-                    ) ||
-                  item.corridor.roadEn
-                    ?.toLowerCase()
-                    .includes(
-                      road.nameEn.toLowerCase(),
-                    ),
-              )
-
-            const otherTargetRoadNames = LOCAL_ROADS
-  .filter((target) => target.id !== road.id)
-  .flatMap((target) => [
-    target.nameTc.toLowerCase(),
-    target.nameEn.toLowerCase(),
-  ])
-
-const nearbyWithoutOtherTargetRoad = matches.filter(
-  (item) => {
-    const roadTc =
-      item.corridor.roadTc?.toLowerCase() ?? ""
-
-    const roadEn =
-      item.corridor.roadEn?.toLowerCase() ?? ""
-
-    return !otherTargetRoadNames.some(
-      (name) =>
-        name.length > 0 &&
-        (roadTc.includes(name) ||
-          roadEn.includes(name)),
+  corridors
+    .map(
+      (corridor) => ({
+        corridor,
+        distanceKm:
+          road.coordinates.reduce(
+            (best, point) =>
+              Math.min(
+                best,
+                nearestRoadDistance(
+                  point,
+                  [corridor.coordinates],
+                ),
+              ),
+            Number.POSITIVE_INFINITY,
+          ) / 1000,
+      }),
     )
-  },
-)
+    .filter(
+      (item) =>
+        item.distanceKm <= 0.25,
+    )
+    .sort(
+      (a, b) =>
+        a.distanceKm -
+        b.distanceKm,
+    )
+
+const direct =
+  matches.filter(
+    (item) =>
+      item.corridor.roadTc
+        ?.toLowerCase()
+        .includes(
+          road.nameTc.toLowerCase(),
+        ) ||
+      item.corridor.roadEn
+        ?.toLowerCase()
+        .includes(
+          road.nameEn.toLowerCase(),
+        ),
+  )
+
+const otherTargetRoadNames =
+  LOCAL_ROADS
+    .filter(
+      (target) =>
+        target.id !== road.id,
+    )
+    .flatMap(
+      (target) => [
+        target.nameTc.toLowerCase(),
+        target.nameEn.toLowerCase(),
+      ],
+    )
+
+const nearbyWithoutOtherTargetRoad =
+  matches.filter(
+    (item) => {
+      const roadTc =
+        item.corridor.roadTc
+          ?.toLowerCase() ?? ""
+
+      const roadEn =
+        item.corridor.roadEn
+          ?.toLowerCase() ?? ""
+
+      return !otherTargetRoadNames.some(
+        (name) =>
+          name.length > 0 &&
+          (roadTc.includes(name) ||
+            roadEn.includes(name)),
+      )
+    },
+  )
 
 const selected =
   direct.length > 0
-    ? direct
-    : nearbyWithoutOtherTargetRoad
+    ? direct.slice(0, 5)
+    : nearbyWithoutOtherTargetRoad.slice(
+        0,
+        5,
+      )
 
             const speeds =
               selected
