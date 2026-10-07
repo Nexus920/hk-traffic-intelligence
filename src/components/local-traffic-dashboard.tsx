@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { LocalCctvPanel } from "./local-cctv-panel"
 import { LocalRoadAlertsPanel } from "./local-road-alerts-panel"
 import { LocalTrafficIncidentsPanel } from "./local-traffic-incidents-panel"
-import maplibregl, {
-  type GeoJSONSource,
-  type Map,
+import * as maplibregl from "maplibre-gl"
+import type {
+  GeoJSONSource,
+  Map,
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 
