@@ -10,7 +10,7 @@ export default defineConfig({
     env: {
       ASSETS: bindings.assets(),
       VISITS: bindings.analyticsEngineDataset({ name: "hktraffic_visits" }),
-      VISIT_COUNTS: bindings.kv({ id: "f7b62c640e0b484b88e6005025615f3e" }),
+      VISIT_COUNTS: bindings.kv({ id: "04f091e0575e45d8b5d6773a73519377" }),
     },
   }),
 });
