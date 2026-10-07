@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { LocalCctvPanel } from "./local-cctv-panel"
+import { LocalRoadAlertsPanel } from "./local-road-alerts-panel"
 import maplibregl, {
   type GeoJSONSource,
   type Map,
@@ -577,6 +578,12 @@ export function LocalTrafficDashboard() {
 
           </section>
           <LocalCctvPanel
+  roads={LOCAL_ROADS.map(
+    (road) => road.coordinates,
+  )}
+  radiusMetres={500}
+/>
+          <LocalRoadAlertsPanel
   roads={LOCAL_ROADS.map(
     (road) => road.coordinates,
   )}
