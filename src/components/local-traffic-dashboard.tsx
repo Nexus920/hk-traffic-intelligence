@@ -11,7 +11,11 @@ import type {
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 
-type RoadBand = "free" | "slow" | "congested" | "unknown"
+type RoadBand =
+  | "free"
+  | "slow"
+  | "congested"
+  | "unknown"
 
 type TrafficCorridor = {
   id: string
@@ -31,8 +35,23 @@ type Road = {
   coordinates: [number, number][]
   band: RoadBand
   speedKmh: number | null
-  dataQuality: "DIRECT" | "NEARBY" | "NO_DATA"
+  dataQuality:
+    | "DIRECT"
+    | "NEARBY"
+    | "NO_DATA"
   nearbyRoads: string[]
+}
+
+type JourneyTime = {
+  id: string
+  eta: string | null
+  journeyTimeMinutes: number | null
+  distanceMetres: number | null
+  distanceText: string | null
+  speedKmh: number | null
+  status: string
+  source: string
+  error: string | null
 }
 
 const LOCAL_ROADS: Omit<
@@ -105,14 +124,19 @@ function nearestDistanceKm(
 
   for (const a of local) {
     for (const b of traffic) {
-      best = Math.min(best, distanceKm(a, b))
+      best = Math.min(
+        best,
+        distanceKm(a, b),
+      )
     }
   }
 
   return best
 }
 
-function makeFeatureCollection(roads: Road[]) {
+function makeFeatureCollection(
+  roads: Road[],
+) {
   return {
     type: "FeatureCollection" as const,
     features: roads.map((road) => ({
@@ -131,130 +155,209 @@ function makeFeatureCollection(roads: Road[]) {
 
 function average(values: number[]) {
   if (values.length === 0) return null
-  return values.reduce((a, b) => a + b, 0) / values.length
+
+  return (
+    values.reduce((a, b) => a + b, 0) /
+    values.length
+  )
+}
+
+function formatJourneyTime(
+  minutes: number | null,
+) {
+  if (
+    minutes == null ||
+    !Number.isFinite(minutes)
+  ) {
+    return "—"
+  }
+
+  if (minutes < 1) {
+    return "少於 1 分鐘"
+  }
+
+  return `約 ${Math.ceil(minutes)} 分鐘`
 }
 
 export function LocalTrafficDashboard() {
-  const mapElement = useRef<HTMLDivElement | null>(null)
+  const mapElement =
+    useRef<HTMLDivElement | null>(null)
+
   const mapRef = useRef<Map | null>(null)
 
-  const [roads, setRoads] = useState<Road[]>(() =>
-    LOCAL_ROADS.map((road) => ({
-      ...road,
-      band: "unknown",
-      speedKmh: null,
-      dataQuality: "NO_DATA",
-      nearbyRoads: [],
-    })),
+  const [roads, setRoads] = useState<Road[]>(
+    () =>
+      LOCAL_ROADS.map((road) => ({
+        ...road,
+        band: "unknown",
+        speedKmh: null,
+        dataQuality: "NO_DATA",
+        nearbyRoads: [],
+      })),
   )
 
-  const [mapReady, setMapReady] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [journeyTimes, setJourneyTimes] =
+    useState<Record<string, JourneyTime>>({})
+
+  const [mapReady, setMapReady] =
+    useState(false)
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [journeyLoading, setJourneyLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState<string | null>(null)
+
+  const [journeyError, setJourneyError] =
+    useState<string | null>(null)
+
+  const [updatedAt, setUpdatedAt] =
+    useState<string | null>(null)
+
+  const [journeyUpdatedAt, setJourneyUpdatedAt] =
+    useState<string | null>(null)
 
   async function loadTraffic() {
     try {
       setLoading(true)
 
-      const response = await fetch("/api/traffic", {
-        cache: "no-store",
-      })
+      const response = await fetch(
+        "/api/traffic",
+        {
+          cache: "no-store",
+        },
+      )
 
       const body = await response.json()
 
       if (!response.ok || !body.ok) {
         throw new Error(
-          body.error ?? "Traffic data unavailable",
+          body.error ??
+            "Traffic data unavailable",
         )
       }
 
       const corridors: TrafficCorridor[] =
         body.corridors ?? []
 
-      const updated = LOCAL_ROADS.map((road) => {
-        const matches = corridors
-          .map((corridor) => ({
-            corridor,
-            distanceKm: nearestDistanceKm(
-              road.coordinates,
-              corridor.coordinates,
-            ),
-          }))
-          .filter((item) => item.distanceKm <= 0.25)
-          .sort(
-            (a, b) =>
-              a.distanceKm - b.distanceKm,
+      const updated = LOCAL_ROADS.map(
+        (road) => {
+          const matches = corridors
+            .map((corridor) => ({
+              corridor,
+              distanceKm:
+                nearestDistanceKm(
+                  road.coordinates,
+                  corridor.coordinates,
+                ),
+            }))
+            .filter(
+              (item) =>
+                item.distanceKm <= 0.25,
+            )
+            .sort(
+              (a, b) =>
+                a.distanceKm -
+                b.distanceKm,
+            )
+            .slice(0, 5)
+
+          const direct = matches.filter(
+            (item) =>
+              item.corridor.roadTc
+                ?.toLowerCase()
+                .includes(
+                  road.nameTc.toLowerCase(),
+                ) ||
+              item.corridor.roadEn
+                ?.toLowerCase()
+                .includes(
+                  road.nameEn.toLowerCase(),
+                ),
           )
-          .slice(0, 5)
 
-        const direct = matches.filter(
-          (item) =>
-            item.corridor.roadTc
-              ?.toLowerCase()
-              .includes(road.nameTc.toLowerCase()) ||
-            item.corridor.roadEn
-              ?.toLowerCase()
-              .includes(road.nameEn.toLowerCase()),
-        )
-
-        const selected =
-          direct.length > 0 ? direct : matches
-
-        const speeds = selected
-          .map((item) => item.corridor.speedKmh)
-          .filter(
-            (speed): speed is number =>
-              typeof speed === "number" &&
-              Number.isFinite(speed),
-          )
-
-        const speedKmh = average(speeds)
-
-        const band =
-          selected.length > 0
-            ? selected
-                .map((item) => item.corridor.band)
-                .sort((a, b) => {
-                  const rank: Record<RoadBand, number> = {
-                    congested: 3,
-                    slow: 2,
-                    free: 1,
-                    unknown: 0,
-                  }
-
-                  return rank[b] - rank[a]
-                })[0] ?? "unknown"
-            : "unknown"
-
-        return {
-          ...road,
-          speedKmh,
-          band:
-            speedKmh == null
-              ? "unknown"
-              : band,
-          dataQuality:
+          const selected =
             direct.length > 0
-              ? "DIRECT"
-              : selected.length > 0
-                ? "NEARBY"
-                : "NO_DATA",
-          nearbyRoads: selected
+              ? direct
+              : matches
+
+          const speeds = selected
             .map(
               (item) =>
-                item.corridor.roadTc ||
-                item.corridor.roadEn,
+                item.corridor.speedKmh,
             )
-            .filter(Boolean),
-        }
-      })
+            .filter(
+              (
+                speed,
+              ): speed is number =>
+                typeof speed ===
+                  "number" &&
+                Number.isFinite(speed),
+            )
+
+          const speedKmh =
+            average(speeds)
+
+          const band =
+            selected.length > 0
+              ? selected
+                  .map(
+                    (item) =>
+                      item.corridor.band,
+                  )
+                  .sort((a, b) => {
+                    const rank: Record<
+                      RoadBand,
+                      number
+                    > = {
+                      congested: 3,
+                      slow: 2,
+                      free: 1,
+                      unknown: 0,
+                    }
+
+                    return (
+                      rank[b] -
+                      rank[a]
+                    )
+                  })[0] ??
+                "unknown"
+              : "unknown"
+
+          return {
+            ...road,
+            speedKmh,
+            band:
+              speedKmh == null
+                ? "unknown"
+                : band,
+            dataQuality:
+              direct.length > 0
+                ? "DIRECT"
+                : selected.length > 0
+                  ? "NEARBY"
+                  : "NO_DATA",
+            nearbyRoads: selected
+              .map(
+                (item) =>
+                  item.corridor.roadTc ||
+                  item.corridor.roadEn,
+              )
+              .filter(Boolean),
+          }
+        },
+      )
 
       setRoads(updated)
+
       setUpdatedAt(
         body.observedAt ??
           new Date().toISOString(),
       )
+
       setError(null)
     } catch (err) {
       setError(
@@ -267,11 +370,69 @@ export function LocalTrafficDashboard() {
     }
   }
 
+  async function loadJourneyTime() {
+    try {
+      setJourneyLoading(true)
+
+      const response = await fetch(
+        "/api/journey-time",
+        {
+          cache: "no-store",
+        },
+      )
+
+      const body = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          body.error ??
+            "Journey time unavailable",
+        )
+      }
+
+      const routes: JourneyTime[] =
+        body.routes ?? []
+
+      const next: Record<
+        string,
+        JourneyTime
+      > = {}
+
+      for (const route of routes) {
+        next[route.id] = route
+      }
+
+      setJourneyTimes(next)
+
+      setJourneyUpdatedAt(
+        body.observedAt ??
+          new Date().toISOString(),
+      )
+
+      setJourneyError(null)
+    } catch (err) {
+      setJourneyError(
+        err instanceof Error
+          ? err.message
+          : "Journey time unavailable",
+      )
+    } finally {
+      setJourneyLoading(false)
+    }
+  }
+
+  async function loadAllData() {
+    await Promise.allSettled([
+      loadTraffic(),
+      loadJourneyTime(),
+    ])
+  }
+
   useEffect(() => {
-    loadTraffic()
+    loadAllData()
 
     const timer = window.setInterval(
-      loadTraffic,
+      loadAllData,
       60_000,
     )
 
@@ -280,12 +441,16 @@ export function LocalTrafficDashboard() {
   }, [])
 
   const featureCollection = useMemo(
-    () => makeFeatureCollection(roads),
+    () =>
+      makeFeatureCollection(roads),
     [roads],
   )
 
   useEffect(() => {
-    if (!mapElement.current || mapRef.current) {
+    if (
+      !mapElement.current ||
+      mapRef.current
+    ) {
       return
     }
 
@@ -416,209 +581,322 @@ export function LocalTrafficDashboard() {
     if (source) {
       source.setData(featureCollection)
     }
-  }, [featureCollection, mapReady])
+  }, [
+    featureCollection,
+    mapReady,
+  ])
 
   return (
-  <main className="relative h-dvh w-full overflow-hidden bg-slate-950 text-white">
+    <main className="relative h-dvh w-full overflow-hidden bg-slate-950 text-white">
 
-    {/* Map background */}
-    <div
-      ref={mapElement}
-      className="absolute inset-0"
-    />
+      {/* Map background */}
+      <div
+        ref={mapElement}
+        className="absolute inset-0"
+      />
 
-    {/* Dashboard overlay */}
-    <div className="pointer-events-none absolute inset-0 z-20">
+      {/* Dashboard overlay */}
+      <div className="pointer-events-none absolute inset-0 z-20">
 
-      {/* Single scroll container */}
-      <div className="mx-auto h-full max-w-6xl overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-5">
+        {/* Single scroll container */}
+        <div className="mx-auto h-full max-w-6xl overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-5">
 
-        <div className="pointer-events-auto space-y-3 pb-8">
+          <div className="pointer-events-auto space-y-3 pb-8">
 
-          {/* Header / Traffic Status */}
-          <section className="rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
+            {/* Header / Traffic Status */}
+            <section className="rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
 
-            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
 
-              <div>
-                <div className="text-[10px] font-bold tracking-[0.25em] text-cyan-300 sm:text-xs">
-                  KOWLOON LOCAL TRAFFIC INTELLIGENCE
+                <div>
+                  <div className="text-[10px] font-bold tracking-[0.25em] text-cyan-300 sm:text-xs">
+                    KOWLOON LOCAL TRAFFIC INTELLIGENCE
+                  </div>
+
+                  <h1 className="mt-1 text-lg font-bold sm:text-2xl">
+                    九龍兩段道路交通監控
+                  </h1>
+
+                  <p className="mt-1 text-xs text-white/55">
+                    界限街 131–174 號 ／
+                    喇沙利道 1E–1B 號
+                  </p>
                 </div>
 
-                <h1 className="mt-1 text-lg font-bold sm:text-2xl">
-                  九龍兩段道路交通監控
-                </h1>
-
-                <p className="mt-1 text-xs text-white/55">
-                  界限街 131–174 號 ／ 喇沙利道 1E–1B 號
-                </p>
-              </div>
-
-              <button
-                onClick={loadTraffic}
-                disabled={loading}
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
-              >
-                {loading ? "更新中..." : "立即更新"}
-              </button>
-
-            </div>
-
-            {error && (
-              <div className="mt-3 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs text-red-100">
-                ⚠️ {error}
-              </div>
-            )}
-
-            {/* Traffic cards */}
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-
-              {roads.map((road) => (
-                <article
-                  key={road.id}
-                  className="rounded-xl border border-white/10 bg-black/20 p-4"
+                <button
+                  onClick={loadAllData}
+                  disabled={
+                    loading ||
+                    journeyLoading
+                  }
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
                 >
+                  {loading ||
+                  journeyLoading
+                    ? "更新中..."
+                    : "立即更新"}
+                </button>
 
-                  <div className="flex items-start justify-between gap-3">
+              </div>
 
-                    <div>
-                      <div className="text-base font-bold">
-                        {road.nameTc}
-                      </div>
-
-                      <div className="text-[10px] text-white/40">
-                        {road.nameEn}
-                      </div>
-                    </div>
-
-                    <span
-                      className="rounded-full px-3 py-1 text-[11px] font-bold"
-                      style={{
-                        backgroundColor:
-                          STATUS_COLOR[road.band],
-                        color: "#071018",
-                      }}
-                    >
-                      {STATUS_TEXT[road.band]}
-                    </span>
-
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-
-                    <div>
-                      <div className="text-[9px] uppercase tracking-wider text-white/40">
-                        SPEED
-                      </div>
-
-                      <div className="mt-1 text-lg font-bold">
-                        {road.speedKmh == null
-                          ? "—"
-                          : `${road.speedKmh.toFixed(1)} km/h`}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[9px] uppercase tracking-wider text-white/40">
-                        DATA QUALITY
-                      </div>
-
-                      <div className="mt-1 text-xs font-semibold text-white/70">
-                        {road.dataQuality === "DIRECT"
-                          ? "官方直接路段"
-                          : road.dataQuality === "NEARBY"
-                            ? "附近路段估算"
-                            : "沒有數據"}
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {road.nearbyRoads.length > 0 && (
-                    <div className="mt-2 text-[10px] text-white/35">
-                      參考：
-                      {road.nearbyRoads
-                        .slice(0, 2)
-                        .join(" / ")}
-                    </div>
-                  )}
-
-                  <div className="mt-3 border-t border-white/5 pt-2 text-[10px] text-white/40">
-                    {road.startAddress}
-                    {" → "}
-                    {road.endAddress}
-                  </div>
-
-                </article>
-              ))}
-
-            </div>
-
-            {/* Legend / Updated time */}
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/40">
-
-              <span>🟢 正常</span>
-              <span>🟡 較慢</span>
-              <span>🔴 擠塞</span>
-              <span>⚪ 沒有數據</span>
-
-              <span>
-                TD 即時交通資料
-              </span>
-
-              {updatedAt && (
-                <span>
-                  更新：
-                  {new Date(updatedAt).toLocaleTimeString(
-                    "zh-HK",
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    },
-                  )}
-                </span>
+              {error && (
+                <div className="mt-3 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+                  ⚠️ 交通資料：
+                  {error}
+                </div>
               )}
 
+              {journeyError && (
+                <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                  ⚠️ TDAS 行車時間：
+                  {journeyError}
+                </div>
+              )}
+
+              {/* Traffic cards */}
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+
+                {roads.map((road) => {
+                  const journey =
+                    journeyTimes[road.id]
+
+                  return (
+                    <article
+                      key={road.id}
+                      className="rounded-xl border border-white/10 bg-black/20 p-4"
+                    >
+
+                      <div className="flex items-start justify-between gap-3">
+
+                        <div>
+                          <div className="text-base font-bold">
+                            {road.nameTc}
+                          </div>
+
+                          <div className="text-[10px] text-white/40">
+                            {road.nameEn}
+                          </div>
+                        </div>
+
+                        <span
+                          className="rounded-full px-3 py-1 text-[11px] font-bold"
+                          style={{
+                            backgroundColor:
+                              STATUS_COLOR[
+                                road.band
+                              ],
+                            color: "#071018",
+                          }}
+                        >
+                          {
+                            STATUS_TEXT[
+                              road.band
+                            ]
+                          }
+                        </span>
+
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+
+                        {/* Speed */}
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wider text-white/40">
+                            SPEED
+                          </div>
+
+                          <div className="mt-1 text-lg font-bold">
+                            {road.speedKmh ==
+                            null
+                              ? "—"
+                              : `${road.speedKmh.toFixed(
+                                  1,
+                                )} km/h`}
+                          </div>
+                        </div>
+
+                        {/* Data quality */}
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wider text-white/40">
+                            DATA QUALITY
+                          </div>
+
+                          <div className="mt-1 text-xs font-semibold text-white/70">
+                            {road.dataQuality ===
+                            "DIRECT"
+                              ? "官方直接路段"
+                              : road.dataQuality ===
+                                  "NEARBY"
+                                ? "附近路段估算"
+                                : "沒有數據"}
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Journey Time */}
+                      <div className="mt-4 rounded-lg border border-cyan-400/10 bg-cyan-400/5 px-3 py-2">
+
+                        <div className="flex items-center justify-between gap-3">
+
+                          <div>
+                            <div className="text-[9px] uppercase tracking-wider text-cyan-300/60">
+                              JOURNEY TIME
+                            </div>
+
+                            <div className="mt-1 text-base font-bold text-cyan-100">
+                              {journeyLoading &&
+                              !journey
+                                ? "更新中..."
+                                : formatJourneyTime(
+                                    journey?.journeyTimeMinutes ??
+                                      null,
+                                  )}
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+
+                            <div className="text-[9px] text-white/35">
+                              SOURCE
+                            </div>
+
+                            <div className="mt-1 text-[10px] font-semibold text-white/60">
+                              {journey?.status ===
+                              "OK"
+                                ? "TDAS"
+                                : journeyLoading
+                                  ? "..."
+                                  : "NO DATA"}
+                            </div>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                      {road.nearbyRoads.length >
+                        0 && (
+                        <div className="mt-2 text-[10px] text-white/35">
+                          參考：
+                          {road.nearbyRoads
+                            .slice(0, 2)
+                            .join(" / ")}
+                        </div>
+                      )}
+
+                      <div className="mt-3 border-t border-white/5 pt-2 text-[10px] text-white/40">
+                        {road.startAddress}
+                        {" → "}
+                        {road.endAddress}
+                      </div>
+
+                    </article>
+                  )
+                })}
+
+              </div>
+
+              {/* Legend / Updated time */}
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/40">
+
+                <span>
+                  🟢 正常
+                </span>
+
+                <span>
+                  🟡 較慢
+                </span>
+
+                <span>
+                  🔴 擠塞
+                </span>
+
+                <span>
+                  ⚪ 沒有數據
+                </span>
+
+                <span>
+                  TD 即時交通資料
+                </span>
+
+                {updatedAt && (
+                  <span>
+                    交通更新：
+                    {new Date(
+                      updatedAt,
+                    ).toLocaleTimeString(
+                      "zh-HK",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      },
+                    )}
+                  </span>
+                )}
+
+                {journeyUpdatedAt && (
+                  <span>
+                    TDAS：
+                    {new Date(
+                      journeyUpdatedAt,
+                    ).toLocaleTimeString(
+                      "zh-HK",
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      },
+                    )}
+                  </span>
+                )}
+
+              </div>
+
+            </section>
+
+            {/* CCTV */}
+            <LocalCctvPanel
+              roads={LOCAL_ROADS.map(
+                (road) =>
+                  road.coordinates,
+              )}
+              radiusMetres={80}
+            />
+
+            {/* Road Works */}
+            <LocalRoadAlertsPanel
+              roads={LOCAL_ROADS.map(
+                (road) =>
+                  road.coordinates,
+              )}
+              radiusMetres={500}
+            />
+
+            {/* Traffic Incidents */}
+            <LocalTrafficIncidentsPanel
+              roads={LOCAL_ROADS.map(
+                (road) =>
+                  road.coordinates,
+              )}
+              radiusMetres={500}
+            />
+
+            {/* Status badge */}
+            <div className="inline-flex rounded-lg border border-white/10 bg-slate-950/85 px-3 py-2 text-[10px] text-white/50 backdrop-blur-md">
+              LIVE TRAFFIC · CCTV · ROAD WORKS · INCIDENTS · ETA
+
+              <span className="ml-2 text-cyan-300">
+                Phase 2
+              </span>
             </div>
 
-          </section>
-
-          {/* CCTV */}
-          <LocalCctvPanel
-  roads={LOCAL_ROADS.map((road) => road.coordinates)}
-  radiusMetres={80}
-          />
-
-          {/* Road Works */}
-          <LocalRoadAlertsPanel
-            roads={LOCAL_ROADS.map(
-              (road) => road.coordinates,
-            )}
-            radiusMetres={500}
-          />
-
-          {/* Traffic Incidents */}
-          <LocalTrafficIncidentsPanel
-            roads={LOCAL_ROADS.map(
-              (road) => road.coordinates,
-            )}
-            radiusMetres={500}
-          />
-
-          {/* Status badge */}
-          <div className="inline-flex rounded-lg border border-white/10 bg-slate-950/85 px-3 py-2 text-[10px] text-white/50 backdrop-blur-md">
-            LIVE TRAFFIC · CCTV · ROAD WORKS · INCIDENTS
-
-            <span className="ml-2 text-cyan-300">
-              Phase 2
-            </span>
           </div>
-
         </div>
       </div>
-    </div>
 
-  </main>
-)
+    </main>
+  )
 }
