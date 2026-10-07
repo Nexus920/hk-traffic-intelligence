@@ -1,0 +1,78 @@
+{
+  "type": "FeatureCollection",
+  "name": "Kowloon Local Traffic Monitoring Roads",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "boundary-131-174",
+        "nameTc": "界限街",
+        "nameEn": "Boundary Street",
+        "startAddress": "131 Boundary Street",
+        "endAddress": "174 Boundary Street",
+        "source": "Hong Kong Transport Department Road Network (2nd Generation) CENTERLINE",
+        "sourceRoadCode": "10075",
+        "geometryNote": "Road-centerline corridor selected from the La Salle Road junction area eastward to the 172-174 Boundary Street area."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.1794446737888,
+            22.3286457991516
+          ],
+          [
+            114.1808143767945,
+            22.32871081402552
+          ],
+          [
+            114.181594067918,
+            22.32877297132544
+          ],
+          [
+            114.1829096244477,
+            22.32881281223867
+          ],
+          [
+            114.1833711857157,
+            22.32882430423036
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "la-salle-1e-1b",
+        "nameTc": "喇沙利道",
+        "nameEn": "La Salle Road",
+        "startAddress": "1E La Salle Road",
+        "endAddress": "1B La Salle Road",
+        "source": "Hong Kong Transport Department Road Network (2nd Generation) CENTERLINE",
+        "sourceRoadCode": "11145",
+        "geometryNote": "Short road-centerline corridor covering the 1B/1E address area up to the Boundary Street junction."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            114.1794975466469,
+            22.32795327540832
+          ],
+          [
+            114.1794878002429,
+            22.32803259702032
+          ],
+          [
+            114.1794500904272,
+            22.32858319923182
+          ],
+          [
+            114.1794446737888,
+            22.3286457991516
+          ]
+        ]
+      }
+    }
+  ]
+}
