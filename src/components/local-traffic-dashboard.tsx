@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { LocalCctvPanel } from "./local-cctv-panel"
 import { LocalRoadAlertsPanel } from "./local-road-alerts-panel"
+import { LocalTrafficIncidentsPanel } from "./local-traffic-incidents-panel"
 import maplibregl, {
   type GeoJSONSource,
   type Map,
@@ -587,6 +588,10 @@ export function LocalTrafficDashboard() {
   roads={LOCAL_ROADS.map(
     (road) => road.coordinates,
   )}
+  radiusMetres={500}
+/>
+          <LocalTrafficIncidentsPanel
+  roads={LOCAL_ROADS.map((road) => road.coordinates)}
   radiusMetres={500}
 />
         </div>
