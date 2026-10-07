@@ -418,17 +418,24 @@ export function LocalTrafficDashboard() {
   }, [featureCollection, mapReady])
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-slate-950 text-white">
+  <main className="relative h-dvh w-full overflow-hidden bg-slate-950 text-white">
 
-      <div
-        ref={mapElement}
-        className="absolute inset-0"
-      />
+    {/* Map background */}
+    <div
+      ref={mapElement}
+      className="absolute inset-0"
+    />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 p-3 sm:p-5">
-        <div className="mx-auto max-w-6xl">
+    {/* Dashboard overlay */}
+    <div className="pointer-events-none absolute inset-0 z-20">
 
-          <section className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
+      {/* Single scroll container */}
+      <div className="mx-auto h-full max-w-6xl overflow-y-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-5">
+
+        <div className="pointer-events-auto space-y-3 pb-8">
+
+          {/* Header / Traffic Status */}
+          <section className="rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-xl sm:p-5">
 
             <div className="flex flex-wrap items-start justify-between gap-4">
 
@@ -442,8 +449,7 @@ export function LocalTrafficDashboard() {
                 </h1>
 
                 <p className="mt-1 text-xs text-white/55">
-                  界限街 131–174 號 ／
-                  喇沙利道 1E–1B 號
+                  界限街 131–174 號 ／ 喇沙利道 1E–1B 號
                 </p>
               </div>
 
@@ -452,9 +458,7 @@ export function LocalTrafficDashboard() {
                 disabled={loading}
                 className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
               >
-                {loading
-                  ? "更新中..."
-                  : "立即更新"}
+                {loading ? "更新中..." : "立即更新"}
               </button>
 
             </div>
@@ -465,6 +469,7 @@ export function LocalTrafficDashboard() {
               </div>
             )}
 
+            {/* Traffic cards */}
             <div className="mt-4 grid gap-3 md:grid-cols-2">
 
               {roads.map((road) => (
@@ -518,11 +523,9 @@ export function LocalTrafficDashboard() {
                       </div>
 
                       <div className="mt-1 text-xs font-semibold text-white/70">
-                        {road.dataQuality ===
-                          "DIRECT"
+                        {road.dataQuality === "DIRECT"
                           ? "官方直接路段"
-                          : road.dataQuality ===
-                              "NEARBY"
+                          : road.dataQuality === "NEARBY"
                             ? "附近路段估算"
                             : "沒有數據"}
                       </div>
@@ -550,7 +553,9 @@ export function LocalTrafficDashboard() {
 
             </div>
 
+            {/* Legend / Updated time */}
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/40">
+
               <span>🟢 正常</span>
               <span>🟡 較慢</span>
               <span>🔴 擠塞</span>
@@ -563,9 +568,7 @@ export function LocalTrafficDashboard() {
               {updatedAt && (
                 <span>
                   更新：
-                  {new Date(
-                    updatedAt,
-                  ).toLocaleTimeString(
+                  {new Date(updatedAt).toLocaleTimeString(
                     "zh-HK",
                     {
                       hour: "2-digit",
@@ -575,31 +578,36 @@ export function LocalTrafficDashboard() {
                   )}
                 </span>
               )}
+
             </div>
 
           </section>
+
+          {/* CCTV */}
           <LocalCctvPanel
-  roads={LOCAL_ROADS.map(
-    (road) => road.coordinates,
-  )}
-  radiusMetres={500}
-/>
+            roads={LOCAL_ROADS.map(
+              (road) => road.coordinates,
+            )}
+            radiusMetres={500}
+          />
+
+          {/* Road Works */}
           <LocalRoadAlertsPanel
-  roads={LOCAL_ROADS.map(
-    (road) => road.coordinates,
-  )}
-  radiusMetres={500}
-/>
+            roads={LOCAL_ROADS.map(
+              (road) => road.coordinates,
+            )}
+            radiusMetres={500}
+          />
+
+          {/* Traffic Incidents */}
           <LocalTrafficIncidentsPanel
-  roads={LOCAL_ROADS.map((road) => road.coordinates)}
-  radiusMetres={500}
-/>
-        </div>
-      </div>
+            roads={LOCAL_ROADS.map(
+              (road) => road.coordinates,
+            )}
+            radiusMetres={500}
+          />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 max-h-dvh overflow-y-auto p-3 sm:p-5">
-        <div className="mx-auto max-w-6xl">
-
+          {/* Status badge */}
           <div className="inline-flex rounded-lg border border-white/10 bg-slate-950/85 px-3 py-2 text-[10px] text-white/50 backdrop-blur-md">
             LIVE TRAFFIC · CCTV · ROAD WORKS · INCIDENTS
 
@@ -610,7 +618,8 @@ export function LocalTrafficDashboard() {
 
         </div>
       </div>
+    </div>
 
-    </main>
-  )
+  </main>
+)
 }
