@@ -586,10 +586,8 @@ export function LocalTrafficDashboard() {
 
           {/* CCTV */}
           <LocalCctvPanel
-            roads={LOCAL_ROADS.map(
-              (road) => road.coordinates,
-            )}
-            radiusMetres={500}
+  roads={LOCAL_ROADS.map((road) => road.coordinates)}
+  radiusMetres={80}
           />
 
           {/* Road Works */}
