@@ -435,13 +435,18 @@ export function LocalTrafficDashboard() {
                 .map(
                   (corridor) => ({
                     corridor,
-                    distanceKm:
-                      nearestRoadDistance(
-                        road.coordinates,
-                        [
-                          corridor.coordinates,
-                        ],
-                      ) / 1000,
+                   distanceKm:
+  road.coordinates.reduce(
+    (best, point) =>
+      Math.min(
+        best,
+        nearestRoadDistance(
+          point,
+          [corridor.coordinates],
+        ),
+      ),
+    Number.POSITIVE_INFINITY,
+  ) / 1000,
                   }),
                 )
                 .filter(
