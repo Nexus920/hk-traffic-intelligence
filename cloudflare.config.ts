@@ -8,12 +8,8 @@ export default defineConfig({
     compatibilityFlags: ["nodejs_compat"],
     assets: { notFoundHandling: "none" },
     env: {
-      ASSETS: bindings.assets(),
-      env: {
   ASSETS: bindings.assets(),
   VISIT_COUNTS: bindings.kv({ id: "04f091e0575e45d8b5d6773a73519377" }),
-},
-      VISIT_COUNTS: bindings.kv({ id: "04f091e0575e45d8b5d6773a73519377" }),
     },
   }),
 });
