@@ -1,93 +1,51 @@
-import { NextResponse } from "next/server"
+import { LOCAL_ROADS } from "@/lib/local-roads"
 
 export const dynamic = "force-dynamic"
 
 const TDAS_ROUTE_URL =
   "https://tdas-api.hkemobility.gov.hk/tdas/api/route"
 
-type Point = {
+type JourneyPoint = {
   lat: number
   long: number
 }
 
-type JourneyRequest = {
+type JourneyRoute = {
   id: string
   nameTc: string
   nameEn: string
   startAddress: string
   endAddress: string
-  start: Point
-  end: Point
+  start: JourneyPoint
+  end: JourneyPoint
 }
 
-type JourneyResult = {
-  id: string
-  nameTc: string
-  nameEn: string
-  startAddress: string
-  endAddress: string
-
-  ok: boolean
-
-  eta: string | null
-  journeyTimeMinutes: number | null
-  distanceMetres: number | null
-  distanceText: string | null
-  speedKmh: number | null
-
-  status:
-    | "LIVE"
-    | "NO_DATA"
-    | "ERROR"
-
-  source: "TDAS" | "NONE"
-
-  error?: string
-}
-
-/*
- * Official TD road-centreline coordinates used by the local dashboard.
- *
- * Boundary Street:
- * 131 Boundary Street → 174 Boundary Street
- *
- * La Salle Road:
- * 1E La Salle Road → 1B La Salle Road
- *
- * Coordinates are WGS84 [longitude, latitude] in the source GeoJSON.
- * TDAS requires { lat, long }, so they are converted below.
- */
-const JOURNEY_ROUTES: JourneyRequest[] = [
+const ROUTES: JourneyRoute[] = [
   {
     id: "boundary-131-174",
     nameTc: "界限街",
     nameEn: "Boundary Street",
     startAddress: "131 Boundary Street",
     endAddress: "174 Boundary Street",
-
     start: {
       lat: 22.3286457991516,
       long: 114.1794446737888,
     },
-
     end: {
       lat: 22.32882430423036,
       long: 114.1833711857157,
     },
   },
-
   {
     id: "la-salle-1e-1b",
     nameTc: "喇沙利道",
     nameEn: "La Salle Road",
     startAddress: "1E La Salle Road",
     endAddress: "1B La Salle Road",
-
     start: {
       lat: 22.32795327540832,
       long: 114.1794975466469,
     },
-
     end: {
       lat: 22.3286457991516,
       long: 114.1794446737888,
@@ -95,60 +53,30 @@ const JOURNEY_ROUTES: JourneyRequest[] = [
   },
 ]
 
-function parseJourneyTimeMinutes(
-  eta: unknown,
-): number | null {
-  if (typeof eta !== "string") {
-    return null
-  }
-
-  const value = eta.trim()
-
-  /*
-   * TDAS normally returns hh:mm.
-   *
-   * Examples:
-   * "00:02"
-   * "00:05"
-   * "01:15"
-   */
-
-  const match = value.match(
-    /^(\d+):(\d{2})(?::(\d{2}))?$/,
-  )
-
-  if (!match) {
-    return null
-  }
-
-  const hours = Number(match[1])
-  const minutes = Number(match[2])
-  const seconds = match[3]
-    ? Number(match[3])
-    : 0
-
-  if (
-    !Number.isFinite(hours) ||
-    !Number.isFinite(minutes) ||
-    !Number.isFinite(seconds)
-  ) {
-    return null
-  }
-
-  return (
-    hours * 60 +
-    minutes +
-    seconds / 60
-  )
+type TdasResponse = {
+  eta?: string | number
+  distM?: string | number
+  distU?: string
+  jSpeed?: string | number
+  message?: string
+  error?: string
 }
 
-function parseSpeed(
-  value: unknown,
-): number | null {
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  ) {
+function parseNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
+}
+
+function parseEtaMinutes(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value
   }
 
@@ -156,121 +84,78 @@ function parseSpeed(
     return null
   }
 
-  const number = Number(
-    value.replace(/[^\d.+-]/g, ""),
-  )
+  const text = value.trim()
 
-  return Number.isFinite(number)
-    ? number
-    : null
-}
+  const parts = text.split(":").map(Number)
 
-function parseDistance(
-  value: unknown,
-): number | null {
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  ) {
-    return value
-  }
-
-  if (typeof value !== "string") {
+  if (parts.some((part) => !Number.isFinite(part))) {
     return null
   }
 
-  const number = Number(
-    value.replace(/[^\d.+-]/g, ""),
-  )
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1]
+  }
 
-  return Number.isFinite(number)
-    ? number
-    : null
+  if (parts.length === 3) {
+    return parts[0] * 60 + parts[1] + parts[2] / 60
+  }
+
+  const numeric = Number.parseFloat(text)
+
+  return Number.isFinite(numeric) ? numeric : null
 }
 
-function formatDistance(
-  metres: number | null,
-): string | null {
-  if (metres == null) {
+function formatDistance(distanceMetres: number | null): string | null {
+  if (distanceMetres === null) {
     return null
   }
 
-  if (metres < 1000) {
-    return `${Math.round(metres)} m`
+  if (distanceMetres >= 1000) {
+    return `${(distanceMetres / 1000).toFixed(1)} km`
   }
 
-  return `${(metres / 1000).toFixed(2)} km`
+  return `${Math.round(distanceMetres)} m`
 }
 
-function noDataResult(
-  route: JourneyRequest,
-  error?: string,
-): JourneyResult {
+function noDataResult(route: JourneyRoute, error: string) {
   return {
     id: route.id,
     nameTc: route.nameTc,
     nameEn: route.nameEn,
     startAddress: route.startAddress,
     endAddress: route.endAddress,
-
-    ok: false,
-
     eta: null,
     journeyTimeMinutes: null,
     distanceMetres: null,
     distanceText: null,
     speedKmh: null,
-
-    status: error
-      ? "ERROR"
-      : "NO_DATA",
-
+    status: "ERROR",
     source: "NONE",
-
-    ...(error ? { error } : {}),
+    error,
   }
 }
 
-async function fetchTdasRoute(
-  route: JourneyRequest,
-): Promise<JourneyResult> {
+async function fetchTdasRoute(route: JourneyRoute) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 15_000)
+
   try {
-    const response = await fetch(
-      TDAS_ROUTE_URL,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-
-        body: JSON.stringify({
-          start: route.start,
-          end: route.end,
-
-          /*
-           * Ask TDAS for current traffic conditions.
-           *
-           * departIn = 0 means departure now.
-           */
-          departIn: 0,
-
-          lang: "en",
-
-          /*
-           * ST = shortest-time route.
-           */
-          type: "ST",
-        }),
-
-        cache: "no-store",
-
-        signal: AbortSignal.timeout(
-          15_000,
-        ),
+    const response = await fetch(TDAS_ROUTE_URL, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "HK-Kowloon-Local-Traffic-Intelligence/1.0",
       },
-    )
+      body: JSON.stringify({
+        start: route.start,
+        end: route.end,
+        departIn: 0,
+        lang: "en",
+        type: "ST",
+      }),
+      signal: controller.signal,
+    })
 
     if (!response.ok) {
       return noDataResult(
@@ -279,78 +164,11 @@ async function fetchTdasRoute(
       )
     }
 
-    const payload: unknown =
-      await response.json()
+    const data = (await response.json()) as TdasResponse
 
-    if (
-      typeof payload !== "object" ||
-      payload === null
-    ) {
-      return noDataResult(
-        route,
-        "Invalid TDAS response",
-      )
-    }
-
-    const data =
-      payload as Record<string, unknown>
-
-    /*
-     * TDAS may return an error message instead
-     * of a route when the short road segment
-     * cannot be matched.
-     */
-    const responseText =
-      typeof data.message === "string"
-        ? data.message
-        : typeof data.error === "string"
-          ? data.error
-          : null
-
-    if (
-      responseText &&
-      !data.eta &&
-      !data.route
-    ) {
-      return noDataResult(
-        route,
-        responseText,
-      )
-    }
-
-    const eta =
-      typeof data.eta === "string"
-        ? data.eta
-        : null
-
-    const journeyTimeMinutes =
-      parseJourneyTimeMinutes(eta)
-
-    const distanceMetres =
-      parseDistance(data.distM)
-
-    const distanceText =
-      typeof data.distU === "string"
-        ? data.distU
-        : formatDistance(distanceMetres)
-
-    const speedKmh =
-      parseSpeed(data.jSpeed)
-
-    /*
-     * If TDAS gives no route/ETA,
-     * treat it as no usable data.
-     */
-    if (
-      !eta &&
-      distanceMetres == null &&
-      speedKmh == null
-    ) {
-      return noDataResult(
-        route,
-        "TDAS returned no usable route data",
-      )
-    }
+    const speedKmh = parseNumber(data.jSpeed)
+    const distanceMetres = parseNumber(data.distM)
+    const journeyTimeMinutes = parseEtaMinutes(data.eta)
 
     return {
       id: route.id,
@@ -358,77 +176,49 @@ async function fetchTdasRoute(
       nameEn: route.nameEn,
       startAddress: route.startAddress,
       endAddress: route.endAddress,
-
-      ok: true,
-
-      eta,
+      eta: data.eta ?? null,
       journeyTimeMinutes,
       distanceMetres,
-      distanceText,
+      distanceText:
+        data.distU ??
+        formatDistance(distanceMetres),
       speedKmh,
-
-      status: "LIVE",
-
+      status: "OK",
       source: "TDAS",
+      error: null,
     }
   } catch (error) {
-    return noDataResult(
-      route,
+    const message =
       error instanceof Error
         ? error.message
-        : "TDAS request failed",
-    )
+        : "TDAS request failed"
+
+    return noDataResult(route, message)
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
 export async function GET() {
-  const observedAt =
-    new Date().toISOString()
+  const observedAt = new Date().toISOString()
 
-  const results =
-    await Promise.all(
-      JOURNEY_ROUTES.map(
-        fetchTdasRoute,
-      ),
-    )
+  const results = await Promise.all(
+    ROUTES.map((route) => fetchTdasRoute(route)),
+  )
 
-  const liveCount =
-    results.filter(
-      (item) =>
-        item.status === "LIVE",
-    ).length
+  const successCount = results.filter(
+    (route) => route.status === "OK",
+  ).length
 
-  const body = {
-    ok: true,
-
+  return Response.json({
+    ok: successCount > 0,
     observedAt,
-
     source: "TDAS",
-
     routes: results,
-
     summary: {
       total: results.length,
-      live: liveCount,
-      noData:
-        results.filter(
-          (item) =>
-            item.status ===
-            "NO_DATA",
-        ).length,
-      error:
-        results.filter(
-          (item) =>
-            item.status ===
-            "ERROR",
-        ).length,
-    },
-  }
-
-  return NextResponse.json(body, {
-    headers: {
-      "Cache-Control":
-        "no-store, max-age=0",
+      ok: successCount,
+      noData: results.length - successCount,
     },
   })
 }
