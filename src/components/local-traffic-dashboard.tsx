@@ -476,10 +476,34 @@ export function LocalTrafficDashboard() {
                     ),
               )
 
-            const selected =
-              direct.length > 0
-                ? direct
-                : matches
+            const otherTargetRoadNames = LOCAL_ROADS
+  .filter((target) => target.id !== road.id)
+  .flatMap((target) => [
+    target.nameTc.toLowerCase(),
+    target.nameEn.toLowerCase(),
+  ])
+
+const nearbyWithoutOtherTargetRoad = matches.filter(
+  (item) => {
+    const roadTc =
+      item.corridor.roadTc?.toLowerCase() ?? ""
+
+    const roadEn =
+      item.corridor.roadEn?.toLowerCase() ?? ""
+
+    return !otherTargetRoadNames.some(
+      (name) =>
+        name.length > 0 &&
+        (roadTc.includes(name) ||
+          roadEn.includes(name)),
+    )
+  },
+)
+
+const selected =
+  direct.length > 0
+    ? direct
+    : nearbyWithoutOtherTargetRoad
 
             const speeds =
               selected
