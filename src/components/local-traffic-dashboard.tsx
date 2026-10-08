@@ -459,6 +459,41 @@ export function LocalTrafficDashboard() {
         b.distanceKm,
     )
 
+/*
+ * The two target roads are not present as named
+ * corridors in strategic-centerlines.json.
+ *
+ * Therefore:
+ * 1. Prefer a named direct match when available.
+ * 2. Otherwise score each nearby corridor by how well
+ *    its geometry follows the ENTIRE target road.
+ * 3. This prevents Boundary Street from simply borrowing
+ *    the closest La Salle Road segment near their junction.
+ */
+const scored = matches
+  .map((item) => {
+    const corridorDistance =
+      road.coordinates.reduce(
+        (total, point) =>
+          total +
+          nearestRoadDistance(
+            point,
+            [item.corridor.coordinates],
+          ),
+        0,
+      ) / road.coordinates.length
+
+    return {
+      ...item,
+      corridorDistance,
+    }
+  })
+  .sort(
+    (a, b) =>
+      a.corridorDistance -
+      b.corridorDistance,
+  )
+
 const direct =
   matches.filter(
     (item) =>
@@ -474,46 +509,11 @@ const direct =
         ),
   )
 
-const otherTargetRoadNames =
-  LOCAL_ROADS
-    .filter(
-      (target) =>
-        target.id !== road.id,
-    )
-    .flatMap(
-      (target) => [
-        target.nameTc.toLowerCase(),
-        target.nameEn.toLowerCase(),
-      ],
-    )
-
-const nearbyWithoutOtherTargetRoad =
-  matches.filter(
-    (item) => {
-      const roadTc =
-        item.corridor.roadTc
-          ?.toLowerCase() ?? ""
-
-      const roadEn =
-        item.corridor.roadEn
-          ?.toLowerCase() ?? ""
-
-      return !otherTargetRoadNames.some(
-        (name) =>
-          name.length > 0 &&
-          (roadTc.includes(name) ||
-            roadEn.includes(name)),
-      )
-    },
-  )
-
 const selected =
   direct.length > 0
     ? direct.slice(0, 5)
-    : nearbyWithoutOtherTargetRoad.slice(
-        0,
-        5,
-      )
+    : scored.slice(0, 5)
+  
 
             const speeds =
               selected
