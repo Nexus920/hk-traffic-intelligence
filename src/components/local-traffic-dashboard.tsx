@@ -1135,7 +1135,14 @@ boundaryMap.on("load", () => {
   }
 })
 
+    return () => {
+      resizeObserver.disconnect()
+
       boundaryMap.remove()
+
+      boundaryMapRef.current =
+        null
+    }
 
       boundaryMapRef.current =
         null
