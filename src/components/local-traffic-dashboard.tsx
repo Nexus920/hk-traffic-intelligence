@@ -1782,9 +1782,14 @@ paint: {
   </div>
 
   <div
-    ref={boundaryMapElement}
-    className="h-[240px] w-full overflow-hidden rounded-xl border border-white/10"
-  />
+  ref={boundaryMapElement}
+  style={{
+    width: "100%",
+    height: "240px",
+    minHeight: "240px",
+  }}
+  className="w-full overflow-hidden rounded-xl border border-white/10"
+/>
 
 </section>
             {/* CCTV */}
