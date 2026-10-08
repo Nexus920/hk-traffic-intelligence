@@ -751,20 +751,29 @@ paint: {
       })
 
       map.addLayer({
-        id: "local-roads-status",
-        type: "line",
-        source:
-          "local-roads",
-        layout: {
-  "line-cap": "round",
-  "line-join": "round",
-},
-paint: {
-  "line-color": [...],
-  "line-width": 7,
-  "line-opacity": 0.95,
-},
-      })
+  id: "local-roads-status",
+  type: "line",
+  source: "local-roads",
+  layout: {
+    "line-cap": "round",
+    "line-join": "round",
+  },
+  paint: {
+    "line-color": [
+      "match",
+      ["get", "band"],
+      "free",
+      STATUS_COLOR.free,
+      "slow",
+      STATUS_COLOR.slow,
+      "congested",
+      STATUS_COLOR.congested,
+      STATUS_COLOR.unknown,
+    ],
+    "line-width": 7,
+    "line-opacity": 0.95,
+  },
+})
 
       map.addLayer({
         id: "local-road-labels",
