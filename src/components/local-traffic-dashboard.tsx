@@ -735,15 +735,26 @@ const selected =
         zoom: 15.8,
         pitch: 0,
       })
+map.addControl(
+  new maplibregl.NavigationControl(),
+  "top-right",
+)
 
-    map.addControl(
-      new maplibregl.NavigationControl(),
-      "top-right",
-    )
+const resizeObserver =
+  new ResizeObserver(() => {
+    map.resize()
+  })
 
-    mapRef.current = map
+resizeObserver.observe(
+  mapElement.current,
+)
 
-    map.on("load", () => {
+map.resize()
+
+mapRef.current = map
+
+map.on("load", () => {
+
       map.addSource(
         "local-roads",
         {
@@ -860,9 +871,10 @@ paint: {
     })
 
     return () => {
-      map.remove()
-      mapRef.current = null
-    }
+  resizeObserver.disconnect()
+  map.remove()
+  mapRef.current = null
+}
   }, [])
 
   useEffect(() => {
