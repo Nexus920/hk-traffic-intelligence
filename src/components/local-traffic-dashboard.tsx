@@ -353,11 +353,17 @@ function escapeHtml(value: string) {
 }
 
 export function LocalTrafficDashboard() {
-  const mapElement =
-    useRef<HTMLDivElement | null>(null)
+const mapElement =
+  useRef<HTMLDivElement | null>(null)
 
-  const mapRef =
-    useRef<Map | null>(null)
+const mapRef =
+  useRef<Map | null>(null)
+
+const boundaryMapElement =
+  useRef<HTMLDivElement | null>(null)
+
+const boundaryMapRef =
+  useRef<Map | null>(null)
 
   const [roads, setRoads] =
     useState<Road[]>(
