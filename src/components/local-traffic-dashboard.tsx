@@ -1140,10 +1140,7 @@ boundaryMap.on("load", () => {
 
       boundaryMap.remove()
 
-      boundaryMapRef.current =
-        null
-    }
-
+     
       boundaryMapRef.current =
         null
     }
