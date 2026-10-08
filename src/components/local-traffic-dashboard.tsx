@@ -982,35 +982,7 @@ paint: {
         },
       )
 
-      
 
-      boundaryMap.addLayer({
-        id: "boundary-local-road",
-
-        type: "line",
-
-        source:
-          "boundary-local-road",
-
-        layout: {
-          "line-cap":
-            "round",
-
-          "line-join":
-            "round",
-        },
-
-        paint: {
-  "line-color":
-    "#3DDC97",
-
-  "line-width":
-    4,
-
-  "line-opacity":
-    0.95,
-},
-      })
 
       const bounds =
         new maplibregl.LngLatBounds()
