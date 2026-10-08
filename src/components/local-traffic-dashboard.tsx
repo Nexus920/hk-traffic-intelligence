@@ -827,11 +827,11 @@ paint: {
           bounds,
           {
             padding: {
-              top: 280,
-              bottom: 80,
-              left: 60,
-              right: 60,
-            },
+  top: 160,
+  bottom: 40,
+  left: 40,
+  right: 40,
+},
             maxZoom: 16.7,
             duration: 0,
           },
