@@ -982,33 +982,7 @@ paint: {
         },
       )
 
-      boundaryMap.addLayer({
-        id: "boundary-local-road-casing",
-
-        type: "line",
-
-        source:
-          "boundary-local-road",
-
-        layout: {
-          "line-cap":
-            "round",
-
-          "line-join":
-            "round",
-        },
-
-        paint: {
-          "line-color":
-            "#111827",
-
-          "line-width":
-            10,
-
-          "line-opacity":
-            0.95,
-        },
-      })
+      
 
       boundaryMap.addLayer({
         id: "boundary-local-road",
