@@ -1024,15 +1024,15 @@ boundaryMap.on("load", () => {
     },
 
     paint: {
-      "line-color":
-        "#22d3ee",
+  "line-color":
+    "#22d3ee",
 
-      "line-width":
-        18,
+  "line-width":
+    24,
 
-      "line-opacity":
-        0.12,
-    },
+  "line-opacity":
+    0.24,
+},
   })
 
   /*
@@ -1041,13 +1041,12 @@ boundaryMap.on("load", () => {
   if (
     coordinates.length >= 2
   ) {
-    const start =
-      coordinates[0]
 
-    const end =
-      coordinates[
-        coordinates.length - 1
-      ]
+    const start: [number, number] =
+  [114.18053, 22.32718]
+
+const end: [number, number] =
+  [114.18300, 22.32701]
 
     const createEndpoint =
       (
