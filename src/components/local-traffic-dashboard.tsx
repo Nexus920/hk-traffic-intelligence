@@ -709,7 +709,8 @@ const selected =
         container:
           mapElement.current,
         style:
-          "https://tiles.openfreemap.org/styles/bright",
+          style:
+  "https://tiles.openfreemap.org/styles/liberty",
         center: [
           114.1814,
           22.3283,
