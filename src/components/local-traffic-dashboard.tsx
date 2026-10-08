@@ -951,41 +951,62 @@ paint: {
 
     boundaryMap.resize()
 
-    boundaryMapRef.current =
-      boundaryMap
+   boundaryMapRef.current =
+  boundaryMap
 
-const bounds =
-  new maplibregl.LngLatBounds()
+boundaryMap.on("load", () => {
+  boundaryMap.addSource(
+    "boundary-local-road",
+    {
+      type: "geojson",
 
-const boundary =
-  LOCAL_ROADS.find(
-    (road) =>
-      road.id ===
-      "boundary-131-174",
+      data: {
+        type: "Feature",
+
+        properties: {
+          name:
+            "界限街 131–174",
+        },
+
+        geometry: {
+          type: "LineString",
+
+          coordinates:
+            LOCAL_ROADS.find(
+              (road) =>
+                road.id ===
+                "boundary-131-174",
+            )?.coordinates ?? [],
+        },
+      },
+    },
   )
 
-const coordinates =
-  boundary?.coordinates ?? []
+  const boundary =
+    LOCAL_ROADS.find(
+      (road) =>
+        road.id ===
+        "boundary-131-174",
+    )
 
-for (
-  const point of coordinates
-) {
-  bounds.extend(point)
-}
+  const coordinates =
+    boundary?.coordinates ?? []
 
-/*
- * Faint monitoring corridor.
- *
- * This is deliberately much wider and
- * more transparent than a road highlight,
- * so it reads as a monitoring area rather
- * than a painted road.
- */
-if (
-  !boundaryMap.getLayer(
-    "boundary-monitoring-area",
-  )
-) {
+  const bounds =
+    new maplibregl.LngLatBounds()
+
+  for (
+    const point of coordinates
+  ) {
+    bounds.extend(point)
+  }
+
+  /*
+   * Faint monitoring area.
+   *
+   * This is intentionally subtle so the
+   * OSM map remains the main visual layer.
+   */
   boundaryMap.addLayer({
     id:
       "boundary-monitoring-area",
@@ -1008,148 +1029,111 @@ if (
         "#22d3ee",
 
       "line-width":
-        22,
+        18,
 
       "line-opacity":
         0.12,
     },
   })
-}
 
-/*
- * Endpoint markers.
- *
- * First coordinate = 131
- * Last coordinate  = 174
- */
-if (
-  coordinates.length >= 2
-) {
-  const start =
-    coordinates[0]
+  /*
+   * Endpoint markers.
+   */
+  if (
+    coordinates.length >= 2
+  ) {
+    const start =
+      coordinates[0]
 
-  const end =
-    coordinates[
-      coordinates.length - 1
-    ]
+    const end =
+      coordinates[
+        coordinates.length - 1
+      ]
 
-  const createEndpoint =
-    (
-      label: string,
-    ) => {
-      const element =
-        document.createElement(
-          "div",
-        )
+    const createEndpoint =
+      (
+        label: string,
+      ) => {
+        const element =
+          document.createElement(
+            "div",
+          )
 
-      element.style.width =
-        "34px"
+        element.style.width =
+          "30px"
 
-      element.style.height =
-        "34px"
+        element.style.height =
+          "30px"
 
-      element.style.borderRadius =
-        "9999px"
+        element.style.borderRadius =
+          "9999px"
 
-      element.style.border =
-        "2px solid rgba(255,255,255,0.95)"
+        element.style.border =
+          "2px solid rgba(255,255,255,0.95)"
 
-      element.style.background =
-        "rgba(15,23,42,0.92)"
+        element.style.background =
+          "rgba(15,23,42,0.92)"
 
-      element.style.boxShadow =
-        "0 2px 8px rgba(0,0,0,0.45)"
+        element.style.boxShadow =
+          "0 2px 8px rgba(0,0,0,0.45)"
 
-      element.style.display =
-        "flex"
+        element.style.display =
+          "flex"
 
-      element.style.alignItems =
-        "center"
+        element.style.alignItems =
+          "center"
 
-      element.style.justifyContent =
-        "center"
+        element.style.justifyContent =
+          "center"
 
-      element.style.color =
-        "white"
+        element.style.color =
+          "white"
 
-      element.style.fontSize =
-        "10px"
+        element.style.fontSize =
+          "9px"
 
-      element.style.fontWeight =
-        "700"
+        element.style.fontWeight =
+          "700"
 
-      element.textContent =
-        label
+        element.textContent =
+          label
 
-      return element
-    }
-
-  new maplibregl.Marker({
-    element:
-      createEndpoint("131"),
-    anchor:
-      "center",
-  })
-    .setLngLat(start)
-    .addTo(boundaryMap)
-
-  new maplibregl.Marker({
-    element:
-      createEndpoint("174"),
-    anchor:
-      "center",
-  })
-    .setLngLat(end)
-    .addTo(boundaryMap)
-}
-
-if (
-  !bounds.isEmpty()
-) {
-  boundaryMap.fitBounds(
-    bounds,
-    {
-      padding: 45,
-
-      maxZoom: 17.5,
-
-      duration: 0,
-    },
-  )
-}
-
-      const boundary =
-        LOCAL_ROADS.find(
-          (road) =>
-            road.id ===
-            "boundary-131-174",
-        )
-
-      for (
-        const point of
-          boundary?.coordinates ?? []
-      ) {
-        bounds.extend(point)
+        return element
       }
 
-      if (
-        !bounds.isEmpty()
-      ) {
-        boundaryMap.fitBounds(
-          bounds,
-          {
-            padding: 45,
-
-            maxZoom: 17.5,
-
-            duration: 0,
-          },
-        )
-      }
+    new maplibregl.Marker({
+      element:
+        createEndpoint("131"),
+      anchor:
+        "center",
     })
+      .setLngLat(start)
+      .addTo(boundaryMap)
 
-    return () => {
-      resizeObserver.disconnect()
+    new maplibregl.Marker({
+      element:
+        createEndpoint("174"),
+      anchor:
+        "center",
+    })
+      .setLngLat(end)
+  }
+
+  if (
+    !bounds.isEmpty()
+  ) {
+    boundaryMap.fitBounds(
+      bounds,
+      {
+        padding: 45,
+
+        maxZoom: 17.5,
+
+        duration: 0,
+      },
+    )
+  }
+})
 
       boundaryMap.remove()
 
