@@ -739,16 +739,15 @@ const selected =
         type: "line",
         source:
           "local-roads",
-        paint: {
-          "line-color":
-            "#111827",
-          "line-width": 11,
-          "line-opacity": 0.9,
-          "line-cap":
-            "round",
-          "line-join":
-            "round",
-        },
+        layout: {
+  "line-cap": "round",
+  "line-join": "round",
+},
+paint: {
+  "line-color": "#111827",
+  "line-width": 11,
+  "line-opacity": 0.9,
+},
       })
 
       map.addLayer({
@@ -756,25 +755,15 @@ const selected =
         type: "line",
         source:
           "local-roads",
-        paint: {
-          "line-color": [
-            "match",
-            ["get", "band"],
-            "free",
-            STATUS_COLOR.free,
-            "slow",
-            STATUS_COLOR.slow,
-            "congested",
-            STATUS_COLOR.congested,
-            STATUS_COLOR.unknown,
-          ],
-          "line-width": 7,
-          "line-opacity": 0.95,
-          "line-cap":
-            "round",
-          "line-join":
-            "round",
-        },
+        layout: {
+  "line-cap": "round",
+  "line-join": "round",
+},
+paint: {
+  "line-color": [...],
+  "line-width": 7,
+  "line-opacity": 0.95,
+},
       })
 
       map.addLayer({
