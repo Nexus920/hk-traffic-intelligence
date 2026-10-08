@@ -11,12 +11,7 @@ import type {
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 
-maplibregl.setWorkerUrl(
-  new URL(
-    "maplibre-gl/dist/maplibre-gl-worker.mjs",
-    import.meta.url,
-  ).toString(),
-)
+maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs")
 
 type RoadBand =
   | "free"
