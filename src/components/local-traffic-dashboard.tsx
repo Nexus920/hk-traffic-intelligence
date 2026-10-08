@@ -954,38 +954,169 @@ paint: {
     boundaryMapRef.current =
       boundaryMap
 
-    boundaryMap.on("load", () => {
+const bounds =
+  new maplibregl.LngLatBounds()
 
-      boundaryMap.addSource(
-        "boundary-local-road",
-        {
-          type: "geojson",
+const boundary =
+  LOCAL_ROADS.find(
+    (road) =>
+      road.id ===
+      "boundary-131-174",
+  )
 
-          data: {
-            type: "Feature",
-            properties: {
-              name:
-                "界限街 131–174",
-            },
+const coordinates =
+  boundary?.coordinates ?? []
 
-            geometry: {
-              type: "LineString",
+for (
+  const point of coordinates
+) {
+  bounds.extend(point)
+}
 
-              coordinates:
-                LOCAL_ROADS.find(
-                  (road) =>
-                    road.id ===
-                    "boundary-131-174",
-                )?.coordinates ?? [],
-            },
-          },
-        },
-      )
+/*
+ * Faint monitoring corridor.
+ *
+ * This is deliberately much wider and
+ * more transparent than a road highlight,
+ * so it reads as a monitoring area rather
+ * than a painted road.
+ */
+if (
+  !boundaryMap.getLayer(
+    "boundary-monitoring-area",
+  )
+) {
+  boundaryMap.addLayer({
+    id:
+      "boundary-monitoring-area",
 
+    type: "line",
 
+    source:
+      "boundary-local-road",
 
-      const bounds =
-        new maplibregl.LngLatBounds()
+    layout: {
+      "line-cap":
+        "round",
+
+      "line-join":
+        "round",
+    },
+
+    paint: {
+      "line-color":
+        "#22d3ee",
+
+      "line-width":
+        22,
+
+      "line-opacity":
+        0.12,
+    },
+  })
+}
+
+/*
+ * Endpoint markers.
+ *
+ * First coordinate = 131
+ * Last coordinate  = 174
+ */
+if (
+  coordinates.length >= 2
+) {
+  const start =
+    coordinates[0]
+
+  const end =
+    coordinates[
+      coordinates.length - 1
+    ]
+
+  const createEndpoint =
+    (
+      label: string,
+    ) => {
+      const element =
+        document.createElement(
+          "div",
+        )
+
+      element.style.width =
+        "34px"
+
+      element.style.height =
+        "34px"
+
+      element.style.borderRadius =
+        "9999px"
+
+      element.style.border =
+        "2px solid rgba(255,255,255,0.95)"
+
+      element.style.background =
+        "rgba(15,23,42,0.92)"
+
+      element.style.boxShadow =
+        "0 2px 8px rgba(0,0,0,0.45)"
+
+      element.style.display =
+        "flex"
+
+      element.style.alignItems =
+        "center"
+
+      element.style.justifyContent =
+        "center"
+
+      element.style.color =
+        "white"
+
+      element.style.fontSize =
+        "10px"
+
+      element.style.fontWeight =
+        "700"
+
+      element.textContent =
+        label
+
+      return element
+    }
+
+  new maplibregl.Marker({
+    element:
+      createEndpoint("131"),
+    anchor:
+      "center",
+  })
+    .setLngLat(start)
+    .addTo(boundaryMap)
+
+  new maplibregl.Marker({
+    element:
+      createEndpoint("174"),
+    anchor:
+      "center",
+  })
+    .setLngLat(end)
+    .addTo(boundaryMap)
+}
+
+if (
+  !bounds.isEmpty()
+) {
+  boundaryMap.fitBounds(
+    bounds,
+    {
+      padding: 45,
+
+      maxZoom: 17.5,
+
+      duration: 0,
+    },
+  )
+}
 
       const boundary =
         LOCAL_ROADS.find(
