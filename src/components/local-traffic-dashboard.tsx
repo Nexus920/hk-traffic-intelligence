@@ -887,7 +887,200 @@ paint: {
   mapRef.current = null
 }
   }, [])
+  useEffect(() => {
+    if (
+      !boundaryMapElement.current ||
+      boundaryMapRef.current
+    ) {
+      return
+    }
 
+    const boundaryMap =
+      new maplibregl.Map({
+        container:
+          boundaryMapElement.current,
+
+        style: {
+          version: 8,
+
+          sources: {
+            osm: {
+              type: "raster",
+              tiles: [
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+              ],
+              tileSize: 256,
+              attribution:
+                "© OpenStreetMap contributors",
+            },
+          },
+
+          layers: [
+            {
+              id: "osm",
+              type: "raster",
+              source: "osm",
+            },
+          ],
+        },
+
+        center: [
+          114.1814,
+          22.3287,
+        ],
+
+        zoom: 16.8,
+
+        pitch: 0,
+      })
+
+    const container =
+      boundaryMap.getContainer()
+
+    container.style.width = "100%"
+    container.style.height = "100%"
+
+    const resizeObserver =
+      new ResizeObserver(() => {
+        boundaryMap.resize()
+      })
+
+    resizeObserver.observe(
+      boundaryMapElement.current,
+    )
+
+    boundaryMap.resize()
+
+    boundaryMapRef.current =
+      boundaryMap
+
+    boundaryMap.on("load", () => {
+
+      boundaryMap.addSource(
+        "boundary-local-road",
+        {
+          type: "geojson",
+
+          data: {
+            type: "Feature",
+            properties: {
+              name:
+                "界限街 131–174",
+            },
+
+            geometry: {
+              type: "LineString",
+
+              coordinates:
+                LOCAL_ROADS.find(
+                  (road) =>
+                    road.id ===
+                    "boundary-131-174",
+                )?.coordinates ?? [],
+            },
+          },
+        },
+      )
+
+      boundaryMap.addLayer({
+        id: "boundary-local-road-casing",
+
+        type: "line",
+
+        source:
+          "boundary-local-road",
+
+        layout: {
+          "line-cap":
+            "round",
+
+          "line-join":
+            "round",
+        },
+
+        paint: {
+          "line-color":
+            "#111827",
+
+          "line-width":
+            10,
+
+          "line-opacity":
+            0.95,
+        },
+      })
+
+      boundaryMap.addLayer({
+        id: "boundary-local-road",
+
+        type: "line",
+
+        source:
+          "boundary-local-road",
+
+        layout: {
+          "line-cap":
+            "round",
+
+          "line-join":
+            "round",
+        },
+
+        paint: {
+          "line-color":
+            "#3DDC97",
+
+          "line-width":
+            6,
+
+          "line-opacity":
+            1,
+        },
+      })
+
+      const bounds =
+        new maplibregl.LngLatBounds()
+
+      const boundary =
+        LOCAL_ROADS.find(
+          (road) =>
+            road.id ===
+            "boundary-131-174",
+        )
+
+      for (
+        const point of
+          boundary?.coordinates ?? []
+      ) {
+        bounds.extend(point)
+      }
+
+      if (
+        !bounds.isEmpty()
+      ) {
+        boundaryMap.fitBounds(
+          bounds,
+          {
+            padding: 45,
+
+            maxZoom: 17.5,
+
+            duration: 0,
+          },
+        )
+      }
+    })
+
+    return () => {
+      resizeObserver.disconnect()
+
+      boundaryMap.remove()
+
+      boundaryMapRef.current =
+        null
+    }
+  }, [])
+  
   useEffect(() => {
     const map = mapRef.current
 
