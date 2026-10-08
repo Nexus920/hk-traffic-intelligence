@@ -1027,11 +1027,14 @@ paint: {
         },
 
         paint: {
-          "line-color":
-            "#3DDC97",
+          line-color:
+  "#3DDC97",
 
-          "line-width":
-            6,
+line-width:
+  4,
+
+line-opacity:
+  0.95,
 
           "line-opacity":
             1,
