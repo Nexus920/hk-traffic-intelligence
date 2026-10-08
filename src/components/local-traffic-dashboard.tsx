@@ -1563,7 +1563,37 @@ paint: {
               </div>
 
             </section>
+{/* Boundary Street Local Map */}
+<section className="rounded-2xl border border-white/10 bg-slate-950/90 p-3 shadow-2xl backdrop-blur-xl sm:p-4">
 
+  <div className="mb-3 flex items-center justify-between gap-3">
+
+    <div>
+      <div className="text-[9px] font-bold tracking-[0.18em] text-cyan-300">
+        BOUNDARY STREET · LOCAL SEGMENT
+      </div>
+
+      <div className="mt-1 text-sm font-bold">
+        界限街 131–174 號
+      </div>
+
+      <div className="mt-1 text-[10px] text-white/40">
+        只顯示目標道路局部範圍
+      </div>
+    </div>
+
+    <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-white/60">
+      LOCAL MAP
+    </div>
+
+  </div>
+
+  <div
+    ref={boundaryMapElement}
+    className="h-[240px] w-full overflow-hidden rounded-xl border border-white/10"
+  />
+
+</section>
             {/* CCTV */}
             <LocalCctvPanel
               roads={LOCAL_ROADS.map(
