@@ -735,6 +735,11 @@ const selected =
         zoom: 15.8,
         pitch: 0,
       })
+    const mapContainer =
+  map.getContainer()
+
+mapContainer.style.width = "100%"
+mapContainer.style.height = "100%"
 map.addControl(
   new maplibregl.NavigationControl(),
   "top-right",
