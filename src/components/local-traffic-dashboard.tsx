@@ -1439,15 +1439,11 @@ const selected =
 
                       </div>
 
-                      {road.nearbyRoads.length >
-                        0 && (
-                        <div className="mt-2 text-[10px] text-white/35">
-                          參考：
-                          {road.nearbyRoads
-                            .slice(0, 2)
-                            .join(" / ")}
-                        </div>
-                      )}
+                      {road.dataQuality === "NEARBY" && (
+  <div className="mt-2 text-[10px] text-white/35">
+    交通資料：附近路段估算
+  </div>
+)}
 
                       <div className="mt-3 border-t border-white/5 pt-2 text-[10px] text-white/40">
                         {road.startAddress}
