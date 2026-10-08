@@ -1036,10 +1036,6 @@ paint: {
   "line-opacity":
     0.95,
 },
-
-          "line-opacity":
-            1,
-        },
       })
 
       const bounds =
