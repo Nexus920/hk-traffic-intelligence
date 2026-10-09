@@ -411,10 +411,11 @@ setCameras(selected)
             附近交通攝影機
           </h2>
 
-          <p className="mt-1 text-xs text-slate-400">
-            只顯示距離兩段目標道路中心線 {radiusMetres}m
-            內的 CCTV
-          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">
+  優先顯示 {radiusMetres}m 內最近的 CCTV；
+  不足 2 部時，補充 1km 內的延伸參考鏡頭。
+  最多顯示 2 部。
+</p>
         </div>
 
         <div className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">
