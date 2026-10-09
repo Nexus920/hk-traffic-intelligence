@@ -73,6 +73,7 @@ const CONFIG = [
     point: [114.1811, 22.3271] as Point,
     keywords: ["喇沙小學", "la salle primary"],
     routes: ["113", "12A", "1", "22", "7B"],
+    gmbRoutes: ["2", "2A", "69A", "70", "70A"],
   },
   {
     id: "beverly",
@@ -80,6 +81,7 @@ const CONFIG = [
     point: [114.1827, 22.32715] as Point,
     keywords: ["碧華花園", "beverly villas"],
     routes: ["1A", "20A", "22", "6D", "6E", "6P", "42", "98E"],
+    gmbRoutes: ["2", "2A", "25A", "25B", "25M", "70", "70A"],
   },
 ] as const
 
