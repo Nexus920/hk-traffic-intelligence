@@ -44,7 +44,7 @@ const CONFIG = [
     name: "喇沙小學附近",
     point: [114.1811, 22.3271] as Point,
     keywords: ["喇沙小學", "la salle primary"],
-    routes: ["113", "12A", "1A", "22", "7B"],
+    routes: ["113", "12A", "1", "22", "7B"],
   },
   {
     id: "beverly",
