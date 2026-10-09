@@ -311,9 +311,16 @@ async function loadStation(
               stopName: stopName(stop),
               direction: item.dir || "",
             }))
-        } catch {
-          return []
-        }
+        } catch (error) {
+  apiErrors.push(
+    `城巴 ${stopName(stop)} ${route}：${
+      error instanceof Error
+        ? error.message
+        : String(error)
+    }`,
+  )
+  return []
+}
       }),
     ),
   )
