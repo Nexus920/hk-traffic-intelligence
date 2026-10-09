@@ -356,7 +356,7 @@ async function loadStation(
 ) {
   const now = Date.now()
   const items: ArrivalItem[] = []
-  
+  const apiErrors: string[] = []
 
   const nearbyKmb = nearestStops(kmbStops, station, "KMB")
   const nearbyCtb = nearestStops(ctbStops, station, "CTB")
