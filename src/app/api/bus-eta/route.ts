@@ -112,7 +112,7 @@ async function getStops(operator: "KMB" | "CTB"): Promise<Stop[]> {
 
   const url = operator === "KMB"
     ? `${KMB}/stop`
-    : `${CTB}/stop/CTB`
+    : `${CTB}/stop`
 
   const data = await readData<Stop>(url)
   const cache = { expires: now + 24 * 60 * 60 * 1000, data }
