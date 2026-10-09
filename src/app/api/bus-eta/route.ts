@@ -13,13 +13,19 @@ type Stop = {
   long?: string | number
   routes?: string[]
 }
+
 type HkBusStaticDatabase = {
   routeList: Record<
     string,
     {
       route: string
       co: string[]
+      orig: { en: string; zh: string }
+      dest: { en: string; zh: string }
       stops: Record<string, string[]>
+      bound: Record<string, string>
+      serviceType: string
+      gtfsId: string
     }
   >
   stopList: Record<
@@ -35,10 +41,7 @@ type HkBusStaticDatabase = {
       }
     }
   >
-  stopMap: Record<
-    string,
-    Array<[string, string]>
-  >
+  stopMap: Record<string, Array<[string, string]>>
 }
 
 type EtaRecord = {
@@ -92,6 +95,50 @@ let kmbStopCache: { expires: number; data: Stop[] } | null = null
 let ctbStopCache: { expires: number; data: Stop[] } | null = null
 let responseCache: { expires: number; body: unknown } | null = null
 
+const HK_BUS_DB_URLS = [
+  "https://data.hkbus.app/routeFareList.min.json",
+  "https://hkbus.github.io/hk-bus-crawling/routeFareList.min.json",
+]
+
+let hkBusDbCache: {
+  expires: number
+  data: HkBusStaticDatabase
+} | null = null
+
+async function getHkBusDatabase(): Promise<HkBusStaticDatabase> {
+  if (hkBusDbCache && hkBusDbCache.expires > Date.now()) {
+    return hkBusDbCache.data
+  }
+
+  for (const url of HK_BUS_DB_URLS) {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(12000),
+      })
+
+      if (!response.ok) continue
+
+      const data =
+        await response.json() as HkBusStaticDatabase
+
+      if (!data.routeList || !data.stopList || !data.stopMap) {
+        continue
+      }
+
+      hkBusDbCache = {
+        expires: Date.now() + 24 * 60 * 60 * 1000,
+        data,
+      }
+
+      return data
+    } catch {
+      // 嘗試下一個資料來源
+    }
+  }
+
+  throw new Error("無法讀取整合式巴士路線資料")
+}
 async function readData<T>(url: string): Promise<T[]> {
   const response = await fetch(url, {
     cache: "no-store",
