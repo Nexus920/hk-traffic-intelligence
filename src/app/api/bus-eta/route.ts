@@ -186,10 +186,12 @@ async function getStops(
   }
 
   
-  const url =
-    operator === "KMB"
-      ? `${KMB}/stop`
-      : `${CTB}/stop`
+  
+const url =
+  operator === "KMB"
+    ? `${KMB}/stop`
+    : "https://winstonma.github.io/MMM-HK-Transport-ETA-Data/ctb/stops/allstops.json"
+
 
 
   const response = await fetch(url, {
