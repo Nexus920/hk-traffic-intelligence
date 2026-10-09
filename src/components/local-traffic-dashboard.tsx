@@ -969,9 +969,9 @@ boundaryMap.on("load", () => {
         type: "Feature",
 
         properties: {
-          name:
-            "界限街 131–174",
-        },
+  name: "界限街 131–174",
+  band: "unknown",
+},
 
         geometry: {
           type: "LineString",
@@ -1040,6 +1040,28 @@ boundaryMap.on("load", () => {
     0.24,
 },
   })
+
+  boundaryMap.addLayer({
+  id: "boundary-road-condition",
+  type: "line",
+  source: "boundary-local-road",
+  layout: {
+    "line-cap": "round",
+    "line-join": "round",
+  },
+  paint: {
+    "line-color": [
+      "match",
+      ["get", "band"],
+      "free", STATUS_COLOR.free,
+      "slow", STATUS_COLOR.slow,
+      "congested", STATUS_COLOR.congested,
+      STATUS_COLOR.unknown,
+    ],
+    "line-width": 6,
+    "line-opacity": 0.98,
+  },
+})
 
   /*
    * Endpoint markers.
@@ -1147,6 +1169,10 @@ const end = coordinates[coordinates.length - 1]
         null
     }
   }, [])
+
+  useEffect(() => {
+  // 貼上之前提供的完整 updateRoadStatus 程式
+}, [roads])
   
   useEffect(() => {
     const map = mapRef.current
