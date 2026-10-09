@@ -261,7 +261,9 @@ async function loadStation(
 
         return records
           .filter((item) =>
-            station.routes.includes(String(item.route)) &&
+            station.routes.some(
+  (route) => route === String(item.route)
+) &&
             validEta(item.eta, now),
           )
           .map((item) => ({
