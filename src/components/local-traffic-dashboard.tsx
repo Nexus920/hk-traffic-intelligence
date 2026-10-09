@@ -1170,8 +1170,50 @@ const end = coordinates[coordinates.length - 1]
     }
   }, [])
 
-  useEffect(() => {
-  // 貼上之前提供的完整 updateRoadStatus 程式
+  
+useEffect(() => {
+  const map = boundaryMapRef.current
+
+  if (!map) return
+
+  const updateRoadStatus = () => {
+    const source = map.getSource(
+      "boundary-local-road",
+    ) as GeoJSONSource | undefined
+
+    if (!source) return
+
+    const road = roads.find(
+      (item) =>
+        item.id === "boundary-131-174",
+    )
+
+    if (!road) return
+
+    source.setData({
+      type: "Feature",
+      properties: {
+        name: "界限街 131–174",
+        band: road.band,
+      },
+      geometry: {
+        type: "LineString",
+        coordinates: road.coordinates,
+      },
+    })
+  }
+
+  if (
+    map.getSource("boundary-local-road")
+  ) {
+    updateRoadStatus()
+  } else {
+    map.once("load", updateRoadStatus)
+  }
+
+  return () => {
+    map.off("load", updateRoadStatus)
+  }
 }, [roads])
   
   useEffect(() => {
