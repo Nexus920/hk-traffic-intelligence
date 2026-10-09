@@ -1118,6 +1118,7 @@ const end = coordinates[coordinates.length - 1]
         "center",
     })
       .setLngLat(end)
+      .addTo(boundaryMap)
   }
 
   if (
