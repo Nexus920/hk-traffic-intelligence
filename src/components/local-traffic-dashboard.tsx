@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { LocalCctvPanel } from "./local-cctv-panel"
+import { LocalBusEtaPanel } from "./local-bus-eta-panel"
 import { LocalRoadAlertsPanel } from "./local-road-alerts-panel"
 import { LocalTrafficIncidentsPanel } from "./local-traffic-incidents-panel"
 import * as maplibregl from "maplibre-gl"
@@ -1929,6 +1930,8 @@ useEffect(() => {
 />
 
 </section>
+            {/* Bus ETA */}
+<LocalBusEtaPanel />
             {/* CCTV */}
             <LocalCctvPanel
               roads={LOCAL_ROADS.map(
