@@ -82,6 +82,7 @@ type CctvResponse = {
 }
 
 const CCTV_RADIUS_METRES = 80
+const CCTV_PANEL_RADIUS_METRES = 300
 
 const LOCAL_ROADS: Omit<
   Road,
@@ -1935,8 +1936,8 @@ useEffect(() => {
                   road.coordinates,
               )}
               radiusMetres={
-                CCTV_RADIUS_METRES
-              }
+  CCTV_PANEL_RADIUS_METRES
+}
             />
 
             {/* Road Works */}
