@@ -104,21 +104,100 @@ async function readData<T>(url: string): Promise<T[]> {
   return Array.isArray(body.data) ? body.data : []
 }
 
-async function getStops(operator: "KMB" | "CTB"): Promise<Stop[]> {
+async function getStops(
+  operator: "KMB" | "CTB",
+): Promise<Stop[]> {
   const now = Date.now()
-  const cached = operator === "KMB" ? kmbStopCache : ctbStopCache
 
-  if (cached && cached.expires > now) return cached.data
+  const cached =
+    operator === "KMB"
+      ? kmbStopCache
+      : ctbStopCache
 
-  const url = operator === "KMB"
-    ? `${KMB}/stop`
-    : `${CTB}/stop`
+  if (cached && cached.expires > now) {
+    return cached.data
+  }
 
-  const data = await readData<Stop>(url)
-  const cache = { expires: now + 24 * 60 * 60 * 1000, data }
+  const url =
+    operator === "KMB"
+      ? `${KMB}/stop`
+      : "https://winstonma.github.io/MMM-HK-Transport-ETA-Data/ctb/stops/allstops.json"
 
-  if (operator === "KMB") kmbStopCache = cache
-  else ctbStopCache = cache
+  const response = await fetch(url, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(9000),
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `${operator} stop list returned ${response.status}`,
+    )
+  }
+
+  const body: unknown = await response.json()
+
+  let data: Stop[] = []
+
+  if (operator === "KMB") {
+    const payload = body as { data?: unknown }
+
+    data = Array.isArray(payload.data)
+      ? payload.data as Stop[]
+      : []
+  } else {
+    let entries: unknown[] = []
+
+    if (Array.isArray(body)) {
+      entries = body
+    } else if (
+      body !== null &&
+      typeof body === "object"
+    ) {
+      const payload =
+        body as Record<string, unknown>
+
+      entries = Array.isArray(payload.data)
+        ? payload.data
+        : Object.values(payload)
+    }
+
+    data = entries.filter(
+      (item): item is Stop => {
+        if (
+          item === null ||
+          typeof item !== "object"
+        ) {
+          return false
+        }
+
+        const stop =
+          item as Record<string, unknown>
+
+        return (
+          typeof stop.stop === "string" &&
+          stop.lat !== undefined &&
+          stop.long !== undefined
+        )
+      },
+    )
+  }
+
+  if (data.length === 0) {
+    throw new Error(
+      `${operator} stop list is empty or invalid`,
+    )
+  }
+
+  const cache = {
+    expires: now + 24 * 60 * 60 * 1000,
+    data,
+  }
+
+  if (operator === "KMB") {
+    kmbStopCache = cache
+  } else {
+    ctbStopCache = cache
+  }
 
   return data
 }
