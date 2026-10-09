@@ -248,6 +248,7 @@ async function loadStation(
 ) {
   const now = Date.now()
   const items: ArrivalItem[] = []
+  const apiErrors: string[] = []
 
   const nearbyKmb = nearestStops(kmbStops, station, "KMB")
   const nearbyCtb = nearestStops(ctbStops, station, "CTB")
@@ -274,9 +275,16 @@ async function loadStation(
             stopName: stopName(stop),
             direction: item.dir || "",
           }))
-      } catch {
-        return []
-      }
+      } catch (error) {
+  apiErrors.push(
+    `九巴 ${stopName(stop)}：${
+      error instanceof Error
+        ? error.message
+        : String(error)
+    }`,
+  )
+  return []
+}
     }),
   )
 
