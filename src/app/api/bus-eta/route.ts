@@ -11,6 +11,34 @@ type Stop = {
   name_en?: string
   lat?: string | number
   long?: string | number
+  routes?: string[]
+}
+type HkBusStaticDatabase = {
+  routeList: Record<
+    string,
+    {
+      route: string
+      co: string[]
+      stops: Record<string, string[]>
+    }
+  >
+  stopList: Record<
+    string,
+    {
+      location: {
+        lat: number
+        lng: number
+      }
+      name: {
+        en: string
+        zh: string
+      }
+    }
+  >
+  stopMap: Record<
+    string,
+    Array<[string, string]>
+  >
 }
 
 type EtaRecord = {
