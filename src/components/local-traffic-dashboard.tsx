@@ -1628,7 +1628,8 @@ useEffect(() => {
         ref={mapElement}
         className="absolute inset-0"
       />
-
+{/* Black background */}
+<div className="pointer-events-none absolute inset-0 z-10 bg-black" />
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
