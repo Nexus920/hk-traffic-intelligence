@@ -311,9 +311,7 @@ export function LocalCctvPanel({
            * corridor. We do NOT show general nearby Kowloon
            * cameras.
            */
-          if (distance > radiusMetres) {
-            return
-          }
+          
 
           matched.push({
             id: getCameraId(
@@ -340,7 +338,26 @@ export function LocalCctvPanel({
         )
 
         if (!cancelled) {
-          setCameras(matched.slice(0, 8))
+          const withinRange = matched.filter(
+  (camera) =>
+    camera.distanceMetres <= radiusMetres,
+)
+
+const extendedRange = matched.filter(
+  (camera) =>
+    camera.distanceMetres > radiusMetres &&
+    camera.distanceMetres <= 1000,
+)
+
+const selected = [
+  ...withinRange.slice(0, 2),
+  ...extendedRange.slice(
+    0,
+    Math.max(0, 2 - withinRange.length),
+  ),
+].slice(0, 2)
+
+setCameras(selected)
           setLastUpdated(new Date())
           setLoading(false)
         }
@@ -467,7 +484,10 @@ export function LocalCctvPanel({
                   />
 
                   <div className="absolute left-2 top-2 rounded-full border border-cyan-300/20 bg-black/70 px-2 py-1 text-[10px] font-medium text-cyan-200 backdrop-blur">
-                    距道路 {formatDistance(camera.distanceMetres)}
+                    {camera.distanceMetres <= radiusMetres
+  ? "300m 範圍內"
+  : "延伸參考"}{" "}
+· 距道路 {formatDistance(camera.distanceMetres)}
                   </div>
                 </div>
 
