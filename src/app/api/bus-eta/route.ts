@@ -327,10 +327,21 @@ async function loadStation(
 
   items.push(...ctbResults.flat())
 
-  return {
+    return {
     id: station.id,
     name: station.name,
     buses: groupArrivals(items, station.routes),
+    debug: {
+      kmbStops: nearbyKmb.map((stop) => ({
+        id: stop.stop,
+        name: stopName(stop),
+      })),
+      ctbStops: nearbyCtb.map((stop) => ({
+        id: stop.stop,
+        name: stopName(stop),
+      })),
+      apiErrors,
+    },
   }
 }
 
