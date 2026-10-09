@@ -138,24 +138,25 @@ function nearestStops(
     .sort((a, b) => a.distance - b.distance)
 
   if (operator === "KMB") {
-    const boundaryStops = candidates.filter(
-      (item) => /界限街|boundary street/i.test(item.name),
-    )
-
-    const keywordStops = boundaryStops.filter(
-      (item) => station.keywords.some(
-        (keyword) => item.name.includes(keyword.toLowerCase()),
+  const keywordStops = candidates.filter(
+    (item) =>
+      station.keywords.some((keyword) =>
+        item.name.includes(keyword.toLowerCase()),
       ),
-    )
+  )
 
-    const selected = keywordStops.length
-      ? keywordStops
-      : boundaryStops.length
-        ? boundaryStops
-        : candidates
+  const boundaryStops = candidates.filter(
+    (item) => /界限街|boundary street/i.test(item.name),
+  )
 
-    return selected.slice(0, 3).map((item) => item.stop)
-  }
+  const selected = keywordStops.length
+    ? keywordStops
+    : boundaryStops.length
+      ? boundaryStops
+      : candidates
+
+  return selected.slice(0, 3).map((item) => item.stop)
+}
 
   const keywordStops = candidates.filter(
     (item) => station.keywords.some(
