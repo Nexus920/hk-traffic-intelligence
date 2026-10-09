@@ -350,7 +350,32 @@ export async function GET() {
     return NextResponse.json(responseCache.body)
   }
 
+  
+  const stopListErrors: string[] = []
+
   const [kmbStops, ctbStops] = await Promise.all([
+    getStops("KMB").catch((error) => {
+      stopListErrors.push(
+        `九巴站點清單：${
+          error instanceof Error
+            ? error.message
+            : String(error)
+        }`,
+      )
+      return []
+    }),
+
+    getStops("CTB").catch((error) => {
+      stopListErrors.push(
+        `城巴站點清單：${
+          error instanceof Error
+            ? error.message
+            : String(error)
+        }`,
+      )
+      return []
+    }),
+  ])
     getStops("KMB").catch(() => []),
     getStops("CTB").catch(() => []),
   ])
@@ -363,6 +388,11 @@ export async function GET() {
     ok: true,
     observedAt: new Date().toISOString(),
     stations,
+        debug: {
+      kmbStopTotal: kmbStops.length,
+      ctbStopTotal: ctbStops.length,
+      stopListErrors,
+    },
   }
 
   responseCache = {
