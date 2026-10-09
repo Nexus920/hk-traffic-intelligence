@@ -350,7 +350,6 @@ export async function GET() {
     return NextResponse.json(responseCache.body)
   }
 
-  
   const stopListErrors: string[] = []
 
   const [kmbStops, ctbStops] = await Promise.all([
@@ -376,19 +375,18 @@ export async function GET() {
       return []
     }),
   ])
-    getStops("KMB").catch(() => []),
-    getStops("CTB").catch(() => []),
-  ])
 
   const stations = await Promise.all(
-    CONFIG.map((station) => loadStation(station, kmbStops, ctbStops)),
+    CONFIG.map((station) =>
+      loadStation(station, kmbStops, ctbStops),
+    ),
   )
 
   const body = {
     ok: true,
     observedAt: new Date().toISOString(),
     stations,
-        debug: {
+    debug: {
       kmbStopTotal: kmbStops.length,
       ctbStopTotal: ctbStops.length,
       stopListErrors,
