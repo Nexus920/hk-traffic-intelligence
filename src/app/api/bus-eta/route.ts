@@ -90,6 +90,7 @@ const CONFIG = [
 
 const KMB = "https://data.etabus.gov.hk/v1/transport/kmb"
 const CTB = "https://rt.data.gov.hk/v2/transport/citybus"
+const CTB_ROUTES = ["20A", "22", "113"] as const
 
 let kmbStopCache: { expires: number; data: Stop[] } | null = null
 let ctbStopCache: { expires: number; data: Stop[] } | null = null
@@ -184,10 +185,12 @@ async function getStops(
     return cached.data
   }
 
+  
   const url =
     operator === "KMB"
       ? `${KMB}/stop`
-      : "https://rt.data.gov.hk/v1/transport/citybus-nwfb/stop"
+      : `${CTB}/stop`
+
 
   const response = await fetch(url, {
     cache: "no-store",
