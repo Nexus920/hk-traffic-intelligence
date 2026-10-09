@@ -105,7 +105,24 @@ async function readData<T>(url: string): Promise<T[]> {
   const body = await response.json() as { data?: T[] }
   return Array.isArray(body.data) ? body.data : []
 }
+async function readSingleStop(url: string): Promise<Stop> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(9000),
+  })
 
+  if (!response.ok) {
+    throw new Error(`Transit API returned ${response.status}`)
+  }
+
+  const body = await response.json() as { data?: Stop }
+
+  if (!body.data) {
+    throw new Error("Transit API response has no stop data")
+  }
+
+  return body.data
+}
 async function getStops(
   operator: "KMB" | "CTB",
 ): Promise<Stop[]> {
