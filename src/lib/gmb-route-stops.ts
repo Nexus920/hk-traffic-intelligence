@@ -1,14 +1,11 @@
 import { gmbStop } from "@/lib/gmb-reach"
 import { readEtaJson } from "@/lib/eta-read"
+import { uniqueGmbRouteStopRows, type GmbRouteStopRow } from "@/lib/gmb-route-stop-validation"
 
 const ROUTE_STOP_ROOT = "https://data.etagmb.gov.hk/route-stop"
 const CACHE_MS = 6 * 60 * 60_000
 
-type ApiRouteStop = {
-  stop_seq?: number
-  stop_id?: string | number
-  stop?: string | number
-}
+type ApiRouteStop = GmbRouteStopRow
 
 type RouteStopResponse = {
   data?: { route_stops?: ApiRouteStop[] } | ApiRouteStop[]
@@ -52,29 +49,8 @@ export async function loadGmbRouteStopCoordinates(
   if (!rows) return hit?.stops ?? []
 
   const stops: GmbRouteStopCoordinate[] = []
-  const sequenceCounts = new Map<number, number>()
-  for (const row of rows) {
-    if (Number.isInteger(row.stop_seq) && (row.stop_seq as number) > 0) {
-      sequenceCounts.set(row.stop_seq as number, (sequenceCounts.get(row.stop_seq as number) ?? 0) + 1)
-    }
-  }
-  for (const row of rows) {
-    const stopSeq = row.stop_seq
-    const rawStopId = row.stop_id ?? row.stop
-    const stopId =
-      typeof rawStopId === "number" && Number.isSafeInteger(rawStopId) && rawStopId > 0
-        ? String(rawStopId)
-        : typeof rawStopId === "string" && rawStopId.trim()
-          ? rawStopId.trim()
-          : null
-    if (!Number.isInteger(stopSeq) || (stopSeq as number) <= 0 || !stopId) continue
-
-    // Keep route metadata unambiguous: discard every row belonging to a
-    // duplicated sequence number, not merely the later duplicate.
-    const sequence = stopSeq as number
-    if (sequenceCounts.get(sequence) !== 1) continue
-
-    const stop = gmbStop(stopId)
+  for (const row of uniqueGmbRouteStopRows(rows)) {
+    const stop = gmbStop(row.stopId)
     if (
       !stop ||
       !Number.isFinite(stop.lng) ||
@@ -84,10 +60,9 @@ export async function loadGmbRouteStopCoordinates(
       stop.lat < -90 ||
       stop.lat > 90
     ) continue
-    stops.push({ stopSeq: sequence, stopId, lng: stop.lng, lat: stop.lat })
+    stops.push({ stopSeq: row.stopSeq, stopId: row.stopId, lng: stop.lng, lat: stop.lat })
   }
 
-  stops.sort((a, b) => a.stopSeq - b.stopSeq)
   cache.set(key, { at: now, stops })
   return stops
 }
