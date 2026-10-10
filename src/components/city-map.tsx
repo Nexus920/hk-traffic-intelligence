@@ -1827,15 +1827,11 @@ function addWatchLayers(map: Map, before: string | undefined) {
       ],
       "circle-color": "#16a34a",
       "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 2,
+      "circle-stroke-width": 2,
     },
   }, before)
-    addOverlay(map, {
+  addOverlay(map, {
     id: "nlb-stops",
-    type: "circle",
-    source: "nlb-stops",
-    minzoom: SOLO_PIN_ZOOM,
-    paint: {
     type: "circle",
     source: "nlb-stops",
     minzoom: SOLO_PIN_ZOOM,
