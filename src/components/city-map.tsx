@@ -1328,6 +1328,7 @@ function mountDataLayers(map: Map) {
   map.addSource("lrt-trains", { type: "geojson", data: emptyCollection() })
   map.addSource("citybus-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("gmb-stops", { type: "geojson", data: emptyCollection() })
+  map.addSource("gmb-estimated-vehicles", { type: "geojson", data: emptyCollection(), })
   map.addSource("nlb-stops", { type: "geojson", data: emptyCollection() })
   map.addSource("mtrbus-stops", { type: "geojson", data: emptyCollection(), attribution: "© MTR Corporation" })
   map.addSource("ferry-piers", { type: "geojson", data: emptyCollection() })
