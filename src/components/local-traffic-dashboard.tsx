@@ -771,6 +771,7 @@ resizeObserver.observe(
 map.resize()
 
 mapRef.current = map
+let gmbRefreshTimer: number | null = null
 
 map.on("load", () => {
 
@@ -875,7 +876,7 @@ map.on("load", () => {
         }
       }
       void refreshLocalGmbStops()
-      const gmbRefreshTimer = window.setInterval(() => {
+      gmbRefreshTimer = window.setInterval(() => {
         void refreshLocalGmbStops()
       }, 60_000)
 
@@ -988,7 +989,7 @@ paint: {
     })
 
     return () => {
-  window.clearInterval(gmbRefreshTimer)
+  if (gmbRefreshTimer !== null) window.clearInterval(gmbRefreshTimer)
   resizeObserver.disconnect()
   map.remove()
   mapRef.current = null
