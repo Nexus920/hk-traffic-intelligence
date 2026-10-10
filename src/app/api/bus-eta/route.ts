@@ -596,20 +596,40 @@ async function loadGmbArrivals(
   station: typeof CONFIG[number],
   stops: GmbNearbyStop[],
 ): Promise<ArrivalItem[]> {
+  
   const now = Date.now()
 
-  // 只保留指定路線、距離監測點 250 米內，
-  // 並排除更接近其他監測點的小巴站
-  const candidates = stops
-    
-  const allowedStopIds = GMB_STOP_ALLOWLIST[station.id] ?? []
+  const allowedStopIds =
+    GMB_STOP_ALLOWLIST[station.id] ?? []
 
   const candidates = stops
     .filter((stop) => {
-      // 只保留監控卡指定的路線
       if (!station.gmbRoutes.includes(stop.route)) {
         return false
       }
+
+      if (!allowedStopIds.includes(Number(stop.stop))) {
+        return false
+      }
+
+      const stopPoint: Point = [stop.long, stop.lat]
+      const thisDistance = distanceMetres(
+        stopPoint,
+        station.point,
+      )
+
+      if (thisDistance > 250) {
+        return false
+      }
+
+      return true
+    })
+    .sort(
+      (a, b) =>
+        distanceMetres([a.long, a.lat], station.point) -
+        distanceMetres([b.long, b.lat], station.point),
+    )
+
 
       // 必須在該監控卡的站點白名單內
       if (!allowedStopIds.includes(Number(stop.stop))) {
