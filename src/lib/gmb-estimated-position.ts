@@ -134,7 +134,8 @@ export function estimatesFromEtaObservations(
   const vehicles: EstimatedMinibus[] = []
   for (const observation of observations) {
     if (
-      !observation.route ||
+      !/^[1-9]\\d*$/.test(observation.route) ||
+      !Number.isSafeInteger(Number(observation.route)) ||
       !isGmbRouteDirection(observation.routeSeq) ||
       !Number.isInteger(observation.nextStopSeq) ||
       observation.nextStopSeq <= 1 ||
