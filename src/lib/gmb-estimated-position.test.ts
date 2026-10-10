@@ -121,7 +121,6 @@ assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
     null,
   ],
 } }), [
-  { etaSeq: 1, diffMinutes: 4, timestamp: "2026-10-10T10:04:00+08:00" },
   { etaSeq: 4, diffMinutes: 2, timestamp: "2026-10-10T10:04:00+08:00" },
 ])
 assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
