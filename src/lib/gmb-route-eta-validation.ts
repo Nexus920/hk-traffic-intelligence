@@ -26,7 +26,6 @@ export function parseGmbRouteStopEtaResponse(input: unknown): GmbRouteStopEta[] 
 
   const stopId = data.stop_id
   if (
-    !(typeof stopId === "string" && stopId.trim()) &&
     !(typeof stopId === "number" && Number.isSafeInteger(stopId) && stopId > 0)
   ) return []
 
@@ -43,7 +42,7 @@ export function parseGmbRouteStopEtaResponse(input: unknown): GmbRouteStopEta[] 
       etaSeq <= 0 ||
       seen.has(etaSeq) ||
       typeof diff !== "number" ||
-      !Number.isFinite(diff) ||
+      !Number.isSafeInteger(diff) ||
       diff < 0 ||
       typeof timestamp !== "string" ||
       !timestamp.trim() ||
