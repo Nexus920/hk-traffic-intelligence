@@ -3,6 +3,7 @@ import {
   estimateBetweenStops,
   estimatesFromEtaObservations,
   estimatedMinibusCollection,
+  GMB_ESTIMATE_MAX_AGE_MS,
   type RouteStopCoordinate,
 } from "./gmb-estimated-position.ts"
 
@@ -29,7 +30,11 @@ const base = {
   observedAt: "2026-10-10T00:00:00.000Z",
   label: "Estimated position",
 }
-assert.equal(estimatesFromEtaObservations([base], stops).length, 1)
+const observedNow = Date.parse("2026-10-10T00:00:00.000Z")
+assert.equal(estimatesFromEtaObservations([base], stops, observedNow).length, 1)
+assert.equal(estimatesFromEtaObservations([base], stops, observedNow + GMB_ESTIMATE_MAX_AGE_MS + 1).length, 0)
+assert.equal(estimatesFromEtaObservations([{ ...base, observedAt: "2026-10-10T00:04:00.000Z" }], stops, observedNow).length, 0)
+assert.equal(estimatesFromEtaObservations([{ ...base, observedAt: "2026-10-10T00:00:31.000Z" }], stops, observedNow).length, 0)
 assert.equal(estimatesFromEtaObservations([{ ...base, etaMinutes: 20 }], stops).length, 0)
 assert.equal(estimatesFromEtaObservations([{ ...base, segmentMinutes: 0 }], stops).length, 0)
 assert.equal(estimatesFromEtaObservations([{ ...base, observedAt: "invalid" }], stops).length, 0)
