@@ -431,13 +431,15 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
               direction,
               stop,
             }))
-                    } catch (error) {
+                    
+          } catch (error) {
             console.error(
-              `[GMB route API] region=${region}, route=${route}:`,
+              `[GMB route-stop API] route=${route}, route_id=${variant.route_id}, route_seq=${direction.route_seq}:`,
               error instanceof Error ? error.message : String(error),
             )
             return []
           }
+
         })
       ).flat()
     },
