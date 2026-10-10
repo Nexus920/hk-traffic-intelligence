@@ -400,6 +400,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
     await mapWithConcurrency(routes, 4, async (route) => {
       const results = await Promise.all(
         regions.map(async (region) => {
+          
           try {
             const result = await gmbJson<{
               data?: GmbRouteVariant[]
@@ -411,8 +412,6 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
               route,
               variant,
             }))
-          
-         
           } catch (error) {
             const message =
               error instanceof Error
@@ -430,6 +429,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
 
             return []
           }
+
 
             return []
           }
