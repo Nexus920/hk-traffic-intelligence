@@ -80,6 +80,10 @@ assert.deepEqual(parseGmbRouteJourneyMetadata([
   { routeId: 10, companyCode: "GMB", journeyTime: 25 },
   null,
 ]), [{ routeId: 10, journeyTimeMinutes: 24 }])
+assert.deepEqual(parseGmbRouteJourneyMetadata({ type: "FeatureCollection", features: [
+  { type: "Feature", properties: { routeId: 20, companyCode: "GMB", journeyTime: 31 }, geometry: null },
+  { type: "Feature", properties: { routeId: 21, companyCode: "KMB", journeyTime: 12 }, geometry: null },
+] }), [{ routeId: 20, journeyTimeMinutes: 31 }])
 assert.deepEqual(parseGmbRouteJourneyMetadata({ data: [] }), [])
 
 console.log("gmb-estimated-position-ok")
