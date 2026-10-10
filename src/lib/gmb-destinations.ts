@@ -10,7 +10,5 @@ export function gmbDestination(routeId: number, routeSeq: number): Dest | null {
   if (!item) return null
   const exact = item[String(routeSeq)]
   if (exact && (exact.tc || exact.en)) return exact
-  const only = Object.values(item)
-  if (only.length === 1 && (only[0]?.tc || only[0]?.en)) return only[0]
   return null
 }
