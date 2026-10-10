@@ -151,6 +151,15 @@ let gmbStopsCache: {
   data: GmbNearbyStop[]
 } | null = null
 
+let gmbStopsDebug = {
+  variants: 0,
+  routeStops: 0,
+  uniqueStopIds: 0,
+  stopInfoFound: 0,
+  nearbyStops: 0,
+}
+
+
 const CTB_ROUTES = ["20A", "22", "113"] as const
 
 let kmbStopCache: { expires: number; data: Stop[] } | null = null
@@ -415,6 +424,8 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
       return results.flat()
     })
   ).flat()
+  
+  gmbStopsDebug.variants = variants.length
 
   const routeStopGroups = await mapWithConcurrency(
     variants,
@@ -453,6 +464,10 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
 
   const routeStops = routeStopGroups.flat()
 
+  
+  gmbStopsDebug.routeStops = routeStops.length
+
+
   // 同一站點可能由多條路線共用，先合併站點 ID
   const uniqueStopIds = Array.from(
     new Set(routeStops.map((item) => item.stop.stop_id)),
@@ -487,6 +502,9 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
       )
       .map((item) => [item.stop_id, item.info]),
   )
+  
+  gmbStopsDebug.stopInfoFound = stopInfoMap.size
+
 
   const nearbyStops: GmbNearbyStop[] = []
 
@@ -515,7 +533,10 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
         "方向未明",
     })
   }
+  
+  gmbStopsDebug.nearbyStops = nearbyStops.length
 
+  
   gmbStopsCache = {
     expires: Date.now() + 24 * 60 * 60 * 1000,
     data: nearbyStops,
@@ -888,12 +909,14 @@ export async function GET() {
     ok: true,
     observedAt: new Date().toISOString(),
     stations,
+    
     debug: {
-  kmbStopTotal: kmbStops.length,
-  ctbStopTotal: ctbStops.length,
-  gmbStopTotal: gmbStops.length,
-  stopListErrors,
-},
+      kmbStopTotal: kmbStops.length,
+      ctbStopTotal: ctbStops.length,
+      gmbStopTotal: gmbStops.length,
+      stopListErrors,
+      gmbDiagnostics: gmbStopsDebug,
+    },
   }
 
   responseCache = {
