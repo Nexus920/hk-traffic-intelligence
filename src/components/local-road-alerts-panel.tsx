@@ -25,6 +25,9 @@ type RoadWorkResponse = {
   works?: { features?: RoadWorkFeature[] }
 }
 type NearbyAlert = Alert & { point: [number, number]; distance: number }
+function textValue(value: unknown, fallback = ""): string {
+  return value == null ? fallback : String(value)
+}
 
 type Props = {
   roads: [number, number][][]
@@ -120,33 +123,15 @@ export function LocalRoadAlertsPanel({
                   feature.properties?.roadworksId ??
                   `${String(feature.properties?.road ?? "road")}-${String(coordinates[0])}-${String(coordinates[1])}`,
               ),
-            road:
-              feature.properties?.road ??
-              "未知道路",
-            place:
-              feature.properties?.place ??
-              "",
-            status:
-              feature.properties?.status ??
-              "",
-            kind:
-              feature.properties?.kind ??
-              "道路工程",
-            lane:
-              feature.properties?.lane ??
-              "",
-            bound:
-              feature.properties?.bound ??
-              "",
-            district:
-              feature.properties?.district ??
-              "",
-            start:
-              feature.properties?.start ??
-              "",
-            end:
-              feature.properties?.end ??
-              "",
+            road: textValue(feature.properties?.road, 未知道路),
+            place: textValue(feature.properties?.place, ),
+            status: textValue(feature.properties?.status, ),
+            kind: textValue(feature.properties?.kind, 道路工程),
+            lane: textValue(feature.properties?.lane, ),
+            bound: textValue(feature.properties?.bound, ),
+            district: textValue(feature.properties?.district, ),
+            start: textValue(feature.properties?.start, ),
+            end: textValue(feature.properties?.end, ),
             point,
           }
         })
