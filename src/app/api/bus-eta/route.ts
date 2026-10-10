@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 
 const GMB_STOP_ALLOWLIST: Record<string, number[]> = {
@@ -18,8 +19,6 @@ const GMB_STOP_ALLOWLIST: Record<string, number[]> = {
   ],
 
 }
-
-import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
