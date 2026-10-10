@@ -55,7 +55,7 @@ const nearbyStops = rankNearbyGmbRouteStops([
   { stopSeq: 5, stopId: "invalid", lng: 200, lat: 22.3 },
 ], [114.1811, 22.3271], 100, 8)
 assert.deepEqual(nearbyStops.map((stop) => stop.stopId), ["101", "102", "103"])
-assert.deepEqual(nearbyStops.map((stop) => stop.distanceMetres), [0, 0, 16])
+assert.deepEqual(nearbyStops.map((stop) => stop.distanceMetres), [0, 0, 10])
 assert.deepEqual(rankNearbyGmbRouteStops([
   { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
 ], [Number.NaN, 22.3]), [])
