@@ -33,11 +33,59 @@ jobs:
         run: npm ci
       - name: Run estimated-position validation
         run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
-      - name: Run TypeScript checks
-        run: npx tsc --noEmit
-      - name: Run ESLint
+      - name: Run TypeScript checks and save diagnostics
         if: always()
-        run: npm run lint
-      - name: Build application
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit --pretty false > typescript-diagnostics.txt 2>&1
+          code=$?
+          cat typescript-diagnostics.txt
+          {
+            echo "## TypeScript diagnostics"
+            echo '```text'
+            cat typescript-diagnostics.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Run ESLint and save diagnostics
         if: always()
-        run: npm run build
+        shell: bash
+        run: |
+          set +e
+          npm run lint > eslint-diagnostics.txt 2>&1
+          code=$?
+          cat eslint-diagnostics.txt
+          {
+            echo "## ESLint diagnostics"
+            echo '```text'
+            cat eslint-diagnostics.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Build application and save diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npm run build > build-diagnostics.txt 2>&1
+          code=$?
+          cat build-diagnostics.txt
+          {
+            echo "## Build diagnostics"
+            echo '```text'
+            cat build-diagnostics.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmb-validation-diagnostics
+          path: |
+            typescript-diagnostics.txt
+            eslint-diagnostics.txt
+            build-diagnostics.txt
+          if-no-files-found: warn
+          retention-days: 7
