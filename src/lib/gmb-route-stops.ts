@@ -11,7 +11,7 @@ type ApiRouteStop = {
 }
 
 type RouteStopResponse = {
-  data?: ApiRouteStop[]
+  data?: { route_stops?: ApiRouteStop[] } | ApiRouteStop[]
 }
 
 export type GmbRouteStopCoordinate = {
@@ -44,10 +44,15 @@ export async function loadGmbRouteStopCoordinates(
   const body = await readEtaJson<RouteStopResponse>(
     `${ROUTE_STOP_ROOT}/${routeId}/${routeSeq}`,
   )
-  if (!Array.isArray(body?.data)) return hit?.stops ?? []
+  const rows = Array.isArray(body?.data)
+    ? body.data
+    : body?.data && "route_stops" in body.data && Array.isArray(body.data.route_stops)
+      ? body.data.route_stops
+      : null
+  if (!rows) return hit?.stops ?? []
 
   const stops: GmbRouteStopCoordinate[] = []
-  for (const row of body.data) {
+  for (const row of rows) {
     const stopSeq = row.stop_seq
     const stopId = typeof row.stop_id === "string" ? row.stop_id : row.stop
     if (!Number.isInteger(stopSeq) || typeof stopId !== "string" || !stopId) continue
