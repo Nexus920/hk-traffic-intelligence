@@ -1830,26 +1830,10 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-stroke-width": 2,
     },
   }, before)
-  addOverlay(map, {
-  
-  addOverlay(map, {
-    id: "gmb-estimated-vehicle-symbols",
-    type: "circle",
-    source: "gmb-estimated-vehicles",
-    minzoom: SOLO_PIN_ZOOM,
-    paint: {
-      "circle-radius": [
-        "interpolate", ["linear"], ["zoom"],
-        10, 5,
-        14, 7,
-        17, 9,
-      ],
-      "circle-color": "#16a34a",
-      "circle-stroke-color": "#ffffff",
-      "circle-stroke-width": 2,
-    },
-  }, before)
+    addOverlay(map, {
     id: "nlb-stops",
+    type: "circle",
+    source: "nlb-stops",
     type: "circle",
     source: "nlb-stops",
     minzoom: SOLO_PIN_ZOOM,
