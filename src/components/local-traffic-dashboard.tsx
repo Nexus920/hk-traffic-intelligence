@@ -782,6 +782,104 @@ map.on("load", () => {
         },
       )
 
+      map.addSource("local-gmb-stops", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      })
+
+      map.addLayer({
+        id: "local-gmb-stop-circles",
+        type: "circle",
+        source: "local-gmb-stops",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#0f9f6e",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      })
+
+      map.addLayer({
+        id: "local-gmb-stop-labels",
+        type: "symbol",
+        source: "local-gmb-stops",
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 11,
+          "text-offset": [0, 1.25],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#064e3b",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
+        },
+      })
+
+      const refreshLocalGmbStops = async () => {
+        try {
+          const response = await fetch(
+            "/api/gmb?lng=114.1814&lat=22.3283&zoom=15.8",
+            { cache: "no-store" },
+          )
+          if (!response.ok) return
+          const body = await response.json() as {
+            ok?: boolean
+            stops?: Array<{
+              id: string
+              nameTc?: string
+              nameEn?: string
+              lng: number
+              lat: number
+              routes?: string[]
+              calls?: Array<{ route: string; minutes: number | null; destTc?: string }>
+            }>
+          }
+          if (!body.ok || !Array.isArray(body.stops)) return
+
+          const allowedRoutes = new Set([
+            "2", "2A", "69A", "70", "70A",
+            "25A", "25B", "25M",
+          ])
+          const features = body.stops.flatMap((stop) => {
+            if (!Number.isFinite(stop.lng) || !Number.isFinite(stop.lat)) return []
+            const routes = (stop.routes ?? []).filter((route) => allowedRoutes.has(route))
+            const calls = (stop.calls ?? []).filter((call) => allowedRoutes.has(call.route))
+            if (routes.length === 0 && calls.length === 0) return []
+            const etaText = calls
+              .slice(0, 2)
+              .map((call) => `${call.route} ${call.minutes == null ? "—" : Math.max(0, call.minutes) + "分"}`)
+              .join(" · ")
+            const routeText = [...new Set([...routes, ...calls.map((call) => call.route)])]
+              .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+              .join("/")
+            return [{
+              type: "Feature" as const,
+              geometry: {
+                type: "Point" as const,
+                coordinates: [stop.lng, stop.lat],
+              },
+              properties: {
+                id: stop.id,
+                name: stop.nameTc || stop.nameEn || "綠色小巴站",
+                label: etaText ? `${routeText} · ${etaText}` : routeText,
+              },
+            }]
+          })
+          const source = map.getSource("local-gmb-stops") as GeoJSONSource | undefined
+          source?.setData({ type: "FeatureCollection", features })
+        } catch {
+          // Keep the last successful layer if the live GMB feed is temporarily unavailable.
+        }
+      }
+      void refreshLocalGmbStops()
+      const gmbRefreshTimer = window.setInterval(() => {
+        void refreshLocalGmbStops()
+      }, 60_000)
+
+
       map.addLayer({
         id: "local-roads-casing",
         type: "line",
@@ -890,6 +988,7 @@ paint: {
     })
 
     return () => {
+  window.clearInterval(gmbRefreshTimer)
   resizeObserver.disconnect()
   map.remove()
   mapRef.current = null
