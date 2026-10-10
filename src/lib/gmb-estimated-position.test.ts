@@ -125,4 +125,17 @@ assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
 } }), [])
 assert.deepEqual(parseGmbRouteStopEtaResponse({ data: [] }), [])
 
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: "20003337", eta: [
+    { eta_seq: 1, diff: 2, timestamp: "2026-10-10T10:02:00+08:00" },
+  ],
+} }), [])
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: 20003337, eta: [
+    { eta_seq: 0, diff: 2, timestamp: "2026-10-10T10:02:00+08:00" },
+    { eta_seq: 1.5, diff: 2, timestamp: "2026-10-10T10:02:00+08:00" },
+  ],
+} }), [])
+
+
 console.log("gmb-estimated-position-ok")
