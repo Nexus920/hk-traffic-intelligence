@@ -31,7 +31,7 @@ export async function loadGmbRouteStopCoordinates(
   routeSeq: number,
   now = Date.now(),
 ): Promise<GmbRouteStopCoordinate[]> {
-  if (!Number.isInteger(routeId) || routeId <= 0 || !isGmbRouteDirection(routeSeq)) {
+  if (!Number.isSafeInteger(routeId) || routeId <= 0 || !isGmbRouteDirection(routeSeq)) {
     return []
   }
 
