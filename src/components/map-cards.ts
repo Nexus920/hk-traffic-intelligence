@@ -717,7 +717,7 @@ export function trainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: MtrR
   const plat = textProp(properties, "plat") || (standing ? "" : listed?.plat ?? "")
   const minutesOnDot = numberProp(properties, "minutes")
   const clampText = textProp(properties, "clamp")
-  const clamp = clampText === "origin" || clampText === "junction" ? clampText : "none"
+  const clamp: "none" | "origin" | "junction" = clampText === "origin" || clampText === "junction" ? clampText : "none"
   const shown =
     from && to && minutesOnDot != null
       ? { lng: 0, lat: 0, from, to, clamp, minutes: minutesOnDot }
