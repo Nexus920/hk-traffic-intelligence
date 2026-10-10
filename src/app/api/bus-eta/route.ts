@@ -1,4 +1,26 @@
 
+const GMB_STOP_ALLOWLIST: Record<string, number[]> = {
+  // 喇沙小學附近
+  lasalle: [
+    20017179, // 界限街，近喇沙小學
+    20015162, // 界限街，近喇沙小學（69A）
+    20017169, // 太子道西，近寶堡大廈
+  ],
+
+  // 碧華花園
+  beverly: [
+    20014203, // 界限街，近碧華花園第八座
+    20014164, // 喇沙利道，近碧華花園第六座
+    20017032, // 太子道西，愛華閣第二期外
+    20017180, // 界限街，近書院道
+    20015158, // 太子道西，近愛華閣（二期）
+    20023101, // 界限街，碧華花園第6座外
+    20014785, // 太子道西，近聖德肋撒醫院北座
+    20014199, // 喇沙利道，近喇沙小學
+    20014198, // 太子道西，近聖德肋撒醫院北座
+  ],
+}
+
 import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
@@ -579,11 +601,22 @@ async function loadGmbArrivals(
   // 只保留指定路線、距離監測點 250 米內，
   // 並排除更接近其他監測點的小巴站
   const candidates = stops
+    
+  const allowedStopIds = GMB_STOP_ALLOWLIST[station.id] ?? []
+
+  const candidates = stops
     .filter((stop) => {
+      // 只保留監控卡指定的路線
       if (!station.gmbRoutes.includes(stop.route)) {
         return false
       }
 
+      // 必須在該監控卡的站點白名單內
+      if (!allowedStopIds.includes(Number(stop.stop))) {
+        return false
+      }
+
+      // 保留距離限制，避免錯誤站點混入
       const stopPoint: Point = [stop.long, stop.lat]
       const thisDistance = distanceMetres(
         stopPoint,
@@ -592,15 +625,14 @@ async function loadGmbArrivals(
 
       if (thisDistance > 250) return false
 
-      const closerToAnotherStation = CONFIG.some(
-        (otherStation) =>
-          otherStation.id !== station.id &&
-          distanceMetres(stopPoint, otherStation.point) <
-            thisDistance,
-      )
-
-      return !closerToAnotherStation
+      return true
     })
+    .sort(
+      (a, b) =>
+        distanceMetres([a.long, a.lat], station.point) -
+        distanceMetres([b.long, b.lat], station.point),
+    )
+
     .sort(
       (a, b) =>
         distanceMetres([a.long, a.lat], station.point) -
