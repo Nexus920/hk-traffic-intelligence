@@ -1,11 +1,12 @@
 
 const GMB_STOP_ALLOWLIST: Record<string, number[]> = {
-  // 喇沙小學附近
+  
+  // 喇沙小學附近：只保留站名包含「喇沙小學」的站點
   lasalle: [
     20017179, // 界限街，近喇沙小學
     20015162, // 界限街，近喇沙小學（69A）
-    20017169, // 太子道西，近寶堡大廈
   ],
+
 
   
   // 碧華花園：只保留站名明確包含「碧華花園」的站點
@@ -605,6 +606,12 @@ async function loadGmbArrivals(
       }
 
       if (!allowedStopIds.includes(Number(stop.stop))) {
+        return false
+      }
+            if (
+        station.id === "lasalle" &&
+        !((stop.name_tc ?? "").includes("喇沙小學"))
+      ) {
         return false
       }
 
