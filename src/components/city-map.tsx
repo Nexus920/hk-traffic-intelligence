@@ -682,6 +682,7 @@ export function CityMap({
         geoJsonSource(map, "gmb-estimated-vehicles")?.setData(emptyCollection())
       } else if (gmb?.ok) {
         geoJsonSource(map, "gmb-stops")?.setData(busStopCollection(map, gmb, locale, labels, "#65a30d"))
+        geoJsonSource(map, "gmb-estimated-vehicles")?.setData(gmb.estimatedVehicles ?? emptyCollection())
       }
       if (!layers.nlb) {
         geoJsonSource(map, "nlb-stops")?.setData(emptyCollection())
