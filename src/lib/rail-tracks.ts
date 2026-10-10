@@ -6,7 +6,7 @@ type TrackFile = { edges: Record<string, [number, number][]> }
 
 let edges = (tableFile as unknown as TrackFile).edges
 
-export function useTrackEdges(next: Record<string, [number, number][]>): void {
+export function setTrackEdges(next: Record<string, [number, number][]>): void {
   edges = next
 }
 
