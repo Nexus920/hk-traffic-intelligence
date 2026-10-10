@@ -1,3 +1,4 @@
+import { auditGmbRouteIdCandidates, matchGmbOfficialRouteId } from "./gmb-route-id-validation.ts"
 
 import { parseGmbRouteStopEtaResponse } from "./gmb-route-eta-validation.ts"
 import { parseGmbRouteJourneyMetadata } from "./gmb-route-journey-metadata.ts"
@@ -137,5 +138,20 @@ assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
   ],
 } }), [])
 
+
+
+assert.equal(matchGmbOfficialRouteId("123", [123, 456]), 123)
+assert.equal(matchGmbOfficialRouteId("00123", [123]), null)
+assert.equal(matchGmbOfficialRouteId("Route 123", [123]), null)
+assert.equal(matchGmbOfficialRouteId("123", [123, 123]), null)
+assert.equal(matchGmbOfficialRouteId("0", [0]), null)
+assert.equal(matchGmbOfficialRouteId("9007199254740992", [9007199254740992]), null)
+assert.deepEqual(auditGmbRouteIdCandidates(
+  ["123", "Route 456", "789", "00123"],
+  [123, 456, 789],
+), [
+  { localRouteId: "123", officialRouteId: 123 },
+  { localRouteId: "789", officialRouteId: 789 },
+])
 
 console.log("gmb-estimated-position-ok")
