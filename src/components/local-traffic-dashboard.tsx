@@ -871,6 +871,8 @@ map.on("load", () => {
               properties: {
                 id: stop.id,
                 name: stop.nameTc || stop.nameEn || "綠色小巴站",
+                routes: routeText,
+                eta: etaText || "暫無即時到站預報",
                 label: etaText ? `${routeText} · ${etaText}` : routeText,
               },
             }]
