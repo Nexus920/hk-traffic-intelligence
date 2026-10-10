@@ -25,7 +25,7 @@ export function uniqueGmbRouteStopRows(rows: GmbRouteStopRow[]): Array<{ stopSeq
     const stopId =
       typeof rawStopId === "number" && Number.isSafeInteger(rawStopId) && rawStopId > 0
         ? String(rawStopId)
-        : typeof rawStopId === "string" && /^[1-9]\\d*$/.test(rawStopId.trim()) &&
+        : typeof rawStopId === "string" && /^[1-9]\d*$/.test(rawStopId.trim()) &&
             Number.isSafeInteger(Number(rawStopId.trim()))
           ? rawStopId.trim()
           : null
