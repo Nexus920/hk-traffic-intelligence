@@ -1,3 +1,4 @@
+import { parseGmbRouteJourneyMetadata } from "./gmb-route-journey-metadata.ts"
 import { uniqueGmbRouteStopRows } from "./gmb-route-stop-validation.ts"
 import assert from "node:assert/strict"
 import {
@@ -71,5 +72,14 @@ assert.deepEqual(uniqueGmbRouteStopRows([
   { stop_seq: 0, stop_id: "100" },
   { stop_seq: 3, stop_id: "" },
 ]), [{ stopSeq: 1, stopId: "101" }])
+
+assert.deepEqual(parseGmbRouteJourneyMetadata([
+  { routeId: 10, companyCode: "GMB", journeyTime: 24 },
+  { routeId: 11, companyCode: "KMB", journeyTime: 12 },
+  { routeId: 12, companyCode: "GMB", journeyTime: 0 },
+  { routeId: 10, companyCode: "GMB", journeyTime: 25 },
+  null,
+]), [{ routeId: 10, journeyTimeMinutes: 24 }])
+assert.deepEqual(parseGmbRouteJourneyMetadata({ data: [] }), [])
 
 console.log("gmb-estimated-position-ok")
