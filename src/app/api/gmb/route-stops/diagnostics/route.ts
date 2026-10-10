@@ -1,5 +1,8 @@
 import { loadGmbRouteStopCoordinates, getGmbRouteStopCoordinateDiagnostics } from "@/lib/gmb-route-stops"
-import { parseGmbRouteStopDiagnosticsParams } from "@/lib/gmb-route-stop-diagnostics-validation"
+import {
+  getGmbRouteStopQualityStatus,
+  parseGmbRouteStopDiagnosticsParams,
+} from "@/lib/gmb-route-stop-diagnostics-validation"
 
 export const dynamic = "force-dynamic"
 
@@ -32,6 +35,7 @@ export async function GET(request: Request) {
       ok: true,
       routeId,
       routeSeq,
+      qualityStatus: getGmbRouteStopQualityStatus(diagnostics),
       inputRows: diagnostics.inputRows,
       validRows: diagnostics.validRows,
       matchedRows: diagnostics.matchedRows,
