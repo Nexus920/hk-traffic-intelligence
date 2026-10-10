@@ -35,7 +35,7 @@ export function parseGmbRouteStopEtaResponse(
   if (expectedStopId !== undefined) {
     const expected = typeof expectedStopId === "number"
       ? expectedStopId
-      : /^[1-9]\\d*$/.test(expectedStopId)
+      : /^[1-9]\d*$/.test(expectedStopId)
         ? Number(expectedStopId)
         : Number.NaN
     if (!Number.isSafeInteger(expected) || expected <= 0 || stopId !== expected) return []
