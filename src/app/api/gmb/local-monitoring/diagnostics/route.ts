@@ -29,6 +29,14 @@ export async function GET(request: Request) {
   const [lng, lat] = area.point
   const routeSeq = Number(routeSeqRaw)
   const routeIdsByLabel = gmbOfficialRouteIdsNearPoint(area.gmbRoutes, lng, lat, 300)
+  const routeLabelCoverage = area.gmbRoutes.map((label) => ({
+    label,
+    nearbyOfficialRouteIds: routeIdsByLabel[label] ?? [],
+    hasNearbyOfficialRouteId: (routeIdsByLabel[label] ?? []).length > 0,
+  }))
+  const routeLabelsWithoutNearbyOfficialIds = routeLabelCoverage
+    .filter((item) => !item.hasNearbyOfficialRouteId)
+    .map((item) => item.label)
   const results: Array<Record<string, unknown>> = []
 
   // Keep upstream requests bounded and sequential for this diagnostic endpoint.
@@ -105,9 +113,11 @@ export async function GET(request: Request) {
     routeSeq,
     radiusMetres: 300,
     routeIdsByLabel,
+    routeLabelCoverage,
+    routeLabelsWithoutNearbyOfficialIds,
     results,
     positionEstimateEligibleCount: results.filter((result) => result.positionEstimateEligible === true).length,
     positionEstimateBlockedCount: results.filter((result) => result.positionEstimateEligible !== true).length,
-    note: "ETA checks query up to two nearby official stops per candidate route. ETA is an arrival prediction, not GPS or a segment travel-time measurement. Segment timing is currently unavailable, so these diagnostics are not eligible to produce estimated vehicle positions. Nearby-stop distances use an approximate monitoring reference point.",
+    note: "Route label coverage shows which configured labels map to official route IDs near this monitoring point; a missing ID may mean the route does not serve this area or the local catalogue needs review. ETA checks query up to two nearby official stops per candidate route. ETA is an arrival prediction, not GPS or a segment travel-time measurement. Segment timing is currently unavailable, so these diagnostics are not eligible to produce estimated vehicle positions. Nearby-stop distances use an approximate monitoring reference point.",
   })
 }
