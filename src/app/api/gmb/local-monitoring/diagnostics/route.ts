@@ -53,7 +53,7 @@ export async function GET(request: Request) {
           const etaPayload = await readEtaJson<unknown>(
             `https://data.etagmb.gov.hk/eta/route-stop/${routeId}/${routeSeq}/${stop.stopSeq}`,
           )
-          const eta = parseGmbRouteStopEtaResponse(etaPayload)
+          const eta = parseGmbRouteStopEtaResponse(etaPayload, stop.stopId)
           etaChecks.push({
             stopSeq: stop.stopSeq,
             stopId: stop.stopId,
