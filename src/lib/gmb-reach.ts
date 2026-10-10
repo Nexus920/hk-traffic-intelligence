@@ -41,3 +41,23 @@ export function gmbStopsWithin(lng: number, lat: number, radiusMetres: number, l
 export function gmbStopsSpread(lng: number, lat: number, radiusMetres: number, limit: number): GmbStopPoint[] {
   return spreadWithin(stopList, lng, lat, radiusMetres, limit)
 }
+/**
+ * Resolve public route labels to official numeric route IDs using the
+ * bundled official stop catalogue. A label may map to multiple IDs; callers
+ * must preserve all matches and validate direction/stop coverage separately.
+ */
+export function gmbOfficialRouteIdsForLabels(labels: readonly string[]): Record<string, number[]> {
+  const wanted = new Set(labels.map((label) => label.trim()).filter(Boolean))
+  const matches = new Map<string, Set<number>>()
+  for (const stop of Object.values(network.stops)) {
+    for (const [rawId, label] of Object.entries(stop.ids ?? {})) {
+      if (!wanted.has(label)) continue
+      const routeId = Number(rawId)
+      if (!Number.isSafeInteger(routeId) || routeId <= 0) continue
+      const ids = matches.get(label) ?? new Set<number>()
+      ids.add(routeId)
+      matches.set(label, ids)
+    }
+  }
+  return Object.fromEntries([...wanted].sort().map((label) => [label, [...(matches.get(label) ?? [])].sort((a, b) => a - b)]))
+}
