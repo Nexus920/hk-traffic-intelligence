@@ -1,3 +1,4 @@
+import { uniqueGmbRouteStopRows } from "./gmb-route-stop-validation.ts"
 import assert from "node:assert/strict"
 import {
   estimateBetweenStops,
@@ -53,5 +54,22 @@ assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positi
 assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated" }], observedNow + GMB_ESTIMATE_MAX_AGE_MS + 1).features.length, 0)
 assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated", observedAt: "invalid" }], observedNow).features.length, 0)
 assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 0, from, to, positionType: "estimated" }], observedNow).features.length, 0)
+
+assert.deepEqual(uniqueGmbRouteStopRows([
+  { stop_seq: 3, stop_id: "103" },
+  { stop_seq: 1, stop_id: 101 },
+  { stop_seq: 2, stop_id: "102" },
+]), [
+  { stopSeq: 1, stopId: "101" },
+  { stopSeq: 2, stopId: "102" },
+  { stopSeq: 3, stopId: "103" },
+])
+assert.deepEqual(uniqueGmbRouteStopRows([
+  { stop_seq: 1, stop_id: "101" },
+  { stop_seq: 2, stop_id: "102a" },
+  { stop_seq: 2, stop_id: "102b" },
+  { stop_seq: 0, stop_id: "100" },
+  { stop_seq: 3, stop_id: "" },
+]), [{ stopSeq: 1, stopId: "101" }])
 
 console.log("gmb-estimated-position-ok")
