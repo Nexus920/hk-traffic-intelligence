@@ -94,6 +94,9 @@ export function estimatedMinibusCollection(
 }
 
 
+/** Maximum age allowed for an ETA observation used in a map estimate. */
+export const GMB_ESTIMATE_MAX_AGE_MS = 3 * 60_000
+
 export type GmbEtaObservation = {
   route: string
   routeSeq: number
@@ -113,6 +116,7 @@ export type GmbEtaObservation = {
 export function estimatesFromEtaObservations(
   observations: GmbEtaObservation[],
   routeStops: Map<string, RouteStopCoordinate[]>,
+  now = Date.now(),
 ): EstimatedMinibus[] {
   const vehicles: EstimatedMinibus[] = []
   for (const observation of observations) {
@@ -127,7 +131,9 @@ export function estimatesFromEtaObservations(
       observation.etaMinutes < 0 ||
       observation.segmentMinutes <= 0 ||
       observation.etaMinutes > observation.segmentMinutes ||
-      !Number.isFinite(Date.parse(observation.observedAt))
+      !Number.isFinite(Date.parse(observation.observedAt)) ||
+      Date.parse(observation.observedAt) > now + 30_000 ||
+      now - Date.parse(observation.observedAt) > GMB_ESTIMATE_MAX_AGE_MS
     ) continue
 
     const stops = routeStops.get(`${observation.route}/${observation.routeSeq}`)
