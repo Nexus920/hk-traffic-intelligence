@@ -141,7 +141,7 @@ export function LocalBusEtaPanel() {
             ? "載入中"
             : error
               ? "資料暫不可用"
-              : "九巴／城巴"}
+              : "九巴／城巴／綠色小巴"}
         </div>
       </div>
 
@@ -256,7 +256,7 @@ export function LocalBusEtaPanel() {
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
         <span>
-          資料來源：九巴及城巴官方到站時間 API
+          資料來源：九巴、城巴及綠色專線小巴到站時間 API
         </span>
 
         <span>
