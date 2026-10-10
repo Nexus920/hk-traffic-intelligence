@@ -138,8 +138,13 @@ export function estimatesFromEtaObservations(
 
     const stops = routeStops.get(`${observation.route}/${observation.routeSeq}`)
     if (!stops) continue
-    const to = stops.find((stop) => stop.stopSeq === observation.nextStopSeq)
-    const from = stops.find((stop) => stop.stopSeq === observation.nextStopSeq - 1)
+    // Ambiguous sequence numbers can point at the wrong physical stop.
+    // Require exactly one coordinate for each end of the segment.
+    const toMatches = stops.filter((stop) => stop.stopSeq === observation.nextStopSeq)
+    const fromMatches = stops.filter((stop) => stop.stopSeq === observation.nextStopSeq - 1)
+    if (toMatches.length !== 1 || fromMatches.length !== 1) continue
+    const to = toMatches[0]
+    const from = fromMatches[0]
     if (
       !from ||
       !to ||
