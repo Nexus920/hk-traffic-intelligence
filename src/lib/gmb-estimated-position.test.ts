@@ -1,3 +1,5 @@
+
+import { parseGmbRouteStopEtaResponse } from "./gmb-route-eta-validation.ts"
 import { parseGmbRouteJourneyMetadata } from "./gmb-route-journey-metadata.ts"
 import { uniqueGmbRouteStopRows } from "./gmb-route-stop-validation.ts"
 import assert from "node:assert/strict"
@@ -90,5 +92,36 @@ assert.deepEqual(parseGmbRouteJourneyMetadata([
   { routeId: 30, companyCode: "GMB", journeyTime: 11 },
 ]), [])
 assert.deepEqual(parseGmbRouteJourneyMetadata({ data: [] }), [])
+
+
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true,
+  stop_id: 20003337,
+  eta: [
+    { eta_seq: 2, diff: 8, timestamp: "2026-10-10T10:08:00+08:00" },
+    { eta_seq: 1, diff: 3, timestamp: "2026-10-10T10:03:00+08:00" },
+  ],
+} }), [
+  { etaSeq: 1, diffMinutes: 3, timestamp: "2026-10-10T10:03:00+08:00" },
+  { etaSeq: 2, diffMinutes: 8, timestamp: "2026-10-10T10:08:00+08:00" },
+])
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
+  enabled: false, stop_id: 20003337, description_tc: "暫停服務",
+} }), [])
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: 20003337, eta: [
+    { eta_seq: 1, diff: -1, timestamp: "2026-10-10T10:03:00+08:00" },
+    { eta_seq: 1, diff: 4, timestamp: "2026-10-10T10:04:00+08:00" },
+    { eta_seq: 3, diff: 2, timestamp: "not-a-date" },
+    { eta_seq: 4, diff: 2, timestamp: "2026-10-10T10:04:00+08:00" },
+    null,
+  ],
+} }), [
+  { etaSeq: 4, diffMinutes: 2, timestamp: "2026-10-10T10:04:00+08:00" },
+])
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: 20003337, eta: "invalid",
+} }), [])
+assert.deepEqual(parseGmbRouteStopEtaResponse({ data: [] }), [])
 
 console.log("gmb-estimated-position-ok")
