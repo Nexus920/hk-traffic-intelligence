@@ -494,6 +494,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
   const uniqueStopIds = Array.from(
     new Set(routeStops.map((item) => item.stop.stop_id)),
   )
+  gmbStopsDebug.uniqueStopIds = uniqueStopIds.length
 
   
   const stopInfoList = await mapWithConcurrency(
@@ -900,16 +901,45 @@ async function loadStation(
   [...station.routes, ...station.gmbRoutes],
 ),
     debug: {
-      kmbStops: nearbyKmb.map((stop) => ({
-        id: stop.stop,
-        name: stopName(stop),
-      })),
-      ctbStops: nearbyCtb.map((stop) => ({
-        id: stop.stop,
-        name: stopName(stop),
-      })),
-      apiErrors,
-    },
+  kmbStops: nearbyKmb.map((stop) => ({
+    id: stop.stop,
+    name: stopName(stop),
+  })),
+  ctbStops: nearbyCtb.map((stop) => ({
+    id: stop.stop,
+    name: stopName(stop),
+  })),
+  gmbCandidates: gmbStops
+    .filter((stop) =>
+      station.gmbRoutes.some(
+        (route) => route === stop.route
+      ) &&
+      distanceMetres(
+        [stop.long, stop.lat],
+        station.point,
+      ) <= 350
+    )
+    .map((stop) => ({
+      stopId: stop.stop,
+      name: stop.name_tc || stop.name_en || "",
+      route: stop.route,
+      routeId: stop.route_id,
+      routeSeq: stop.route_seq,
+      stopSeq: stop.stop_seq,
+      destination: stop.destination,
+      distanceMetres: Math.round(
+        distanceMetres(
+          [stop.long, stop.lat],
+          station.point,
+        )
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        a.distanceMetres - b.distanceMetres,
+    ),
+  apiErrors,
+},
   }
 }
 
