@@ -73,7 +73,7 @@ export function LocalRoadAlertsPanel({
   roads,
   radiusMetres = 500,
 }: Props) {
-  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [alerts, setAlerts] = useState<NearbyAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
