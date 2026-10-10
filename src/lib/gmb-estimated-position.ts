@@ -64,6 +64,7 @@ export function estimateBetweenStops(
  */
 export function estimatedMinibusCollection(
   vehicles: EstimatedMinibus[],
+  now = Date.now(),
 ): GeoJSON.FeatureCollection<GeoJSON.Point, {
   route: string
   label: string
@@ -74,6 +75,16 @@ export function estimatedMinibusCollection(
   return {
     type: "FeatureCollection",
     features: vehicles.flatMap((vehicle) => {
+      const observedAtMs = Date.parse(vehicle.observedAt)
+      if (
+        !vehicle.route.trim() ||
+        !vehicle.label.trim() ||
+        !Number.isInteger(vehicle.stopSeq) ||
+        vehicle.stopSeq <= 0 ||
+        !Number.isFinite(observedAtMs) ||
+        observedAtMs > now + 30_000 ||
+        now - observedAtMs > GMB_ESTIMATE_MAX_AGE_MS
+      ) return []
       const from: RouteStopCoordinate = { ...vehicle.from, stopSeq: vehicle.stopSeq, stopId: "" }
       const to: RouteStopCoordinate = { ...vehicle.to, stopSeq: vehicle.stopSeq + 1, stopId: "" }
       const coordinate = estimateBetweenStops(from, to, vehicle.etaMinutes, vehicle.segmentMinutes)
