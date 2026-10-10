@@ -3,23 +3,36 @@ export type GmbRouteJourneyMetadata = {
   journeyTimeMinutes: number
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? value as Record<string, unknown>
+    : null
+}
+
 /**
- * Parses route-wide journey time from the official Transport Department
- * route-and-fare GeoJSON records. This is not a segment duration and must
- * never be passed directly as segmentMinutes.
+ * Parses route-wide journey time from official Transport Department records.
+ * Accepts a raw record list or a GeoJSON FeatureCollection whose attributes
+ * live under feature.properties. journeyTime is route-wide, never a segment
+ * duration, and must not be passed directly as segmentMinutes.
  */
 export function parseGmbRouteJourneyMetadata(value: unknown): GmbRouteJourneyMetadata[] {
-  if (!Array.isArray(value)) return []
+  const root = record(value)
+  const items: unknown[] = Array.isArray(value)
+    ? value
+    : root?.type === "FeatureCollection" && Array.isArray(root.features)
+      ? root.features
+      : []
 
   const results: GmbRouteJourneyMetadata[] = []
   const seen = new Set<number>()
 
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue
-    const row = item as Record<string, unknown>
+  for (const item of items) {
+    const feature = record(item)
+    const row = record(feature?.properties) ?? feature
+    if (!row) continue
+
     const routeId = row.routeId
     const journeyTime = row.journeyTime
-
     if (
       row.companyCode !== "GMB" ||
       typeof routeId !== "number" ||
