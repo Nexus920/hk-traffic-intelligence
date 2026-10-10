@@ -80,10 +80,21 @@ export async function GET(request: Request) {
         nearbyStops,
         etaChecks,
         segmentTimingStatus: "not-available",
+        segmentTimingSource: null,
         positionEstimateEligible: false,
+        positionEstimateBlockers: ["segment-timing-unavailable"],
       })
     } catch {
-      results.push({ routeId, routeLabels: labelsByRouteId.get(routeId) ?? [], routeSeq, qualityStatus: "unavailable" })
+      results.push({
+        routeId,
+        routeLabels: labelsByRouteId.get(routeId) ?? [],
+        routeSeq,
+        qualityStatus: "unavailable",
+        segmentTimingStatus: "not-available",
+        segmentTimingSource: null,
+        positionEstimateEligible: false,
+        positionEstimateBlockers: ["route-stop-diagnostics-unavailable", "segment-timing-unavailable"],
+      })
     }
   }
 
@@ -95,6 +106,8 @@ export async function GET(request: Request) {
     radiusMetres: 300,
     routeIdsByLabel,
     results,
+    positionEstimateEligibleCount: results.filter((result) => result.positionEstimateEligible === true).length,
+    positionEstimateBlockedCount: results.filter((result) => result.positionEstimateEligible !== true).length,
     note: "ETA checks query up to two nearby official stops per candidate route. ETA is an arrival prediction, not GPS or a segment travel-time measurement. Segment timing is currently unavailable, so these diagnostics are not eligible to produce estimated vehicle positions. Nearby-stop distances use an approximate monitoring reference point.",
   })
 }
