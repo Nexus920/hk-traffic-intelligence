@@ -630,19 +630,7 @@ async function loadGmbArrivals(
         distanceMetres([b.long, b.lat], station.point),
     )
 
-           
-    .sort(
-      (a, b) =>
-        distanceMetres([a.long, a.lat], station.point) -
-        distanceMetres([b.long, b.lat], station.point),
-    )
-
-    .sort(
-      (a, b) =>
-        distanceMetres([a.long, a.lat], station.point) -
-        distanceMetres([b.long, b.lat], station.point),
-    )
-
+     
   // 每條路線、每個方向保留最近站點
   const nearestByRouteDirection = new Map<
     string,
