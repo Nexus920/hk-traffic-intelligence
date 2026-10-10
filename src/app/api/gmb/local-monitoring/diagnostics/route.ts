@@ -6,6 +6,7 @@ import { getGmbRouteStopQualityStatus, rankNearbyGmbRouteStops } from "@/lib/gmb
 import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
 import { readEtaJson } from "@/lib/eta-read"
 import { parseGmbRouteStopEtaResponse } from "@/lib/gmb-route-eta-validation"
+import { getGmbPositionEstimateBlockers } from "@/lib/gmb-position-blockers"
 
 export const dynamic = "force-dynamic"
 
@@ -68,6 +69,16 @@ export async function GET(request: Request) {
           etaChecks.push({ stopSeq: stop.stopSeq, stopId: stop.stopId, hasValidEta: false, validEtaCount: 0, eta: [], status: "unavailable" })
         }
       }
+      const validEtaCount = etaChecks.reduce((total, check) => {
+        const count = check.validEtaCount
+        return total + (typeof count === "number" && Number.isSafeInteger(count) && count > 0 ? count : 0)
+      }, 0)
+      const positionEstimateBlockers = getGmbPositionEstimateBlockers({
+        hasRouteStopDiagnostics: diagnostics !== null,
+        routeStopCoverageComplete: diagnostics?.isComplete ?? false,
+        validEtaCount,
+        segmentTimingAvailable: false,
+      })
       results.push({
         routeId,
         routeLabels: labelsByRouteId.get(routeId) ?? [],
@@ -84,8 +95,8 @@ export async function GET(request: Request) {
         etaChecks,
         segmentTimingStatus: "not-available",
         segmentTimingSource: null,
-        positionEstimateEligible: false,
-        positionEstimateBlockers: ["segment-timing-unavailable"],
+        positionEstimateEligible: positionEstimateBlockers.length === 0,
+        positionEstimateBlockers,
       })
     } catch {
       results.push({
@@ -96,7 +107,12 @@ export async function GET(request: Request) {
         segmentTimingStatus: "not-available",
         segmentTimingSource: null,
         positionEstimateEligible: false,
-        positionEstimateBlockers: ["route-stop-diagnostics-unavailable", "segment-timing-unavailable"],
+        positionEstimateBlockers: getGmbPositionEstimateBlockers({
+          hasRouteStopDiagnostics: false,
+          routeStopCoverageComplete: false,
+          validEtaCount: 0,
+          segmentTimingAvailable: false,
+        }),
       })
     }
   }
