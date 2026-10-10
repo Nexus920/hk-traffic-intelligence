@@ -9,7 +9,6 @@ export type EstimatedMinibus = {
   observedAt: string
   positionType: "estimated"
   label: string
-  observedAt: string
 }
 
 export type RouteStopCoordinate = {
