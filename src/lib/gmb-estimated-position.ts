@@ -1,4 +1,4 @@
-import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
+import { isGmbRouteDirection } from "./gmb-route-sequence-validation.ts"
 
 export type EstimatedMinibus = {
   route: string
