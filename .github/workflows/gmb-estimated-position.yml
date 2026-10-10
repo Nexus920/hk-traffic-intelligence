@@ -35,6 +35,8 @@ jobs:
         run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
       - name: Run GMB route mapping validation
         run: node --experimental-strip-types src/lib/gmb-route-mapping-validation.test.ts
+      - name: Run route-stop coordinate join validation
+        run: node --experimental-strip-types src/lib/gmb-route-stop-coordinate-join.test.ts
       - name: Run TypeScript checks and save diagnostics
         if: always()
         shell: bash
