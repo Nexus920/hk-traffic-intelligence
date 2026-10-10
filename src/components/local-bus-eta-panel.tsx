@@ -50,6 +50,48 @@ function minutesUntil(value: string) {
   )
 }
 
+type BusGroup = "CTB" | "KMB" | "GMB"
+
+const BUS_GROUPS: {
+  id: BusGroup
+  title: string
+  color: string
+}[] = [
+  { id: "CTB", title: "城巴 CTB", color: "#EAB308" },
+  { id: "KMB", title: "九巴 KMB", color: "#EF4444" },
+  { id: "GMB", title: "綠色專線小巴 GMB", color: "#22C55E" },
+]
+
+function getBusGroup(operator: string): BusGroup | null {
+  const value = operator.toUpperCase()
+
+  if (value.includes("CTB") || value.includes("城巴")) {
+    return "CTB"
+  }
+
+  if (value.includes("KMB") || value.includes("九巴")) {
+    return "KMB"
+  }
+
+  if (
+    value.includes("GMB") ||
+    value.includes("小巴") ||
+    value.includes("專線小巴")
+  ) {
+    return "GMB"
+  }
+
+  return null
+}
+
+function sortBusRoutes(a: BusRow, b: BusRow) {
+  return a.route.localeCompare(b.route, "en", {
+    numeric: true,
+    sensitivity: "base",
+  })
+}
+
+
 export function LocalBusEtaPanel() {
   const [stations, setStations] =
     useState<BusStation[]>([])
@@ -159,112 +201,125 @@ export function LocalBusEtaPanel() {
 
       {!loading && !error && (
         <div className="grid gap-3 lg:grid-cols-2">
-          {stations.map((station) => (
-            <section
-              key={station.id}
-              className="min-w-0 rounded-xl border border-white/10 bg-[#1E293B]/75 p-3 sm:p-4"
-            >
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-cyan-200">
-                  {station.name}
-                </h3>
+          
+{stations.map((station) => (
+  <section
+    key={station.id}
+    className="min-w-0 rounded-xl border border-white/10 bg-[#1E293B]/75 p-3 sm:p-4"
+  >
+    <div className="mb-4 flex items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold text-cyan-200">
+        {station.name}
+      </h3>
 
-                <span className="rounded-full bg-white/[0.06] px-2 py-1 text-[10px] text-slate-400">
-                  {station.buses.length} 條路線
+      <span className="rounded-full bg-white/[0.06] px-2 py-1 text-[10px] text-slate-400">
+        {station.buses.length} 條路線
+      </span>
+    </div>
+
+    {station.buses.length === 0 ? (
+      <p className="rounded-lg border border-white/5 bg-black/10 p-3 text-xs text-slate-400">
+        附近暫時沒有指定路線的到站資料。
+      </p>
+    ) : (
+      <div className="space-y-4">
+        {BUS_GROUPS.map((group) => {
+          const buses = station.buses
+            .filter(
+              (bus) => getBusGroup(bus.operator) === group.id
+            )
+            .sort(sortBusRoutes)
+
+          if (buses.length === 0) return null
+
+          return (
+            <div
+              key={group.id}
+              className="overflow-hidden rounded-lg border border-white/10 bg-black/10"
+            >
+              <div
+                className="flex items-center justify-between border-b border-white/10 px-3 py-2"
+                style={{
+                  borderLeft: `4px solid ${group.color}`,
+                }}
+              >
+                <h4
+                  className="text-xs font-bold"
+                  style={{ color: group.color }}
+                >
+                  {group.title}
+                </h4>
+
+                <span className="text-[10px] text-slate-400">
+                  {buses.length} 條路線
                 </span>
               </div>
 
-              {station.buses.length === 0 ? (
-                <p className="rounded-lg border border-white/5 bg-black/10 p-3 text-xs leading-5 text-slate-400">
-                  附近暫時沒有指定路線的到站資料。
-                </p>
-              ) : (
-                <div className="divide-y divide-white/[0.07]">
-                  {station.buses.map((bus, index) => {
-                    const firstEta = bus.arrivals[0]
-                    const secondEta = bus.arrivals[1]
+              <div className="divide-y divide-white/[0.07]">
+                {buses.map((bus, index) => {
+                  const firstEta = bus.arrivals[0]
+                  const secondEta = bus.arrivals[1]
+                  const minutes = firstEta
+                    ? minutesUntil(firstEta)
+                    : null
 
-                    const minutes = firstEta
-                      ? minutesUntil(firstEta)
-                      : null
-
-                    return (
-                      <div
-                        key={
-                          station.id + "-" +
-                          bus.operator + "-" +
-                          bus.route + "-" +
-                          bus.stopName + "-" +
-                          bus.destination + "-" +
-                          index
-                        }
-                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 py-3 first:pt-1 last:pb-1"
-                      >
-                        <div className="min-w-12">
-                          <div className="inline-flex min-w-11 justify-center rounded-md bg-yellow-400/10 px-2 py-1 text-sm font-bold tabular-nums text-yellow-300">
-                            {bus.route}
-                          </div>
-
-                          <div className="mt-1 text-[10px] text-slate-500">
-                            {bus.operator}
-                          </div>
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="truncate text-xs font-medium text-slate-200">
-                            {bus.destination}
-                          </div>
-
-                          <div className="mt-1 truncate text-[10px] text-slate-500">
-                            {bus.stopName}
-                          </div>
-
-                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums">
-                            {firstEta ? (
-                              <span className="text-yellow-300">
-                                到站 {formatTime(firstEta)}
-                                {minutes !== null
-                                  ? "（" +
-                                    (minutes === 0
-                                      ? "即將到站"
-                                      : "約 " + minutes + " 分鐘") +
-                                    "）"
-                                  : ""}
-                              </span>
-                            ) : (
-                              <span className="text-slate-500">
-                                暫無到站時間
-                              </span>
-                            )}
-
-                            {secondEta && (
-                              <span className="text-slate-400">
-                                次班 {formatTime(secondEta)}
-                              </span>
-                            )}
-                          </div>
+                  return (
+                    <div
+                      key={`${station.id}-${group.id}-${bus.route}-${bus.stopName}-${index}`}
+                      className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 px-3 py-3"
+                    >
+                      <div className="min-w-12">
+                        <div
+                          className="inline-flex min-w-11 justify-center rounded-md px-2 py-1 text-sm font-bold tabular-nums"
+                          style={{
+                            backgroundColor: `${group.color}22`,
+                            color: group.color,
+                          }}
+                        >
+                          {bus.route}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-          ))}
-        </div>
-      )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-        <span>
-          資料來源：九巴、城巴及綠色專線小巴到站時間 API
-        </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold text-slate-200">
+                          {bus.destination}
+                        </div>
 
-        <span>
-          {updatedAt
-            ? "最後更新：" + formatTime(updatedAt)
-            : "等待更新"}
-        </span>
+                        <div className="mt-1 truncate text-[10px] text-slate-500">
+                          {bus.stopName}
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums">
+                          {firstEta ? (
+                            <span style={{ color: group.color }}>
+                              到站 {formatTime(firstEta)}
+                              {minutes !== null
+                                ? minutes === 0
+                                  ? "（即將到站）"
+                                  : `（約 ${minutes} 分鐘）`
+                                : ""}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">
+                              暫無到站時間
+                            </span>
+                          )}
+
+                          {secondEta && (
+                            <span className="text-slate-400">
+                              次班 {formatTime(secondEta)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
       </div>
-    </section>
-  )
-}
+    )}
+  </section>
+))}
