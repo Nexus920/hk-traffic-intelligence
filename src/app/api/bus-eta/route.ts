@@ -90,7 +90,7 @@ const CONFIG = [
 
 const KMB = "https://data.etabus.gov.hk/v1/transport/kmb"
 const CTB = "https://rt.data.gov.hk/v2/transport/citybus"
-```ts
+
 // 香港綠色專線小巴官方 ETA API
 const GMB = "https://data.etagmb.gov.hk"
 
@@ -500,7 +500,7 @@ async function loadGmbArrivals(
 
   // 只查監測位置 450 米範圍內、而且屬於指定路線的站
   const nearby = stops.filter((stop) =>
-    station.gmbRoutes.includes(stop.route) &&
+    station.gmbRoutes.some((route) => route === stop.route) &&
     distanceMetres(
       [stop.long, stop.lat],
       station.point,
@@ -700,12 +700,6 @@ async function loadStation(
   ctbStops: Stop[],
   gmbStops: GmbNearbyStop[],
 ) {
-
-async function loadStation(
-  station: typeof CONFIG[number],
-  kmbStops: Stop[],
-  ctbStops: Stop[],
-) {
   const now = Date.now()
   const items: ArrivalItem[] = []
   const apiErrors: string[] = []
@@ -824,39 +818,33 @@ export async function GET() {
   const stopListErrors: string[] = []
 
   const [kmbStops, ctbStops, gmbStops] = await Promise.all([
-    getGmbStops().catch((error) => {
-      stopListErrors.push(
-        `綠色小巴站點清單：${
-          error instanceof Error
-            ? error.message
-            : String(error)
-        }`,
-      )
-      return []
-    }),
-    
-    getStops("KMB").catch((error) => {
-      stopListErrors.push(
-        `九巴站點清單：${
-          error instanceof Error
-            ? error.message
-            : String(error)
-        }`,
-      )
-      return []
-    }),
+  getStops("KMB").catch((error) => {
+    stopListErrors.push(
+      `九巴站點清單：${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+    return []
+  }),
 
-    getStops("CTB").catch((error) => {
-      stopListErrors.push(
-        `城巴站點清單：${
-          error instanceof Error
-            ? error.message
-            : String(error)
-        }`,
-      )
-      return []
-    }),
-  ])
+  getStops("CTB").catch((error) => {
+    stopListErrors.push(
+      `城巴站點清單：${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+    return []
+  }),
+
+  getGmbStops().catch((error) => {
+    stopListErrors.push(
+      `綠色小巴站點清單：${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+    return []
+  }),
+])
 
   const stations = await Promise.all(
     CONFIG.map((station) =>
@@ -869,10 +857,11 @@ export async function GET() {
     observedAt: new Date().toISOString(),
     stations,
     debug: {
-      kmbStopTotal: kmbStops.length,
-      ctbStopTotal: ctbStops.length,
-      stopListErrors,
-    },
+  kmbStopTotal: kmbStops.length,
+  ctbStopTotal: ctbStops.length,
+  gmbStopTotal: gmbStops.length,
+  stopListErrors,
+},
   }
 
   responseCache = {
