@@ -383,7 +383,6 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
     new Set(CONFIG.flatMap((station) => station.gmbRoutes)),
   )
 
-  ```ts
   const regions = ["HKI", "KLN", "NT"]
 
   const variants = (
