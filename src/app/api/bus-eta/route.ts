@@ -151,12 +151,14 @@ let gmbStopsCache: {
   data: GmbNearbyStop[]
 } | null = null
 
+
 let gmbStopsDebug = {
   variants: 0,
   routeStops: 0,
   uniqueStopIds: 0,
   stopInfoFound: 0,
   nearbyStops: 0,
+  routeErrors: [] as string[],
 }
 
 
@@ -410,11 +412,25 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
               variant,
             }))
           
+         
           } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : String(error)
+
+            gmbStopsDebug.routeErrors.push(
+              `${region}/${route}: ${message}`,
+            )
+
             console.error(
               `[GMB route API] region=${region}, route=${route}:`,
-              error instanceof Error ? error.message : String(error),
+              message,
             )
+
+            return []
+          }
+
             return []
           }
 
