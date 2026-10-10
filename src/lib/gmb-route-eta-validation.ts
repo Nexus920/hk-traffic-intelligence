@@ -19,15 +19,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * response payload. This validates arrival predictions only; it deliberately
  * does not infer vehicle coordinates or segment travel time from an ETA.
  */
-export function parseGmbRouteStopEtaResponse(input: unknown): GmbRouteStopEta[] {
+export function parseGmbRouteStopEtaResponse(
+  input: unknown,
+  expectedStopId?: string | number,
+): GmbRouteStopEta[] {
   if (!isRecord(input) || !isRecord(input.data)) return []
   const data = input.data
   if (data.enabled !== true || !Array.isArray(data.eta)) return []
 
   const stopId = data.stop_id
   if (
-    !(typeof stopId === "number" && Number.isSafeInteger(stopId) && stopId > 0)
+    typeof stopId !== "number" || !Number.isSafeInteger(stopId) || stopId <= 0
   ) return []
+
+  if (expectedStopId !== undefined) {
+    const expected = typeof expectedStopId === "number"
+      ? expectedStopId
+      : /^[1-9]\\d*$/.test(expectedStopId)
+        ? Number(expectedStopId)
+        : Number.NaN
+    if (!Number.isSafeInteger(expected) || expected <= 0 || stopId !== expected) return []
+  }
 
   const entries = data.eta.filter(isRecord) as RawEtaEntry[]
   const sequenceCounts = new Map<number, number>()
