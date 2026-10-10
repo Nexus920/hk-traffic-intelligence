@@ -9,11 +9,30 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+function routeMetadata(value: unknown): GmbRouteJourneyMetadata | null {
+  const feature = record(value)
+  const row = record(feature?.properties) ?? feature
+  if (!row || row.companyCode !== "GMB") return null
+
+  const routeId = row.routeId
+  const journeyTime = row.journeyTime
+  if (
+    typeof routeId !== "number" ||
+    !Number.isSafeInteger(routeId) ||
+    routeId <= 0 ||
+    typeof journeyTime !== "number" ||
+    !Number.isFinite(journeyTime) ||
+    journeyTime <= 0
+  ) return null
+
+  return { routeId, journeyTimeMinutes: journeyTime }
+}
+
 /**
  * Parses route-wide journey time from official Transport Department records.
  * Accepts a raw record list or a GeoJSON FeatureCollection whose attributes
- * live under feature.properties. journeyTime is route-wide, never a segment
- * duration, and must not be passed directly as segmentMinutes.
+ * live under feature.properties. Ambiguous duplicate route IDs are omitted.
+ * journeyTime is route-wide, never a segment duration.
  */
 export function parseGmbRouteJourneyMetadata(value: unknown): GmbRouteJourneyMetadata[] {
   const root = record(value)
@@ -23,30 +42,11 @@ export function parseGmbRouteJourneyMetadata(value: unknown): GmbRouteJourneyMet
       ? root.features
       : []
 
-  const results: GmbRouteJourneyMetadata[] = []
-  const seen = new Set<number>()
+  const parsed = items.map(routeMetadata).filter(
+    (item): item is GmbRouteJourneyMetadata => item !== null,
+  )
+  const counts = new Map<number, number>()
+  for (const item of parsed) counts.set(item.routeId, (counts.get(item.routeId) ?? 0) + 1)
 
-  for (const item of items) {
-    const feature = record(item)
-    const row = record(feature?.properties) ?? feature
-    if (!row) continue
-
-    const routeId = row.routeId
-    const journeyTime = row.journeyTime
-    if (
-      row.companyCode !== "GMB" ||
-      typeof routeId !== "number" ||
-      !Number.isSafeInteger(routeId) ||
-      routeId <= 0 ||
-      typeof journeyTime !== "number" ||
-      !Number.isFinite(journeyTime) ||
-      journeyTime <= 0 ||
-      seen.has(routeId)
-    ) continue
-
-    seen.add(routeId)
-    results.push({ routeId, journeyTimeMinutes: journeyTime })
-  }
-
-  return results
+  return parsed.filter((item) => counts.get(item.routeId) === 1)
 }
