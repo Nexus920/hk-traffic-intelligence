@@ -37,12 +37,13 @@ export function estimateBetweenStops(
     !Number.isFinite(etaMinutes) ||
     !Number.isFinite(segmentMinutes) ||
     etaMinutes < 0 ||
+    etaMinutes > segmentMinutes ||
     segmentMinutes <= 0
   ) {
     return null
   }
 
-  const progress = Math.max(0, Math.min(1, 1 - etaMinutes / segmentMinutes))
+  // ETA is the time remaining to the next stop; values beyond the segment duration are not usable.\n  const progress = 1 - etaMinutes / segmentMinutes
   return {
     lng: from.lng + (to.lng - from.lng) * progress,
     lat: from.lat + (to.lat - from.lat) * progress,
