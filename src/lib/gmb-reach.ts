@@ -61,3 +61,37 @@ export function gmbOfficialRouteIdsForLabels(labels: readonly string[]): Record<
   }
   return Object.fromEntries([...wanted].sort().map((label) => [label, [...(matches.get(label) ?? [])].sort((a, b) => a - b)]))
 }
+/** Resolve route labels only from stops near a monitoring point, avoiding same-label routes in other districts. */
+export function gmbOfficialRouteIdsNearPoint(
+  labels: readonly string[],
+  lng: number,
+  lat: number,
+  radiusMetres: number,
+): Record<string, number[]> {
+  const wanted = new Set(labels.map((label) => label.trim()).filter(Boolean))
+  const matches = new Map<string, Set<number>>()
+  if (
+    !Number.isFinite(lng) || !Number.isFinite(lat) ||
+    lng < -180 || lng > 180 || lat < -90 || lat > 90 ||
+    !Number.isFinite(radiusMetres) || radiusMetres <= 0
+  ) return Object.fromEntries([...wanted].sort().map((label) => [label, []]))
+
+  const toRadians = (value: number) => value * Math.PI / 180
+  for (const stop of Object.values(network.stops)) {
+    const dLat = toRadians(stop.lat - lat)
+    const dLng = toRadians(stop.lng - lng)
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRadians(lat)) * Math.cos(toRadians(stop.lat)) * Math.sin(dLng / 2) ** 2
+    const distanceMetres = 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)))
+    if (distanceMetres > radiusMetres) continue
+    for (const [rawId, label] of Object.entries(stop.ids ?? {})) {
+      if (!wanted.has(label)) continue
+      const routeId = Number(rawId)
+      if (!Number.isSafeInteger(routeId) || routeId <= 0) continue
+      const ids = matches.get(label) ?? new Set<number>()
+      ids.add(routeId)
+      matches.set(label, ids)
+    }
+  }
+  return Object.fromEntries([...wanted].sort().map((label) => [label, [...(matches.get(label) ?? [])].sort((a, b) => a - b)]))
+}
