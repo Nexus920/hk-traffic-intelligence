@@ -601,7 +601,7 @@ async function loadGmbArrivals(
 
   const candidates = stops
     .filter((stop) => {
-      if (!station.gmbRoutes.some((route) => route === stop.route)) {
+      if (!new Set<string>(station.gmbRoutes).has(stop.route)) {
         return false
       }
 
