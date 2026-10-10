@@ -1,21 +1,10 @@
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 import { gmbOfficialRouteIdsNearPoint } from "@/lib/gmb-reach"
 import { loadGmbRouteStopCoordinates, getGmbRouteStopCoordinateDiagnostics } from "@/lib/gmb-route-stops"
-import { getGmbRouteStopQualityStatus } from "@/lib/gmb-route-stop-diagnostics-validation"
+import { getGmbRouteStopQualityStatus, rankNearbyGmbRouteStops } from "@/lib/gmb-route-stop-diagnostics-validation"
 import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
 
 export const dynamic = "force-dynamic"
-
-function distanceMetres(a: [number, number], b: [number, number]): number {
-  const toRadians = (value: number) => value * Math.PI / 180
-  const dLat = toRadians(b[1] - a[1])
-  const dLng = toRadians(b[0] - a[0])
-  const lat1 = toRadians(a[1])
-  const lat2 = toRadians(b[1])
-  const h = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
-  return 6_371_000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)))
-}
 
 /**
  * Read-only diagnostic for local-dashboard GMB candidates.
@@ -54,17 +43,7 @@ export async function GET(request: Request) {
     try {
       await loadGmbRouteStopCoordinates(routeId, routeSeq)
       const diagnostics = getGmbRouteStopCoordinateDiagnostics(routeId, routeSeq)
-      const nearbyStops = (diagnostics?.stops ?? [])
-        .map((stop) => ({
-          stopSeq: stop.stopSeq,
-          stopId: stop.stopId,
-          lng: stop.lng,
-          lat: stop.lat,
-          distanceMetres: Math.round(distanceMetres([lng, lat], [stop.lng, stop.lat])),
-        }))
-        .filter((stop) => stop.distanceMetres <= 1000)
-        .sort((a, b) => a.distanceMetres - b.distanceMetres || a.stopSeq - b.stopSeq)
-        .slice(0, 8)
+      const nearbyStops = rankNearbyGmbRouteStops(diagnostics?.stops ?? [], [lng, lat])
       results.push({
         routeId,
         routeLabels: labelsByRouteId.get(routeId) ?? [],
