@@ -7,6 +7,7 @@ import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
 import { readEtaJson } from "@/lib/eta-read"
 import { parseGmbRouteStopEtaResponse } from "@/lib/gmb-route-eta-validation"
 import { getGmbPositionEstimateBlockers } from "@/lib/gmb-position-blockers"
+import { summarizeGmbPositionBlockers } from "@/lib/gmb-position-blocker-summary"
 
 export const dynamic = "force-dynamic"
 
@@ -129,6 +130,11 @@ export async function GET(request: Request) {
     results,
     positionEstimateEligibleCount: results.filter((result) => result.positionEstimateEligible === true).length,
     positionEstimateBlockedCount: results.filter((result) => result.positionEstimateEligible !== true).length,
+    positionEstimateBlockerCounts: summarizeGmbPositionBlockers(
+      results.map((result) => Array.isArray(result.positionEstimateBlockers)
+        ? result.positionEstimateBlockers.filter((blocker) => typeof blocker === "string") as string[]
+        : []),
+    ),
     note: "Route label coverage shows which configured labels map to official route IDs near this monitoring point; a missing ID may mean the route does not serve this area or the local catalogue needs review. ETA checks query up to two nearby official stops per candidate route. ETA is an arrival prediction, not GPS or a segment travel-time measurement. Segment timing is currently unavailable, so these diagnostics are not eligible to produce estimated vehicle positions. Nearby-stop distances use an approximate monitoring reference point.",
   })
 }
