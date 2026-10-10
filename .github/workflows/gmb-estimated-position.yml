@@ -33,6 +33,8 @@ jobs:
         run: npm ci
       - name: Run estimated-position validation
         run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
+      - name: Run GMB route mapping validation
+        run: node --experimental-strip-types src/lib/gmb-route-mapping-validation.test.ts
       - name: Run TypeScript checks and save diagnostics
         if: always()
         shell: bash
