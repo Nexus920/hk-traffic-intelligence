@@ -5,6 +5,7 @@ export type EstimatedMinibus = {
   from: { lng: number; lat: number }
   to: { lng: number; lat: number }
   etaMinutes: number
+  segmentMinutes: number
   observedAt: string
   positionType: "estimated"
   label: string
@@ -53,9 +54,8 @@ export function estimateBetweenStops(
 
 /**
  * Converts validated estimates into a GeoJSON source for the map.
- * A point is placed halfway along the known stop segment; ETA-derived
- * interpolation can be added only when a trustworthy segment duration
- * and matching next-stop ETA are available.
+ * Only emits a point when ETA and segment duration pass validation.
+ * The coordinate is a display estimate, never a GPS fix.
  */
 export function estimatedMinibusCollection(
   vehicles: EstimatedMinibus[],
@@ -68,22 +68,22 @@ export function estimatedMinibusCollection(
 }> {
   return {
     type: "FeatureCollection",
-    features: vehicles.map((vehicle) => ({
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [
-          (vehicle.from.lng + vehicle.to.lng) / 2,
-          (vehicle.from.lat + vehicle.to.lat) / 2,
-        ],
-      },
-      properties: {
-        route: vehicle.route,
-        label: vehicle.label,
-        positionType: vehicle.positionType,
-        observedAt: vehicle.observedAt,
-        stopSeq: vehicle.stopSeq,
-      },
-    })),
+    features: vehicles.flatMap((vehicle) => {
+      const from: RouteStopCoordinate = { ...vehicle.from, stopSeq: vehicle.stopSeq, stopId: "" }
+      const to: RouteStopCoordinate = { ...vehicle.to, stopSeq: vehicle.stopSeq + 1, stopId: "" }
+      const coordinate = estimateBetweenStops(from, to, vehicle.etaMinutes, vehicle.segmentMinutes)
+      if (!coordinate) return []
+      return [{
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [coordinate.lng, coordinate.lat] },
+        properties: {
+          route: vehicle.route,
+          label: vehicle.label,
+          positionType: vehicle.positionType,
+          observedAt: vehicle.observedAt,
+          stopSeq: vehicle.stopSeq,
+        },
+      }]
+    }),
   }
 }
