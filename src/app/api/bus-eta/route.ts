@@ -574,12 +574,26 @@ async function loadGmbArrivals(
   const now = Date.now()
 
   
-  // 只保留指定路線、距離監測點 250 米內的站
+  
+  // 只保留指定路線、距離監測點 250 米內，
+  // 而且比其他監測點更接近本站的小巴站
   const candidates = stops
-    .filter((stop) =>
-      station.gmbRoutes.some((route) => route === stop.route) &&
-      distanceMetres([stop.long, stop.lat], station.point) <= 250,
-    )
+    .filter((stop) => {
+      if (!station.gmbRoutes.some((route) => route === stop.route)) {
+        return false
+      }
+
+      const stopPoint: Point = [stop.long, stop.lat]
+      const thisDistance = distanceMetres(stopPoint, station.point)
+      if (thisDistance > 250) return false
+
+      const closerToAnotherStation = CONFIG.some((otherStation) =>
+        otherStation.id !== station.id &&
+        distanceMetres(stopPoint, otherStation.point) < thisDistance,
+      )
+
+      return !closerToAnotherStation
+    })
     .sort((a, b) =>
       distanceMetres([a.long, a.lat], station.point) -
       distanceMetres([b.long, b.lat], station.point),
@@ -594,6 +608,7 @@ async function loadGmbArrivals(
     }
   }
   const nearby = Array.from(nearestByRouteDirection.values())
+
 
   const results = await mapWithConcurrency(
     nearby,
