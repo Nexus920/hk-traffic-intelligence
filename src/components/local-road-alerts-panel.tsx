@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 type Alert = {
   id: string
@@ -14,6 +14,17 @@ type Alert = {
   start: string
   end: string
 }
+
+type RoadWorkFeature = {
+  geometry?: { coordinates?: unknown } | null
+  properties?: Record<string, unknown> | null
+}
+type RoadWorkResponse = {
+  ok?: boolean
+  error?: string
+  works?: { features?: RoadWorkFeature[] }
+}
+type NearbyAlert = Alert & { point: [number, number]; distance: number }
 
 type Props = {
   roads: [number, number][][]
@@ -63,7 +74,7 @@ export function LocalRoadAlertsPanel({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function loadAlerts() {
+  const loadAlerts = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -74,7 +85,7 @@ export function LocalRoadAlertsPanel({
         },
       )
 
-      const body = await response.json()
+      const body = (await response.json()) as RoadWorkResponse
 
       if (!response.ok || !body.ok) {
         throw new Error(
@@ -86,7 +97,7 @@ export function LocalRoadAlertsPanel({
       const nearby = (
         body.works?.features ?? []
       )
-        .map((feature: any) => {
+        .map((feature): Omit<NearbyAlert, "distance"> | null => {
           const coordinates =
             feature.geometry?.coordinates
 
@@ -107,7 +118,7 @@ export function LocalRoadAlertsPanel({
               String(
                 feature.properties?.id ??
                   feature.properties?.roadworksId ??
-                  Math.random(),
+                  `${String(feature.properties?.road ?? "road")}-${String(coordinates[0])}-${String(coordinates[1])}`,
               ),
             road:
               feature.properties?.road ??
@@ -140,21 +151,15 @@ export function LocalRoadAlertsPanel({
           }
         })
         .filter(Boolean)
-        .map((item: any) => ({
+        .map((item): NearbyAlert | null => item ? ({
           ...item,
           distance: nearestRoadDistance(
             item.point,
             roads,
           ),
-        }))
-        .filter(
-          (item: any) =>
-            item.distance <= radiusMetres,
-        )
-        .sort(
-          (a: any, b: any) =>
-            a.distance - b.distance,
-        )
+        }) : null)
+        .filter((item): item is NearbyAlert => item !== null && item.distance <= radiusMetres)
+        .sort((a, b) => a.distance - b.distance)
         .slice(0, 12)
 
       setAlerts(nearby)
@@ -230,7 +235,7 @@ export function LocalRoadAlertsPanel({
       {alerts.length > 0 && (
         <div className="mt-4 space-y-2">
 
-          {alerts.map((alert: any) => (
+          {alerts.map((alert) => (
             <article
               key={alert.id}
               className="rounded-xl border border-white/10 bg-black/20 p-3"
