@@ -1,6 +1,7 @@
 import { gmbStop } from "@/lib/gmb-reach"
 import { readEtaJson } from "@/lib/eta-read"
 import { uniqueGmbRouteStopRows, type GmbRouteStopRow } from "@/lib/gmb-route-stop-validation"
+import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
 
 const ROUTE_STOP_ROOT = "https://data.etagmb.gov.hk/route-stop"
 const CACHE_MS = 6 * 60 * 60_000
@@ -30,7 +31,7 @@ export async function loadGmbRouteStopCoordinates(
   routeSeq: number,
   now = Date.now(),
 ): Promise<GmbRouteStopCoordinate[]> {
-  if (!Number.isInteger(routeId) || routeId <= 0 || !Number.isInteger(routeSeq) || routeSeq <= 0) {
+  if (!Number.isInteger(routeId) || routeId <= 0 || !isGmbRouteDirection(routeSeq)) {
     return []
   }
 
