@@ -1,3 +1,4 @@
+import { isGmbRouteDirection } from "./gmb-route-sequence-validation.ts"
 import { auditGmbRouteIdCandidates, matchGmbOfficialRouteId } from "./gmb-route-id-validation.ts"
 
 import { parseGmbRouteStopEtaResponse } from "./gmb-route-eta-validation.ts"
@@ -153,5 +154,13 @@ assert.deepEqual(auditGmbRouteIdCandidates(
   { localRouteId: "123", officialRouteId: 123 },
   { localRouteId: "789", officialRouteId: 789 },
 ])
+
+
+assert.equal(isGmbRouteDirection(1), true)
+assert.equal(isGmbRouteDirection(2), true)
+assert.equal(isGmbRouteDirection(0), false)
+assert.equal(isGmbRouteDirection(3), false)
+assert.equal(isGmbRouteDirection("1"), false)
+assert.equal(isGmbRouteDirection(null), false)
 
 console.log("gmb-estimated-position-ok")
