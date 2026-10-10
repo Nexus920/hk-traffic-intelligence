@@ -546,7 +546,7 @@ async function loadGmbArrivals(
 
   return results.flat()
 }
-```
+
 
 function distanceMetres(a: Point, b: Point): number {
   const lat = (a[1] * Math.PI) / 180
