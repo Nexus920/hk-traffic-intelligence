@@ -50,3 +50,40 @@ export function estimateBetweenStops(
     lat: from.lat + (to.lat - from.lat) * progress,
   }
 }
+
+/**
+ * Converts validated estimates into a GeoJSON source for the map.
+ * A point is placed halfway along the known stop segment; ETA-derived
+ * interpolation can be added only when a trustworthy segment duration
+ * and matching next-stop ETA are available.
+ */
+export function estimatedMinibusCollection(
+  vehicles: EstimatedMinibus[],
+): GeoJSON.FeatureCollection<GeoJSON.Point, {
+  route: string
+  label: string
+  positionType: "estimated"
+  observedAt: string
+  stopSeq: number
+}> {
+  return {
+    type: "FeatureCollection",
+    features: vehicles.map((vehicle) => ({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [
+          (vehicle.from.lng + vehicle.to.lng) / 2,
+          (vehicle.from.lat + vehicle.to.lat) / 2,
+        ],
+      },
+      properties: {
+        route: vehicle.route,
+        label: vehicle.label,
+        positionType: vehicle.positionType,
+        observedAt: vehicle.observedAt,
+        stopSeq: vehicle.stopSeq,
+      },
+    })),
+  }
+}
