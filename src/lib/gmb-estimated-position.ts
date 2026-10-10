@@ -1,3 +1,5 @@
+import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
+
 export type EstimatedMinibus = {
   route: string
   routeSeq: number
@@ -133,8 +135,7 @@ export function estimatesFromEtaObservations(
   for (const observation of observations) {
     if (
       !observation.route ||
-      !Number.isInteger(observation.routeSeq) ||
-      observation.routeSeq <= 0 ||
+      !isGmbRouteDirection(observation.routeSeq) ||
       !Number.isInteger(observation.nextStopSeq) ||
       observation.nextStopSeq <= 1 ||
       !Number.isFinite(observation.etaMinutes) ||
