@@ -150,7 +150,7 @@ let gmbStopsCache: {
   expires: number
   data: GmbNearbyStop[]
 } | null = null
-```
+
 const CTB_ROUTES = ["20A", "22", "113"] as const
 
 let kmbStopCache: { expires: number; data: Stop[] } | null = null
@@ -333,7 +333,7 @@ const url =
 
   return data
 }
-```ts
+
 async function gmbJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
