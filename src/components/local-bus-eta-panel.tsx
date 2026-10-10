@@ -323,3 +323,10 @@ export function LocalBusEtaPanel() {
     )}
   </section>
 ))}
+          
+        </div>
+      )}
+    </section>
+  )
+}
+
