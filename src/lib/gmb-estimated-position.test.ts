@@ -48,7 +48,10 @@ const duplicatePreviousSequence = new Map([["route-a/1", [from, { ...from, stopI
 assert.equal(estimatesFromEtaObservations([base], duplicatePreviousSequence).length, 0)
 const invalidCoordinateStops = new Map([["route-a/1", [from, { ...to, lng: 200 }]]])
 assert.equal(estimatesFromEtaObservations([base], invalidCoordinateStops).length, 0)
-assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated" }]).features.length, 1)
-assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated", etaMinutes: 20 }]).features.length, 0)
+assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated" }], observedNow).features.length, 1)
+assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated", etaMinutes: 20 }], observedNow).features.length, 0)
+assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated" }], observedNow + GMB_ESTIMATE_MAX_AGE_MS + 1).features.length, 0)
+assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 1, from, to, positionType: "estimated", observedAt: "invalid" }], observedNow).features.length, 0)
+assert.equal(estimatedMinibusCollection([{ ...base, stopSeq: 0, from, to, positionType: "estimated" }], observedNow).features.length, 0)
 
 console.log("gmb-estimated-position-ok")
