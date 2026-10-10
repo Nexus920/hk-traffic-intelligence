@@ -52,7 +52,12 @@ export async function loadGmbRouteStopCoordinates(
   if (!rows) return hit?.stops ?? []
 
   const stops: GmbRouteStopCoordinate[] = []
-  const seenSequences = new Set<number>()
+  const sequenceCounts = new Map<number, number>()
+  for (const row of rows) {
+    if (Number.isInteger(row.stop_seq) && (row.stop_seq as number) > 0) {
+      sequenceCounts.set(row.stop_seq as number, (sequenceCounts.get(row.stop_seq as number) ?? 0) + 1)
+    }
+  }
   for (const row of rows) {
     const stopSeq = row.stop_seq
     const rawStopId = row.stop_id ?? row.stop
@@ -64,11 +69,10 @@ export async function loadGmbRouteStopCoordinates(
           : null
     if (!Number.isInteger(stopSeq) || (stopSeq as number) <= 0 || !stopId) continue
 
-    // Keep route metadata unambiguous: duplicate sequence numbers make
-    // adjacent-stop interpolation unsafe, so discard every duplicate.
+    // Keep route metadata unambiguous: discard every row belonging to a
+    // duplicated sequence number, not merely the later duplicate.
     const sequence = stopSeq as number
-    if (seenSequences.has(sequence)) continue
-    seenSequences.add(sequence)
+    if (sequenceCounts.get(sequence) !== 1) continue
 
     const stop = gmbStop(stopId)
     if (
