@@ -169,4 +169,20 @@ assert.equal(isGmbRouteDirection(3), false)
 assert.equal(isGmbRouteDirection("1"), false)
 assert.equal(isGmbRouteDirection(null), false)
 
+assert.equal(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: 20003338, eta: [
+    { eta_seq: 1, diff: 2, timestamp: "2026-10-10T10:02:00+08:00" },
+  ],
+} }, "20003337").length, 0)
+assert.equal(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: 20003337, eta: [
+    { eta_seq: 1, diff: 2, timestamp: "2026-10-10T10:02:00+08:00" },
+  ],
+} }, "20003337").length, 1)
+assert.equal(parseGmbRouteStopEtaResponse({ data: {
+  enabled: true, stop_id: 20003337, eta: [
+    { eta_seq: 1, diff: 2, timestamp: "2026-10-10T10:02:00+08:00" },
+  ],
+} }, "020003337").length, 0)
+
 console.log("gmb-estimated-position-ok")
