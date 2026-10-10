@@ -688,16 +688,17 @@ const selected =
   }
 
   useEffect(() => {
-    loadAllData()
+    const initialLoad = window.setTimeout(() => {
+      void loadAllData()
+    }, 0)
+    const timer = window.setInterval(() => {
+      void loadAllData()
+    }, 60_000)
 
-    const timer =
-      window.setInterval(
-        loadAllData,
-        60_000,
-      )
-
-    return () =>
+    return () => {
+      window.clearTimeout(initialLoad)
       window.clearInterval(timer)
+    }
   }, [])
 
   const featureCollection =
