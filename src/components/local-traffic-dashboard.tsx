@@ -821,8 +821,14 @@ map.on("load", () => {
 
       const refreshLocalGmbStops = async () => {
         try {
+          const center = map.getCenter()
+          const params = new URLSearchParams({
+            lng: center.lng.toFixed(5),
+            lat: center.lat.toFixed(5),
+            zoom: map.getZoom().toFixed(2),
+          })
           const response = await fetch(
-            "/api/gmb?lng=114.1814&lat=22.3283&zoom=15.8",
+            `/api/gmb?${params.toString()}`,
             { cache: "no-store" },
           )
           if (!response.ok) return
@@ -876,6 +882,8 @@ map.on("load", () => {
         }
       }
       void refreshLocalGmbStops()
+      // Refresh the nearby-stop layer after a completed pan or zoom.
+      map.on("moveend", refreshLocalGmbStops)
       gmbRefreshTimer = window.setInterval(() => {
         void refreshLocalGmbStops()
       }, 60_000)
