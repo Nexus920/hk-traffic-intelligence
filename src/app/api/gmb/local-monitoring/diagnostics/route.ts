@@ -3,6 +3,8 @@ import { gmbOfficialRouteIdsNearPoint } from "@/lib/gmb-reach"
 import { loadGmbRouteStopCoordinates, getGmbRouteStopCoordinateDiagnostics } from "@/lib/gmb-route-stops"
 import { getGmbRouteStopQualityStatus, rankNearbyGmbRouteStops } from "@/lib/gmb-route-stop-diagnostics-validation"
 import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
+import { readEtaJson } from "@/lib/eta-read"
+import { parseGmbRouteStopEtaResponse } from "@/lib/gmb-route-eta-validation"
 
 export const dynamic = "force-dynamic"
 
@@ -44,6 +46,24 @@ export async function GET(request: Request) {
       await loadGmbRouteStopCoordinates(routeId, routeSeq)
       const diagnostics = getGmbRouteStopCoordinateDiagnostics(routeId, routeSeq)
       const nearbyStops = rankNearbyGmbRouteStops(diagnostics?.stops ?? [], [lng, lat])
+      const etaChecks: Array<Record<string, unknown>> = []
+      // Probe only the two closest stops per route to keep upstream traffic bounded.
+      for (const stop of nearbyStops.slice(0, 2)) {
+        try {
+          const etaPayload = await readEtaJson<unknown>(
+            `https://data.etagmb.gov.hk/eta/route-stop/${routeId}/${routeSeq}/${stop.stopSeq}`,
+          )
+          const eta = parseGmbRouteStopEtaResponse(etaPayload)
+          etaChecks.push({
+            stopSeq: stop.stopSeq,
+            stopId: stop.stopId,
+            enabled: eta.length > 0,
+            eta: eta.slice(0, 3),
+          })
+        } catch {
+          etaChecks.push({ stopSeq: stop.stopSeq, stopId: stop.stopId, enabled: false, eta: [], status: "unavailable" })
+        }
+      }
       results.push({
         routeId,
         routeLabels: labelsByRouteId.get(routeId) ?? [],
@@ -57,6 +77,7 @@ export async function GET(request: Request) {
         unmatchedStopIds: diagnostics?.unmatchedStopIds ?? [],
         duplicateSequences: diagnostics?.duplicateSequences ?? [],
         nearbyStops,
+        etaChecks,
       })
     } catch {
       results.push({ routeId, routeLabels: labelsByRouteId.get(routeId) ?? [], routeSeq, qualityStatus: "unavailable" })
@@ -71,6 +92,6 @@ export async function GET(request: Request) {
     radiusMetres: 300,
     routeIdsByLabel,
     results,
-    note: "Nearby-stop distances are measured from the configured monitoring reference point, which is approximate. Route-stop diagnostics only; no live vehicle position is inferred.",
+    note: "ETA checks query up to two nearby official stops per candidate route. ETA is an arrival prediction, not GPS or a segment travel-time measurement. Nearby-stop distances use an approximate monitoring reference point.",
   })
 }
