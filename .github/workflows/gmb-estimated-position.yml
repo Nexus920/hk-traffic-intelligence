@@ -39,6 +39,8 @@ jobs:
         run: node --experimental-strip-types src/lib/gmb-route-stop-coordinate-join.test.ts
       - name: Run route-stop diagnostics query validation
         run: node --experimental-strip-types src/lib/gmb-route-stop-diagnostics-validation.test.ts
+      - name: Run route-label coverage validation
+        run: node --experimental-strip-types src/lib/gmb-route-label-coverage.test.ts
       - name: Run TypeScript checks and save diagnostics
         if: always()
         shell: bash
