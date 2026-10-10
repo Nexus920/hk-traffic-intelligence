@@ -383,20 +383,31 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
     new Set(CONFIG.flatMap((station) => station.gmbRoutes)),
   )
 
+  ```ts
+  const regions = ["HKI", "KLN", "NT"]
+
   const variants = (
     await mapWithConcurrency(routes, 4, async (route) => {
-      try {
-        const result = await gmbJson<{
-          data?: GmbRouteVariant[]
-        }>(`${GMB}/route/KLN/${encodeURIComponent(route)}`)
+      const results = await Promise.all(
+        regions.map(async (region) => {
+          try {
+            const result = await gmbJson<{
+              data?: GmbRouteVariant[]
+            }>(
+              `${GMB}/route/${region}/${encodeURIComponent(route)}`,
+            )
 
-        return (result.data ?? []).map((variant) => ({
-          route,
-          variant,
-        }))
-      } catch {
-        return []
-      }
+            return (result.data ?? []).map((variant) => ({
+              route,
+              variant,
+            }))
+          } catch {
+            return []
+          }
+        }),
+      )
+
+      return results.flat()
     })
   ).flat()
 
