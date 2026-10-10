@@ -1,22 +1,23 @@
 import { loadGmbRouteStopCoordinates, getGmbRouteStopCoordinateDiagnostics } from "@/lib/gmb-route-stops"
-import { isGmbRouteDirection } from "@/lib/gmb-route-sequence-validation"
+import { parseGmbRouteStopDiagnosticsParams } from "@/lib/gmb-route-stop-diagnostics-validation"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const routeIdRaw = url.searchParams.get("routeId")
-  const routeSeqRaw = url.searchParams.get("routeSeq")
-  const routeId = routeIdRaw && /^[1-9]\d*$/.test(routeIdRaw) ? Number(routeIdRaw) : NaN
-  const routeSeq = routeSeqRaw && /^[12]$/.test(routeSeqRaw) ? Number(routeSeqRaw) : NaN
+  const params = parseGmbRouteStopDiagnosticsParams(
+    url.searchParams.get("routeId"),
+    url.searchParams.get("routeSeq"),
+  )
 
-  if (!Number.isSafeInteger(routeId) || routeId <= 0 || !isGmbRouteDirection(routeSeq)) {
+  if (!params) {
     return Response.json(
       { ok: false, error: "Valid routeId and routeSeq (1 or 2) are required" },
       { status: 400 },
     )
   }
 
+  const { routeId, routeSeq } = params
   try {
     await loadGmbRouteStopCoordinates(routeId, routeSeq)
     const diagnostics = getGmbRouteStopCoordinateDiagnostics(routeId, routeSeq)
