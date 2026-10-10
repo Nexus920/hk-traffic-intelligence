@@ -158,20 +158,13 @@ export function LocalRoadAlertsPanel({
     } finally {
       setLoading(false)
     }
-  }
+  }, [radiusMetres, roads])
 
   useEffect(() => {
-    loadAlerts()
-
-    const timer =
-      window.setInterval(
-        loadAlerts,
-        5 * 60 * 1000,
-      )
-
-    return () =>
-      window.clearInterval(timer)
-  }, [])
+    const initial = window.setTimeout(() => { void loadAlerts() }, 0)
+    const timer = window.setInterval(() => { void loadAlerts() }, 5 * 60 * 1000)
+    return () => { window.clearTimeout(initial); window.clearInterval(timer) }
+  }, [loadAlerts])
 
   const countText = useMemo(() => {
     if (loading) return "搜尋中..."
