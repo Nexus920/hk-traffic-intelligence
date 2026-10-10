@@ -683,6 +683,10 @@ export function CityMap({
       } else if (gmb?.ok) {
         geoJsonSource(map, "gmb-stops")?.setData(busStopCollection(map, gmb, locale, labels, "#65a30d"))
         geoJsonSource(map, "gmb-estimated-vehicles")?.setData(gmb.estimatedVehicles ?? emptyCollection())
+      } else {
+        // Do not leave stale stop or estimated-vehicle markers visible after a failed refresh.
+        geoJsonSource(map, "gmb-stops")?.setData(emptyCollection())
+        geoJsonSource(map, "gmb-estimated-vehicles")?.setData(emptyCollection())
       }
       if (!layers.nlb) {
         geoJsonSource(map, "nlb-stops")?.setData(emptyCollection())
