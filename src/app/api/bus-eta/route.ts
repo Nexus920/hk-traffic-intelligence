@@ -90,6 +90,67 @@ const CONFIG = [
 
 const KMB = "https://data.etabus.gov.hk/v1/transport/kmb"
 const CTB = "https://rt.data.gov.hk/v2/transport/citybus"
+```ts
+// 香港綠色專線小巴官方 ETA API
+const GMB = "https://data.etagmb.gov.hk"
+
+type GmbRouteDirection = {
+  route_seq: number
+  orig_tc?: string
+  dest_tc?: string
+  orig_en?: string
+  dest_en?: string
+}
+
+type GmbRouteVariant = {
+  route_id: string
+  directions?: GmbRouteDirection[]
+}
+
+type GmbRouteStop = {
+  stop_id: string
+  stop_seq: number
+  name_tc?: string
+  name_en?: string
+}
+
+type GmbStopInfo = {
+  stop_id: string
+  coordinates?: {
+    wgs84?: {
+      latitude?: number
+      longitude?: number
+    }
+  }
+}
+
+type GmbEtaItem = {
+  route_seq: number
+  stop_seq: number
+  eta?: Array<{
+    timestamp?: string
+    remarks_tc?: string
+  }>
+}
+
+type GmbNearbyStop = {
+  stop: string
+  name_tc?: string
+  name_en?: string
+  lat: number
+  long: number
+  route_id: string
+  route: string
+  route_seq: number
+  stop_seq: number
+  destination: string
+}
+
+let gmbStopsCache: {
+  expires: number
+  data: GmbNearbyStop[]
+} | null = null
+```
 const CTB_ROUTES = ["20A", "22", "113"] as const
 
 let kmbStopCache: { expires: number; data: Stop[] } | null = null
@@ -272,6 +333,220 @@ const url =
 
   return data
 }
+```ts
+async function gmbJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (!response.ok) {
+    throw new Error(`GMB API returned ${response.status}`)
+  }
+
+  return await response.json() as T
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let nextIndex = 0
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex++
+      if (index >= items.length) return
+      results[index] = await fn(items[index])
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(limit, items.length) },
+      () => worker(),
+    ),
+  )
+
+  return results
+}
+
+async function getGmbStops(): Promise<GmbNearbyStop[]> {
+  if (gmbStopsCache && gmbStopsCache.expires > Date.now()) {
+    return gmbStopsCache.data
+  }
+
+  // 合併兩個監測位置的指定小巴路線
+  const routes = Array.from(
+    new Set(CONFIG.flatMap((station) => station.gmbRoutes)),
+  )
+
+  const variants = (
+    await mapWithConcurrency(routes, 4, async (route) => {
+      try {
+        const result = await gmbJson<{
+          data?: GmbRouteVariant[]
+        }>(`${GMB}/route/KLN/${encodeURIComponent(route)}`)
+
+        return (result.data ?? []).map((variant) => ({
+          route,
+          variant,
+        }))
+      } catch {
+        return []
+      }
+    })
+  ).flat()
+
+  const routeStopGroups = await mapWithConcurrency(
+    variants,
+    4,
+    async ({ route, variant }) => {
+      const directions = variant.directions ?? []
+
+      return (
+        await mapWithConcurrency(directions, 3, async (direction) => {
+          try {
+            const result = await gmbJson<{
+              data?: { route_stops?: GmbRouteStop[] }
+            }>(
+              `${GMB}/route-stop/${encodeURIComponent(variant.route_id)}/${direction.route_seq}`,
+            )
+
+            return (result.data?.route_stops ?? []).map((stop) => ({
+              route,
+              variant,
+              direction,
+              stop,
+            }))
+          } catch {
+            return []
+          }
+        })
+      ).flat()
+    },
+  )
+
+  const routeStops = routeStopGroups.flat()
+
+  // 同一站點可能由多條路線共用，先合併站點 ID
+  const uniqueStopIds = Array.from(
+    new Set(routeStops.map((item) => item.stop.stop_id)),
+  )
+
+  const stopInfoList = await mapWithConcurrency(
+    uniqueStopIds,
+    8,
+    async (stopId) => {
+      try {
+        const result = await gmbJson<{ data?: GmbStopInfo }>(
+          `${GMB}/stop/${encodeURIComponent(stopId)}`,
+        )
+        return result.data ?? null
+      } catch {
+        return null
+      }
+    },
+  )
+
+  const stopInfoMap = new Map(
+    stopInfoList
+      .filter((item): item is GmbStopInfo => item !== null)
+      .map((item) => [item.stop_id, item]),
+  )
+
+  const nearbyStops: GmbNearbyStop[] = []
+
+  for (const item of routeStops) {
+    const info = stopInfoMap.get(item.stop.stop_id)
+    const coordinates = info?.coordinates?.wgs84
+    const lat = Number(coordinates?.latitude)
+    const long = Number(coordinates?.longitude)
+
+    if (!Number.isFinite(lat) || !Number.isFinite(long)) continue
+
+    nearbyStops.push({
+      stop: item.stop.stop_id,
+      name_tc: item.stop.name_tc,
+      name_en: item.stop.name_en,
+      lat,
+      long,
+      route_id: item.variant.route_id,
+      route: item.route,
+      route_seq: item.direction.route_seq,
+      stop_seq: item.stop.stop_seq,
+      destination:
+        item.direction.dest_tc ||
+        item.direction.dest_en ||
+        "方向未明",
+    })
+  }
+
+  gmbStopsCache = {
+    expires: Date.now() + 24 * 60 * 60 * 1000,
+    data: nearbyStops,
+  }
+
+  return nearbyStops
+}
+
+async function loadGmbArrivals(
+  station: typeof CONFIG[number],
+  stops: GmbNearbyStop[],
+): Promise<ArrivalItem[]> {
+  const now = Date.now()
+
+  // 只查監測位置 450 米範圍內、而且屬於指定路線的站
+  const nearby = stops.filter((stop) =>
+    station.gmbRoutes.includes(stop.route) &&
+    distanceMetres(
+      [stop.long, stop.lat],
+      station.point,
+    ) <= 450,
+  )
+
+  const results = await mapWithConcurrency(
+    nearby,
+    8,
+    async (stop): Promise<ArrivalItem[]> => {
+      try {
+        const result = await gmbJson<{ data?: GmbEtaItem[] }>(
+          `${GMB}/eta/route-stop/${encodeURIComponent(stop.route_id)}/${encodeURIComponent(stop.stop)}`,
+        )
+
+        return (result.data ?? [])
+          .filter((record) =>
+            record.route_seq === stop.route_seq &&
+            record.stop_seq === stop.stop_seq,
+          )
+          .flatMap((record) =>
+            (record.eta ?? [])
+              .filter((eta) => validEta(eta.timestamp, now))
+              .map((eta) => ({
+                route: stop.route,
+                operator: "綠色專線小巴",
+                destination:
+                  eta.remarks_tc ||
+                  stop.destination,
+                eta: eta.timestamp!,
+                stopName:
+                  stop.name_tc ||
+                  stop.name_en ||
+                  "附近小巴站",
+                direction: String(stop.route_seq),
+              })),
+          )
+      } catch {
+        return []
+      }
+    },
+  )
+
+  return results.flat()
+}
+```
 
 function distanceMetres(a: Point, b: Point): number {
   const lat = (a[1] * Math.PI) / 180
@@ -419,6 +694,12 @@ function groupArrivals(
         Date.parse(b.arrivals[0] ?? "")
     })
 }
+async function loadStation(
+  station: typeof CONFIG[number],
+  kmbStops: Stop[],
+  ctbStops: Stop[],
+  gmbStops: GmbNearbyStop[],
+) {
 
 async function loadStation(
   station: typeof CONFIG[number],
@@ -506,10 +787,21 @@ async function loadStation(
 
   items.push(...ctbResults.flat())
 
+  // 綠色專線小巴到站時間
+  const gmbResults = await loadGmbArrivals(
+    station,
+    gmbStops,
+  )
+
+  items.push(...gmbResults)
+
     return {
     id: station.id,
     name: station.name,
-    buses: groupArrivals(items, station.routes),
+    buses: groupArrivals(
+  items,
+  [...station.routes, ...station.gmbRoutes],
+),
     debug: {
       kmbStops: nearbyKmb.map((stop) => ({
         id: stop.stop,
@@ -531,7 +823,18 @@ export async function GET() {
 
   const stopListErrors: string[] = []
 
-  const [kmbStops, ctbStops] = await Promise.all([
+  const [kmbStops, ctbStops, gmbStops] = await Promise.all([
+    getGmbStops().catch((error) => {
+      stopListErrors.push(
+        `綠色小巴站點清單：${
+          error instanceof Error
+            ? error.message
+            : String(error)
+        }`,
+      )
+      return []
+    }),
+    
     getStops("KMB").catch((error) => {
       stopListErrors.push(
         `九巴站點清單：${
@@ -557,7 +860,7 @@ export async function GET() {
 
   const stations = await Promise.all(
     CONFIG.map((station) =>
-      loadStation(station, kmbStops, ctbStops),
+    loadStation(station, kmbStops, ctbStops, gmbStops),
     ),
   )
 
