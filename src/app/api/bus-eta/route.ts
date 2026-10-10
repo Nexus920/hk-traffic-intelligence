@@ -494,6 +494,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
   const uniqueStopIds = Array.from(
     new Set(routeStops.map((item) => item.stop.stop_id)),
   )
+  
   gmbStopsDebug.uniqueStopIds = uniqueStopIds.length
 
   
