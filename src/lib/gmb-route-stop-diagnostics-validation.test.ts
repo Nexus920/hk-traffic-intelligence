@@ -3,6 +3,7 @@ import {
   getGmbRouteStopQualityStatus,
   parseGmbRouteStopDiagnosticsBatchParams,
   parseGmbRouteStopDiagnosticsParams,
+  rankNearbyGmbRouteStops,
 } from "./gmb-route-stop-diagnostics-validation.ts"
 
 assert.deepEqual(parseGmbRouteStopDiagnosticsParams("123", "1"), { routeId: 123, routeSeq: 1 })
@@ -44,3 +45,22 @@ assert.equal(parseGmbRouteStopDiagnosticsBatchParams("2000410,2000511,3,4,5,6", 
 assert.equal(parseGmbRouteStopDiagnosticsBatchParams("2000410", "3"), null)
 
 console.log("gmb-route-stop-diagnostics-batch-validation-ok")
+
+
+const nearbyStops = rankNearbyGmbRouteStops([
+  { stopSeq: 3, stopId: "103", lng: 114.1812, lat: 22.3271 },
+  { stopSeq: 2, stopId: "102", lng: 114.1811, lat: 22.3271 },
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+  { stopSeq: 4, stopId: "outside", lng: 114.2, lat: 22.4 },
+  { stopSeq: 5, stopId: "invalid", lng: 200, lat: 22.3 },
+], [114.1811, 22.3271], 100, 8)
+assert.deepEqual(nearbyStops.map((stop) => stop.stopId), ["101", "102", "103"])
+assert.deepEqual(nearbyStops.map((stop) => stop.distanceMetres), [0, 0, 16])
+assert.deepEqual(rankNearbyGmbRouteStops([
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+], [Number.NaN, 22.3]), [])
+assert.deepEqual(rankNearbyGmbRouteStops([
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+], [114.1811, 22.3271], 100, 0), [])
+
+console.log("gmb-nearby-route-stop-ranking-ok")
