@@ -14,6 +14,7 @@ export type GmbRouteStopJoinResult = {
   matchedRows: number
   unmatchedStopIds: string[]
   duplicateSequences: number[]
+  isComplete: boolean
 }
 
 /**
@@ -70,5 +71,6 @@ export function joinGmbRouteStopCoordinates(
     matchedRows: stops.length,
     unmatchedStopIds,
     duplicateSequences,
+    isComplete: rows.length === validRows.length && validRows.length === stops.length && duplicateSequences.length === 0,
   }
 }
