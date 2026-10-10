@@ -43,7 +43,8 @@ export function estimateBetweenStops(
     return null
   }
 
-  // ETA is the time remaining to the next stop; values beyond the segment duration are not usable.\n  const progress = 1 - etaMinutes / segmentMinutes
+  // ETA is the time remaining to the next stop; values beyond the segment duration are not usable.
+  const progress = 1 - etaMinutes / segmentMinutes
   return {
     lng: from.lng + (to.lng - from.lng) * progress,
     lat: from.lat + (to.lat - from.lat) * progress,
