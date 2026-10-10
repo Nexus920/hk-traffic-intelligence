@@ -20,6 +20,7 @@ const result = joinGmbRouteStopCoordinates([
 assert.equal(result.inputRows, 7)
 assert.equal(result.validRows, 4)
 assert.equal(result.matchedRows, 2)
+assert.equal(result.isComplete, false)
 assert.deepEqual(result.stops, [
   { stopSeq: 1, stopId: "101", lng: 114.1, lat: 22.3 },
   { stopSeq: 2, stopId: "102", lng: 114.2, lat: 22.4 },
@@ -33,6 +34,7 @@ const complete = joinGmbRouteStopCoordinates([
 ], (stopId) => coordinates.get(stopId))
 assert.equal(complete.inputRows, complete.validRows)
 assert.equal(complete.validRows, complete.matchedRows)
+assert.equal(complete.isComplete, true)
 assert.deepEqual(complete.unmatchedStopIds, [])
 assert.deepEqual(complete.duplicateSequences, [])
 
