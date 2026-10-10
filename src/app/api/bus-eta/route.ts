@@ -569,79 +569,108 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
   return nearbyStops
 }
 
+
 async function loadGmbArrivals(
   station: typeof CONFIG[number],
   stops: GmbNearbyStop[],
 ): Promise<ArrivalItem[]> {
   const now = Date.now()
 
-  
-  
   // 只保留指定路線、距離監測點 250 米內，
-  // 而且比其他監測點更接近本站的小巴站
+  // 並排除更接近其他監測點的小巴站
   const candidates = stops
     .filter((stop) => {
-      if (!station.gmbRoutes.some((route) => route === stop.route)) {
+      if (!station.gmbRoutes.includes(stop.route)) {
         return false
       }
 
       const stopPoint: Point = [stop.long, stop.lat]
-      const thisDistance = distanceMetres(stopPoint, station.point)
+      const thisDistance = distanceMetres(
+        stopPoint,
+        station.point,
+      )
+
       if (thisDistance > 250) return false
 
-      const closerToAnotherStation = CONFIG.some((otherStation) =>
-        otherStation.id !== station.id &&
-        distanceMetres(stopPoint, otherStation.point) < thisDistance,
+      const closerToAnotherStation = CONFIG.some(
+        (otherStation) =>
+          otherStation.id !== station.id &&
+          distanceMetres(stopPoint, otherStation.point) <
+            thisDistance,
       )
 
       return !closerToAnotherStation
     })
-    .sort((a, b) =>
-      distanceMetres([a.long, a.lat], station.point) -
-      distanceMetres([b.long, b.lat], station.point),
+    .sort(
+      (a, b) =>
+        distanceMetres([a.long, a.lat], station.point) -
+        distanceMetres([b.long, b.lat], station.point),
     )
 
-  // 每條路線、每個方向只保留最近的一個站
-  const nearestByRouteDirection = new Map<string, GmbNearbyStop>()
+  // 每條路線、每個方向保留最近站點
+  const nearestByRouteDirection = new Map<
+    string,
+    GmbNearbyStop
+  >()
+
   for (const stop of candidates) {
     const key = `${stop.route}|${stop.route_seq}`
+
     if (!nearestByRouteDirection.has(key)) {
       nearestByRouteDirection.set(key, stop)
     }
   }
-  const nearby = Array.from(nearestByRouteDirection.values())
 
+  const nearby = Array.from(
+    nearestByRouteDirection.values(),
+  )
 
   const results = await mapWithConcurrency(
     nearby,
     8,
     async (stop): Promise<ArrivalItem[]> => {
       try {
-        const result = await gmbJson<{ data?: GmbEtaItem[] }>(
-          `${GMB}/eta/route-stop/${encodeURIComponent(stop.route_id)}/${encodeURIComponent(stop.stop)}`,
+        const result = await gmbJson<{
+          data?: GmbEtaItem[]
+        }>(
+          `${GMB}/eta/route-stop/${encodeURIComponent(
+            stop.route_id,
+          )}/${encodeURIComponent(stop.stop)}`,
         )
 
         return (result.data ?? [])
-          .filter((record) =>
-            record.route_seq === stop.route_seq &&
-            record.stop_seq === stop.stop_seq,
+          .filter(
+            (record) =>
+              record.route_seq === stop.route_seq &&
+              record.stop_seq === stop.stop_seq,
           )
           .flatMap((record) =>
             (record.eta ?? [])
-              .filter((eta) => validEta(eta.timestamp, now))
-              .map((eta) => ({
-                route: stop.route,
-                operator: "綠色專線小巴",
-                destination:
-                  eta.remarks_tc ||
-                  stop.destination,
-                eta: eta.timestamp!,
-                stopName:
-                  stop.name_tc ||
-                  stop.name_en ||
-                  "附近小巴站",
-                direction: String(stop.route_seq),
-              })),
+              .filter((eta) =>
+                validEta(eta.timestamp, now),
+              )
+              .map((eta) => {
+                const remark = eta.remarks_tc?.trim()
+
+                const isStatusRemark =
+                  remark === "未開出" ||
+                  remark === "行車受阻"
+
+                return {
+                  route: stop.route,
+                  operator: "綠色專線小巴",
+                  destination:
+                    !remark || isStatusRemark
+                      ? stop.destination
+                      : remark,
+                  eta: eta.timestamp!,
+                  stopName:
+                    stop.name_tc ||
+                    stop.name_en ||
+                    "附近小巴站",
+                  direction: String(stop.route_seq),
+                }
+              }),
           )
       } catch {
         return []
@@ -651,6 +680,7 @@ async function loadGmbArrivals(
 
   return results.flat()
 }
+
 
 
 function distanceMetres(a: Point, b: Point): number {
