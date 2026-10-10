@@ -45,6 +45,7 @@ assert.equal(estimatesFromEtaObservations([{ ...base, etaMinutes: 20 }], stops).
 assert.equal(estimatesFromEtaObservations([{ ...base, segmentMinutes: 0 }], stops).length, 0)
 assert.equal(estimatesFromEtaObservations([{ ...base, observedAt: "invalid" }], stops).length, 0)
 assert.equal(estimatesFromEtaObservations([{ ...base, routeSeq: 0 }], stops).length, 0)
+assert.equal(estimatesFromEtaObservations([{ ...base, routeSeq: 3 }], stops).length, 0)
 assert.equal(estimatesFromEtaObservations([{ ...base, nextStopSeq: 1 }], stops).length, 0)
 const nonAdjacentStops = new Map([["route-a/1", [from, { ...to, stopSeq: 3 }]]])
 assert.equal(estimatesFromEtaObservations([base], nonAdjacentStops).length, 0)
