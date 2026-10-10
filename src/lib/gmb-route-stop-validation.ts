@@ -12,7 +12,7 @@ export type GmbRouteStopRow = {
 export function uniqueGmbRouteStopRows(rows: GmbRouteStopRow[]): Array<{ stopSeq: number; stopId: string }> {
   const sequenceCounts = new Map<number, number>()
   for (const row of rows) {
-    if (Number.isInteger(row.stop_seq) && (row.stop_seq as number) > 0) {
+    if (Number.isSafeInteger(row.stop_seq) && (row.stop_seq as number) > 0) {
       const sequence = row.stop_seq as number
       sequenceCounts.set(sequence, (sequenceCounts.get(sequence) ?? 0) + 1)
     }
@@ -28,7 +28,7 @@ export function uniqueGmbRouteStopRows(rows: GmbRouteStopRow[]): Array<{ stopSeq
         : typeof rawStopId === "string" && rawStopId.trim()
           ? rawStopId.trim()
           : null
-    if (!Number.isInteger(sequence) || (sequence as number) <= 0 || !stopId) continue
+    if (!Number.isSafeInteger(sequence) || (sequence as number) <= 0 || !stopId) continue
     const stopSeq = sequence as number
     if (sequenceCounts.get(stopSeq) !== 1) continue
     valid.push({ stopSeq, stopId })
