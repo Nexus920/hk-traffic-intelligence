@@ -11,5 +11,6 @@ assert.equal(reverse?.en, "Causeway Bay (Lockhart Road)")
 
 assert.equal(gmbDestination(999999999, 1), null)
 assert.equal(gmbDestination(2000511, 9), null)
+assert.equal(gmbDestination(2000511, 0), null)
 
 console.log("gmb destinations ok")
