@@ -1831,7 +1831,7 @@ function addWatchLayers(map: Map, before: string | undefined) {
     },
   }, before)
   addOverlay(map, {
-    ```ts
+  
   addOverlay(map, {
     id: "gmb-estimated-vehicle-symbols",
     type: "circle",
