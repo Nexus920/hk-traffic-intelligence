@@ -266,7 +266,16 @@ export type CitybusResponse = {
 export type GmbCall = CitybusCall
 export type GmbStopBoard = CitybusStopBoard
 export type GmbPlacesResponse = CitybusPlacesResponse
-export type GmbResponse = CitybusResponse
+export type GmbResponse = CitybusResponse & {
+  /** Display-only estimated minibus positions; never live GPS fixes. */
+  estimatedVehicles?: GeoJSON.FeatureCollection<GeoJSON.Point, {
+    route: string
+    label: string
+    positionType: "estimated"
+    observedAt: string
+    stopSeq: number
+  }>
+}
 
 export type NlbCall = CitybusCall
 export type NlbStopBoard = CitybusStopBoard

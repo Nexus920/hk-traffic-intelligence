@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 type Alert = {
   id: string
@@ -13,6 +13,20 @@ type Alert = {
   district: string
   start: string
   end: string
+}
+
+type RoadWorkFeature = {
+  geometry?: { coordinates?: unknown } | null
+  properties?: Record<string, unknown> | null
+}
+type RoadWorkResponse = {
+  ok?: boolean
+  error?: string
+  works?: { features?: RoadWorkFeature[] }
+}
+type NearbyAlert = Alert & { point: [number, number]; distance: number }
+function textValue(value: unknown, fallback = ""): string {
+  return value == null ? fallback : String(value)
 }
 
 type Props = {
@@ -59,11 +73,11 @@ export function LocalRoadAlertsPanel({
   roads,
   radiusMetres = 500,
 }: Props) {
-  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [alerts, setAlerts] = useState<NearbyAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function loadAlerts() {
+  const loadAlerts = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -74,7 +88,7 @@ export function LocalRoadAlertsPanel({
         },
       )
 
-      const body = await response.json()
+      const body = (await response.json()) as RoadWorkResponse
 
       if (!response.ok || !body.ok) {
         throw new Error(
@@ -83,78 +97,30 @@ export function LocalRoadAlertsPanel({
         )
       }
 
-      const nearby = (
-        body.works?.features ?? []
-      )
-        .map((feature: any) => {
-          const coordinates =
-            feature.geometry?.coordinates
-
-          if (
-            !Array.isArray(coordinates) ||
-            coordinates.length < 2
-          ) {
-            return null
-          }
-
-          const point: [number, number] = [
-            Number(coordinates[0]),
-            Number(coordinates[1]),
-          ]
-
-          return {
-            id:
-              String(
-                feature.properties?.id ??
-                  feature.properties?.roadworksId ??
-                  Math.random(),
-              ),
-            road:
-              feature.properties?.road ??
-              "未知道路",
-            place:
-              feature.properties?.place ??
-              "",
-            status:
-              feature.properties?.status ??
-              "",
-            kind:
-              feature.properties?.kind ??
-              "道路工程",
-            lane:
-              feature.properties?.lane ??
-              "",
-            bound:
-              feature.properties?.bound ??
-              "",
-            district:
-              feature.properties?.district ??
-              "",
-            start:
-              feature.properties?.start ??
-              "",
-            end:
-              feature.properties?.end ??
-              "",
-            point,
-          }
-        })
-        .filter(Boolean)
-        .map((item: any) => ({
-          ...item,
-          distance: nearestRoadDistance(
-            item.point,
-            roads,
-          ),
-        }))
-        .filter(
-          (item: any) =>
-            item.distance <= radiusMetres,
-        )
-        .sort(
-          (a: any, b: any) =>
-            a.distance - b.distance,
-        )
+      const nearby = (body.works?.features ?? []).flatMap((feature): NearbyAlert[] => {
+        const coordinates = feature.geometry?.coordinates
+        if (!Array.isArray(coordinates) || coordinates.length < 2) return []
+        const lng = Number(coordinates[0])
+        const lat = Number(coordinates[1])
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return []
+        const point: [number, number] = [lng, lat]
+        const item: Alert & { point: [number, number] } = {
+          id: String(feature.properties?.id ?? feature.properties?.roadworksId ?? `${String(feature.properties?.road ?? "road")}-${lng}-${lat}`),
+          road: textValue(feature.properties?.road, "未知道路"),
+          place: textValue(feature.properties?.place),
+          status: textValue(feature.properties?.status),
+          kind: textValue(feature.properties?.kind, "道路工程"),
+          lane: textValue(feature.properties?.lane),
+          bound: textValue(feature.properties?.bound),
+          district: textValue(feature.properties?.district),
+          start: textValue(feature.properties?.start),
+          end: textValue(feature.properties?.end),
+          point,
+        }
+        const distance = nearestRoadDistance(point, roads)
+        return distance <= radiusMetres ? [{ ...item, distance }] : []
+      })
+        .sort((a, b) => a.distance - b.distance)
         .slice(0, 12)
 
       setAlerts(nearby)
@@ -168,20 +134,13 @@ export function LocalRoadAlertsPanel({
     } finally {
       setLoading(false)
     }
-  }
+  }, [radiusMetres, roads])
 
   useEffect(() => {
-    loadAlerts()
-
-    const timer =
-      window.setInterval(
-        loadAlerts,
-        5 * 60 * 1000,
-      )
-
-    return () =>
-      window.clearInterval(timer)
-  }, [])
+    const initial = window.setTimeout(() => { void loadAlerts() }, 0)
+    const timer = window.setInterval(() => { void loadAlerts() }, 5 * 60 * 1000)
+    return () => { window.clearTimeout(initial); window.clearInterval(timer) }
+  }, [loadAlerts])
 
   const countText = useMemo(() => {
     if (loading) return "搜尋中..."
@@ -230,7 +189,7 @@ export function LocalRoadAlertsPanel({
       {alerts.length > 0 && (
         <div className="mt-4 space-y-2">
 
-          {alerts.map((alert: any) => (
+          {alerts.map((alert) => (
             <article
               key={alert.id}
               className="rounded-xl border border-white/10 bg-black/20 p-3"

@@ -45,12 +45,27 @@ export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom 
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
+/**
+ * Loads arrivals for nearby stops from the official GMB ETA endpoint.
+ * Reuses the per-stop cache and bounded upstream queue used by stop boards.
+ * ETA is shown at its stop; it is not converted into a vehicle GPS position.
+ */
 export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<GmbResponse> {
   const places = loadGmbPlaces(lng, lat, now, zoom)
+  const stops = await Promise.all(places.stops.map(async (stop) => {
+    const board = await loadGmbBoard(stop.id, now)
+    if (!board.ok) return { ...stop, calls: [] as GmbCall[], clock: "waiting" as const }
+    return {
+      ...stop,
+      calls: board.stop.calls,
+      clock: board.stop.clock,
+    }
+  }))
+
   return {
     ok: places.ok,
-    observedAt: null,
-    stops: places.stops.map((stop) => ({ ...stop, calls: [], clock: "waiting" as const })),
+    observedAt: stops.some((stop) => stop.clock === "ready") ? new Date(now).toISOString() : null,
+    stops,
     cacheable: true,
   }
 }
@@ -79,13 +94,16 @@ function callsAt(rows: EtaRoute[], ids: Record<string, string>, now: number): Gm
     const entry = (row.eta ?? []).find((item) => item.eta_seq === 1) ?? row.eta?.[0]
     const etaMs = entry?.timestamp ? Date.parse(entry.timestamp) : NaN
     const hasEta = Number.isFinite(etaMs)
+    // Do not turn an expired prediction into a false "arriving now" result.
+    if (hasEta && etaMs < now - 60_000) continue
+    const validDiff = typeof entry?.diff === "number" && Number.isFinite(entry.diff) && entry.diff >= 0
+      ? entry.diff
+      : null
     const minutes = hasEta
-      ? Math.max(0, Math.round((etaMs - now) / 60_000))
-      : typeof entry?.diff === "number" && Number.isFinite(entry.diff)
-        ? Math.max(0, entry.diff)
-        : null
+      ? Math.round((etaMs - now) / 60_000)
+      : validDiff
     if (!entry && !dest) continue
-    if (entry && !hasEta && minutes == null && !dest && !text(entry.remarks_tc) && !text(entry.remarks_en)) continue
+    if (entry && !hasEta && validDiff == null && !dest && !text(entry.remarks_tc) && !text(entry.remarks_en)) continue
     const call: GmbCall = {
       route,
       destTc: dest?.tc ?? "",

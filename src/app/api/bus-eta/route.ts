@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server"
+import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 
 const GMB_STOP_ALLOWLIST: Record<string, number[]> = {
   
@@ -17,8 +19,6 @@ const GMB_STOP_ALLOWLIST: Record<string, number[]> = {
   ],
 
 }
-
-import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
@@ -89,22 +89,8 @@ type BusRow = {
 }
 
 const CONFIG = [
-  {
-    id: "lasalle",
-    name: "喇沙小學附近",
-    point: [114.1811, 22.3271] as Point,
-    keywords: ["喇沙小學", "la salle primary"],
-    routes: ["113", "12A", "1", "22", "7B"],
-    gmbRoutes: ["2", "2A", "69A", "70", "70A"],
-  },
-  {
-    id: "beverly",
-    name: "碧華花園",
-    point: [114.1827, 22.32715] as Point,
-    keywords: ["碧華花園", "beverly villas"],
-    routes: ["1A", "20A", "22", "6D", "6E", "6P", "42", "98E"],
-    gmbRoutes: ["2", "2A", "25A", "25B", "25M", "70", "70A"],
-  },
+  LOCAL_GMB_MONITORING.lasalle,
+  LOCAL_GMB_MONITORING.beverly,
 ] as const
 
 const KMB = "https://data.etabus.gov.hk/v1/transport/kmb"
@@ -171,7 +157,7 @@ let gmbStopsCache: {
 } | null = null
 
 
-let gmbStopsDebug = {
+const gmbStopsDebug = {
   variants: 0,
   routeStops: 0,
   uniqueStopIds: 0,
@@ -601,7 +587,7 @@ async function loadGmbArrivals(
 
   const candidates = stops
     .filter((stop) => {
-      if (!station.gmbRoutes.includes(stop.route)) {
+      if (!new Set<string>(station.gmbRoutes).has(stop.route)) {
         return false
       }
 

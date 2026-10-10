@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import type { ReactNode } from "react"
 import { cookies } from "next/headers"
 import { IBM_Plex_Mono, Newsreader, Outfit } from "next/font/google"
 import { htmlLang, localeOf } from "@/lib/i18n"
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     "Live strategic-road speeds, harbour crossings, land control points, and weather warnings over Hong Kong.",
 }
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   const store = await cookies()
   const locale = localeOf(store.get("locale")?.value)
   return (

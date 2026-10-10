@@ -1,0 +1,105 @@
+name: GMB estimated position validation
+
+on:
+  push:
+    branches:
+      - feature/gmb-estimated-vehicles
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/lib/gmb-*.ts"
+      - "src/lib/gmb-*.json"
+      - "src/lib/gmb-feed.ts"
+      - "src/app/api/gmb/**"
+      - "src/components/city-map.tsx"
+      - "src/lib/types.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/gmb-estimated-position.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run estimated-position validation
+        run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
+      - name: Run GMB route mapping validation
+        run: node --experimental-strip-types src/lib/gmb-route-mapping-validation.test.ts
+      - name: Run local monitoring allowlist validation
+        run: node --experimental-strip-types src/lib/gmb-local-monitoring-allowlist.test.ts
+      - name: Run route-stop coordinate join validation
+        run: node --experimental-strip-types src/lib/gmb-route-stop-coordinate-join.test.ts
+      - name: Run route-stop diagnostics query validation
+        run: node --experimental-strip-types src/lib/gmb-route-stop-diagnostics-validation.test.ts
+      - name: Run route-label coverage validation
+        run: node --experimental-strip-types src/lib/gmb-route-label-coverage.test.ts
+      - name: Run position blocker validation
+        run: node --experimental-strip-types src/lib/gmb-position-blockers.test.ts
+      - name: Run position blocker summary validation
+        run: node --experimental-strip-types src/lib/gmb-position-blocker-summary.test.ts
+      - name: Run TypeScript checks and save diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit --pretty false > typescript-diagnostics.txt 2>&1
+          code=$?
+          cat typescript-diagnostics.txt
+          {
+            echo "## TypeScript diagnostics"
+            echo '```text'
+            cat typescript-diagnostics.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Run ESLint and save diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npm run lint > eslint-diagnostics.txt 2>&1
+          code=$?
+          cat eslint-diagnostics.txt
+          {
+            echo "## ESLint diagnostics"
+            echo '```text'
+            cat eslint-diagnostics.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Build application and save diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npm run build > build-diagnostics.txt 2>&1
+          code=$?
+          cat build-diagnostics.txt
+          {
+            echo "## Build diagnostics"
+            echo '```text'
+            cat build-diagnostics.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmb-validation-diagnostics
+          path: |
+            typescript-diagnostics.txt
+            eslint-diagnostics.txt
+            build-diagnostics.txt
+          if-no-files-found: warn
+          retention-days: 7

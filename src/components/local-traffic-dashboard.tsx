@@ -590,10 +590,10 @@ const selected =
                   : band,
               dataQuality:
                 direct.length > 0
-                  ? "DIRECT"
+                  ? ("DIRECT" as const)
                   : selected.length > 0
-                    ? "NEARBY"
-                    : "NO_DATA",
+                    ? ("NEARBY" as const)
+                    : ("NO_DATA" as const),
               nearbyRoads:
                 selected
                   .map(
@@ -688,16 +688,17 @@ const selected =
   }
 
   useEffect(() => {
-    loadAllData()
+    const initialLoad = window.setTimeout(() => {
+      void loadAllData()
+    }, 0)
+    const timer = window.setInterval(() => {
+      void loadAllData()
+    }, 60_000)
 
-    const timer =
-      window.setInterval(
-        loadAllData,
-        60_000,
-      )
-
-    return () =>
+    return () => {
+      window.clearTimeout(initialLoad)
       window.clearInterval(timer)
+    }
   }, [])
 
   const featureCollection =
@@ -770,6 +771,7 @@ resizeObserver.observe(
 map.resize()
 
 mapRef.current = map
+let gmbRefreshTimer: number | null = null
 
 map.on("load", () => {
 
@@ -780,6 +782,140 @@ map.on("load", () => {
           data: featureCollection,
         },
       )
+
+      map.addSource("local-gmb-stops", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      })
+
+      map.addLayer({
+        id: "local-gmb-stop-circles",
+        type: "circle",
+        source: "local-gmb-stops",
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "#0f9f6e",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      })
+
+      map.addLayer({
+        id: "local-gmb-stop-labels",
+        type: "symbol",
+        source: "local-gmb-stops",
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 11,
+          "text-offset": [0, 1.25],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#064e3b",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
+        },
+      })
+
+      const refreshLocalGmbStops = async () => {
+        try {
+          const center = map.getCenter()
+          const params = new URLSearchParams({
+            lng: center.lng.toFixed(5),
+            lat: center.lat.toFixed(5),
+            zoom: map.getZoom().toFixed(2),
+          })
+          const response = await fetch(
+            `/api/gmb?${params.toString()}`,
+            { cache: "no-store" },
+          )
+          if (!response.ok) return
+          const body = await response.json() as {
+            ok?: boolean
+            stops?: Array<{
+              id: string
+              nameTc?: string
+              nameEn?: string
+              lng: number
+              lat: number
+              routes?: string[]
+              calls?: Array<{ route: string; minutes: number | null; destTc?: string }>
+            }>
+          }
+          if (!body.ok || !Array.isArray(body.stops)) return
+
+          const allowedRoutes = new Set([
+            "2", "2A", "69A", "70", "70A",
+            "25A", "25B", "25M",
+          ])
+          const features = body.stops.flatMap((stop) => {
+            if (!Number.isFinite(stop.lng) || !Number.isFinite(stop.lat)) return []
+            const routes = (stop.routes ?? []).filter((route) => allowedRoutes.has(route))
+            const calls = (stop.calls ?? []).filter((call) => allowedRoutes.has(call.route))
+            if (routes.length === 0 && calls.length === 0) return []
+            const etaText = calls
+              .slice(0, 2)
+              .map((call) => `${call.route} ${call.minutes == null ? "—" : Math.max(0, call.minutes) + "分"}`)
+              .join(" · ")
+            const routeText = [...new Set([...routes, ...calls.map((call) => call.route)])]
+              .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+              .join("/")
+            return [{
+              type: "Feature" as const,
+              geometry: {
+                type: "Point" as const,
+                coordinates: [stop.lng, stop.lat],
+              },
+              properties: {
+                id: stop.id,
+                name: stop.nameTc || stop.nameEn || "綠色小巴站",
+                routes: routeText,
+                eta: etaText || "暫無即時到站預報",
+                label: etaText ? `${routeText} · ${etaText}` : routeText,
+              },
+            }]
+          })
+          const source = map.getSource("local-gmb-stops") as GeoJSONSource | undefined
+          source?.setData({ type: "FeatureCollection", features })
+        } catch {
+          // Keep the last successful layer if the live GMB feed is temporarily unavailable.
+        }
+      }
+      map.on("click", "local-gmb-stop-circles", (event) => {
+        const feature = event.features?.[0]
+        const properties = feature?.properties as { name?: string; routes?: string; eta?: string } | undefined
+        const geometry = feature?.geometry
+        if (!properties || !geometry || geometry.type !== "Point") return
+        const point = geometry.coordinates as [number, number]
+        const content = document.createElement("div")
+        const title = document.createElement("strong")
+        title.textContent = properties.name || "綠色小巴站"
+        const routes = document.createElement("div")
+        routes.textContent = `路線：${properties.routes || "—"}`
+        const eta = document.createElement("div")
+        eta.textContent = `到站預報：${properties.eta || "暫無資料"}`
+        content.append(title, routes, eta)
+        new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
+          .setLngLat(point)
+          .setDOMContent(content)
+          .addTo(map)
+      })
+      map.on("mouseenter", "local-gmb-stop-circles", () => {
+        map.getCanvas().style.cursor = "pointer"
+      })
+      map.on("mouseleave", "local-gmb-stop-circles", () => {
+        map.getCanvas().style.cursor = ""
+      })
+
+      void refreshLocalGmbStops()
+      // Refresh the nearby-stop layer after a completed pan or zoom.
+      map.on("moveend", refreshLocalGmbStops)
+      gmbRefreshTimer = window.setInterval(() => {
+        void refreshLocalGmbStops()
+      }, 60_000)
+
 
       map.addLayer({
         id: "local-roads-casing",
@@ -889,6 +1025,7 @@ paint: {
     })
 
     return () => {
+  if (gmbRefreshTimer !== null) window.clearInterval(gmbRefreshTimer)
   resizeObserver.disconnect()
   map.remove()
   mapRef.current = null

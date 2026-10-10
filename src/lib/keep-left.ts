@@ -20,7 +20,7 @@ type Span = {
 
 // Hong Kong keeps left. A divided road stored with the dot on the right of its own direction is drawn backwards.
 export function keepLeftCarriageways<T extends Carriageway>(lines: readonly T[]): T[] {
-  let current = lines
+  let current: T[] = [...lines]
   for (let pass = 0; pass < 4; pass += 1) {
     const next = turnWrongPairs(current)
     if (sameOrder(current, next)) return next
