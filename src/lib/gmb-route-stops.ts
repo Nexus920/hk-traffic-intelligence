@@ -6,8 +6,8 @@ const CACHE_MS = 6 * 60 * 60_000
 
 type ApiRouteStop = {
   stop_seq?: number
-  stop_id?: string
-  stop?: string
+  stop_id?: string | number
+  stop?: string | number
 }
 
 type RouteStopResponse = {
@@ -54,8 +54,15 @@ export async function loadGmbRouteStopCoordinates(
   const stops: GmbRouteStopCoordinate[] = []
   for (const row of rows) {
     const stopSeq = row.stop_seq
-    const stopId = typeof row.stop_id === "string" ? row.stop_id : row.stop
-    if (!Number.isInteger(stopSeq) || typeof stopId !== "string" || !stopId) continue
+    const rawStopId = row.stop_id ?? row.stop
+    const stopId =
+      typeof rawStopId === "number" && Number.isSafeInteger(rawStopId) && rawStopId > 0
+        ? String(rawStopId)
+        : typeof rawStopId === "string" && rawStopId.trim()
+          ? rawStopId.trim()
+          : null
+    if (!Number.isInteger(stopSeq) || !stopId) continue
+
     const stop = gmbStop(stopId)
     if (!stop || !Number.isFinite(stop.lng) || !Number.isFinite(stop.lat)) continue
     stops.push({ stopSeq: stopSeq as number, stopId, lng: stop.lng, lat: stop.lat })
