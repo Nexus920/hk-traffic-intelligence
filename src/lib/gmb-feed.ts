@@ -45,12 +45,26 @@ export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom 
   return { ok: true, stops: mergeSamePoles(stops) }
 }
 
+/**
+ * Loads arrivals for nearby stops from the official GMB ETA endpoint.
+ * ETA is shown at its stop; it is not converted into a vehicle GPS position.
+ */
 export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<GmbResponse> {
   const places = loadGmbPlaces(lng, lat, now, zoom)
+  const stops = await Promise.all(places.stops.map(async (stop) => {
+    const record = gmbStop(stop.id)
+    const rows = await fetchStop(stop.id)
+    return {
+      ...stop,
+      calls: rows && record ? callsAt(rows, record.ids, now) : [],
+      clock: rows ? "ready" as const : "waiting" as const,
+    }
+  }))
+
   return {
     ok: places.ok,
-    observedAt: null,
-    stops: places.stops.map((stop) => ({ ...stop, calls: [], clock: "waiting" as const })),
+    observedAt: stops.some((stop) => stop.clock === "ready") ? new Date(now).toISOString() : null,
+    stops,
     cacheable: true,
   }
 }
