@@ -93,13 +93,16 @@ function callsAt(rows: EtaRoute[], ids: Record<string, string>, now: number): Gm
     const entry = (row.eta ?? []).find((item) => item.eta_seq === 1) ?? row.eta?.[0]
     const etaMs = entry?.timestamp ? Date.parse(entry.timestamp) : NaN
     const hasEta = Number.isFinite(etaMs)
+    // Do not turn an expired prediction into a false "arriving now" result.
+    if (hasEta && etaMs < now - 60_000) continue
+    const validDiff = typeof entry?.diff === "number" && Number.isFinite(entry.diff) && entry.diff >= 0
+      ? entry.diff
+      : null
     const minutes = hasEta
-      ? Math.max(0, Math.round((etaMs - now) / 60_000))
-      : typeof entry?.diff === "number" && Number.isFinite(entry.diff)
-        ? Math.max(0, entry.diff)
-        : null
+      ? Math.round((etaMs - now) / 60_000)
+      : validDiff
     if (!entry && !dest) continue
-    if (entry && !hasEta && minutes == null && !dest && !text(entry.remarks_tc) && !text(entry.remarks_en)) continue
+    if (entry && !hasEta && validDiff == null && !dest && !text(entry.remarks_tc) && !text(entry.remarks_en)) continue
     const call: GmbCall = {
       route,
       destTc: dest?.tc ?? "",
