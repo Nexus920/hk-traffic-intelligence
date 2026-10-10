@@ -1849,7 +1849,6 @@ function addWatchLayers(map: Map, before: string | undefined) {
       "circle-stroke-width": 2,
     },
   }, before)
-```
     id: "nlb-stops",
     type: "circle",
     source: "nlb-stops",
