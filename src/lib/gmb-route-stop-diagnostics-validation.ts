@@ -41,7 +41,7 @@ export function parseGmbRouteStopDiagnosticsBatchParams(
   if (rawIds.length < 1 || rawIds.length > 5) return null
   const routeIds: number[] = []
   for (const rawId of rawIds) {
-    if (!/^[1-9]\\d*$/.test(rawId)) return null
+    if (!/^[1-9]\d*$/.test(rawId)) return null
     const routeId = Number(rawId)
     if (!Number.isSafeInteger(routeId) || routeId <= 0 || routeIds.includes(routeId)) return null
     routeIds.push(routeId)
