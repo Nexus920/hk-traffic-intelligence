@@ -436,6 +436,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
     new Set(routeStops.map((item) => item.stop.stop_id)),
   )
 
+  
   const stopInfoList = await mapWithConcurrency(
     uniqueStopIds,
     8,
@@ -444,7 +445,10 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
         const result = await gmbJson<{ data?: GmbStopInfo }>(
           `${GMB}/stop/${encodeURIComponent(stopId)}`,
         )
-        return result.data ?? null
+
+        return result.data
+          ? { stop_id: stopId, info: result.data }
+          : null
       } catch {
         return null
       }
@@ -453,11 +457,17 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
 
   const stopInfoMap = new Map(
     stopInfoList
-      .filter((item): item is GmbStopInfo => item !== null)
-      .map((item) => [item.stop_id, item]),
+      .filter(
+        (item): item is {
+          stop_id: string
+          info: GmbStopInfo
+        } => item !== null,
+      )
+      .map((item) => [item.stop_id, item.info]),
   )
 
   const nearbyStops: GmbNearbyStop[] = []
+
 
   for (const item of routeStops) {
     const info = stopInfoMap.get(item.stop.stop_id)
