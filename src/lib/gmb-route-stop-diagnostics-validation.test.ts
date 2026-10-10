@@ -79,7 +79,7 @@ assert.deepEqual(rankNearbyGmbRouteStops([
 assert.deepEqual(rankNearbyGmbRouteStops([
   { stopSeq: 0, stopId: "bad-sequence", lng: 114.1811, lat: 22.3271 },
   { stopSeq: 1, stopId: "bad-coordinate", lng: 114.1811, lat: 91 },
-  { stopSeq: 2, stopId: "blank-id", lng: 114.1811, lat: 22.3271 },
+  { stopSeq: 2, stopId: "   ", lng: 114.1811, lat: 22.3271 },
 ], [114.1811, 22.3271]), [])
 
 // Results are stable for equal distances and the requested result cap is honoured.
