@@ -47,17 +47,18 @@ export function loadGmbPlaces(lng: number, lat: number, _now = Date.now(), zoom 
 
 /**
  * Loads arrivals for nearby stops from the official GMB ETA endpoint.
+ * Reuses the per-stop cache and bounded upstream queue used by stop boards.
  * ETA is shown at its stop; it is not converted into a vehicle GPS position.
  */
 export async function loadGmbNear(lng: number, lat: number, now = Date.now(), zoom = Number.NaN): Promise<GmbResponse> {
   const places = loadGmbPlaces(lng, lat, now, zoom)
   const stops = await Promise.all(places.stops.map(async (stop) => {
-    const record = gmbStop(stop.id)
-    const rows = await fetchStop(stop.id)
+    const board = await loadGmbBoard(stop.id, now)
+    if (!board.ok) return { ...stop, calls: [] as GmbCall[], clock: "waiting" as const }
     return {
       ...stop,
-      calls: rows && record ? callsAt(rows, record.ids, now) : [],
-      clock: rows ? "ready" as const : "waiting" as const,
+      calls: board.stop.calls,
+      clock: board.stop.clock,
     }
   }))
 
