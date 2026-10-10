@@ -345,18 +345,28 @@ const url =
   return data
 }
 
+
 async function gmbJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0",
+    },
     cache: "no-store",
     signal: AbortSignal.timeout(10000),
   })
 
   if (!response.ok) {
-    throw new Error(`GMB API returned ${response.status}`)
+    const detail = await response.text().catch(() => "")
+    throw new Error(
+      `GMB API returned ${response.status}: ${detail.slice(0, 200)}`,
+    )
   }
 
   return await response.json() as T
 }
+
 
 async function mapWithConcurrency<T, R>(
   items: T[],
