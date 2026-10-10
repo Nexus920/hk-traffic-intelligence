@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
-import { parseGmbRouteStopDiagnosticsBatchParams } from "./gmb-route-stop-diagnostics-validation.ts"
 import {
   getGmbRouteStopQualityStatus,
+  parseGmbRouteStopDiagnosticsBatchParams,
   parseGmbRouteStopDiagnosticsParams,
 } from "./gmb-route-stop-diagnostics-validation.ts"
 
