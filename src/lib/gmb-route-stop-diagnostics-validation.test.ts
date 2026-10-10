@@ -64,3 +64,30 @@ assert.deepEqual(rankNearbyGmbRouteStops([
 ], [114.1811, 22.3271], 100, 0), [])
 
 console.log("gmb-nearby-route-stop-ranking-ok")
+
+
+// Invalid search bounds must never widen the diagnostic search accidentally.
+assert.deepEqual(rankNearbyGmbRouteStops([
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+], [114.1811, 22.3271], -1), [])
+assert.deepEqual(rankNearbyGmbRouteStops([
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+], [114.1811, 22.3271], Number.NaN), [])
+assert.deepEqual(rankNearbyGmbRouteStops([
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+], [114.1811, 22.3271], 100, 1.5), [])
+assert.deepEqual(rankNearbyGmbRouteStops([
+  { stopSeq: 0, stopId: "bad-sequence", lng: 114.1811, lat: 22.3271 },
+  { stopSeq: 1, stopId: "bad-coordinate", lng: 114.1811, lat: 91 },
+  { stopSeq: 2, stopId: "blank-id", lng: 114.1811, lat: 22.3271 },
+], [114.1811, 22.3271]), [])
+
+// Results are stable for equal distances and the requested result cap is honoured.
+const cappedNearbyStops = rankNearbyGmbRouteStops([
+  { stopSeq: 3, stopId: "103", lng: 114.1811, lat: 22.3271 },
+  { stopSeq: 1, stopId: "101", lng: 114.1811, lat: 22.3271 },
+  { stopSeq: 2, stopId: "102", lng: 114.1811, lat: 22.3271 },
+], [114.1811, 22.3271], 100, 2)
+assert.deepEqual(cappedNearbyStops.map((stop) => stop.stopId), ["101", "102"])
+
+console.log("gmb-nearby-route-stop-input-guards-ok")
