@@ -78,8 +78,9 @@ assert.deepEqual(parseGmbRouteJourneyMetadata([
   { routeId: 11, companyCode: "KMB", journeyTime: 12 },
   { routeId: 12, companyCode: "GMB", journeyTime: 0 },
   { routeId: 10, companyCode: "GMB", journeyTime: 25 },
+  { routeId: 13, companyCode: "GMB", journeyTime: 18 },
   null,
-]), [{ routeId: 10, journeyTimeMinutes: 24 }])
+]), [{ routeId: 13, journeyTimeMinutes: 18 }])
 assert.deepEqual(parseGmbRouteJourneyMetadata({ type: "FeatureCollection", features: [
   { type: "Feature", properties: { routeId: 20, companyCode: "GMB", journeyTime: 31 }, geometry: null },
   { type: "Feature", properties: { routeId: 21, companyCode: "KMB", journeyTime: 12 }, geometry: null },
