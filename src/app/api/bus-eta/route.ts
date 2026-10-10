@@ -400,9 +400,15 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
               route,
               variant,
             }))
-          } catch {
+          
+          } catch (error) {
+            console.error(
+              `[GMB route API] region=${region}, route=${route}:`,
+              error instanceof Error ? error.message : String(error),
+            )
             return []
           }
+
         }),
       )
 
