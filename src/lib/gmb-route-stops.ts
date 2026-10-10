@@ -1,0 +1,62 @@
+import { gmbStop } from "@/lib/gmb-reach"
+import { readEtaJson } from "@/lib/eta-read"
+
+const ROUTE_STOP_ROOT = "https://data.etagmb.gov.hk/route-stop"
+const CACHE_MS = 6 * 60 * 60_000
+
+type ApiRouteStop = {
+  stop_seq?: number
+  stop_id?: string
+  stop?: string
+}
+
+type RouteStopResponse = {
+  data?: ApiRouteStop[]
+}
+
+export type GmbRouteStopCoordinate = {
+  stopSeq: number
+  stopId: string
+  lng: number
+  lat: number
+}
+
+const cache = new Map<string, { at: number; stops: GmbRouteStopCoordinate[] }>()
+
+/**
+ * Loads the official ordered stop sequence for one GMB route direction and
+ * joins it to the local official-stop coordinate catalogue. This is route
+ * geometry metadata only; it does not imply that a vehicle is at any stop.
+ */
+export async function loadGmbRouteStopCoordinates(
+  routeId: number,
+  routeSeq: number,
+  now = Date.now(),
+): Promise<GmbRouteStopCoordinate[]> {
+  if (!Number.isInteger(routeId) || routeId <= 0 || !Number.isInteger(routeSeq) || routeSeq <= 0) {
+    return []
+  }
+
+  const key = `${routeId}/${routeSeq}`
+  const hit = cache.get(key)
+  if (hit && now - hit.at < CACHE_MS) return hit.stops
+
+  const body = await readEtaJson<RouteStopResponse>(
+    `${ROUTE_STOP_ROOT}/${routeId}/${routeSeq}`,
+  )
+  if (!Array.isArray(body?.data)) return hit?.stops ?? []
+
+  const stops: GmbRouteStopCoordinate[] = []
+  for (const row of body.data) {
+    const stopSeq = row.stop_seq
+    const stopId = typeof row.stop_id === "string" ? row.stop_id : row.stop
+    if (!Number.isInteger(stopSeq) || typeof stopId !== "string" || !stopId) continue
+    const stop = gmbStop(stopId)
+    if (!stop || !Number.isFinite(stop.lng) || !Number.isFinite(stop.lat)) continue
+    stops.push({ stopSeq: stopSeq as number, stopId, lng: stop.lng, lat: stop.lat })
+  }
+
+  stops.sort((a, b) => a.stopSeq - b.stopSeq)
+  cache.set(key, { at: now, stops })
+  return stops
+}
