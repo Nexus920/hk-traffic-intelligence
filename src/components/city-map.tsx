@@ -190,7 +190,7 @@ const FLYOVER = [
   { center: [114.178, 22.292] as [number, number], zoom: 13.05, pitch: 52, bearing: -12, duration: 7200, curve: 1.2 },
 ]
 
-const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "motorcycle", "motorcycle-label", "kerb", "kerb-label", "meters", "meters-label", "chargers", "chargers-label"]
+const WATCH_HITS = ["approach-times", "incidents", "cameras-harbour", "cameras-portal", "cameras-city", "works", "tolls-portal", "tolls-overview", "control-points", "mtr-stations", "mtr-station-label", "mtr-trains", "mtr-train-label", "kmb-stops", "kmb-stop-label", "lrt-stations", "lrt-station-label", "lrt-trains", "lrt-train-label", "citybus-stops", "citybus-stop-label", "gmb-stops", "gmb-stop-label", "gmb-estimated-vehicle-symbols", "nlb-stops", "nlb-stop-label", "mtrbus-stops", "mtrbus-stop-label", "ferry-piers", "ferry-pier-label", "ferry-vessels", "ferry-vessel-label", "parking", "parking-label", "motorcycle", "motorcycle-label", "kerb", "kerb-label", "meters", "meters-label", "chargers", "chargers-label"]
 
 type AnimLine = {
   coords: [number, number][]
@@ -679,6 +679,7 @@ export function CityMap({
       }
       if (!layers.gmb) {
         geoJsonSource(map, "gmb-stops")?.setData(emptyCollection())
+        geoJsonSource(map, "gmb-estimated-vehicles")?.setData(emptyCollection())
       } else if (gmb?.ok) {
         geoJsonSource(map, "gmb-stops")?.setData(busStopCollection(map, gmb, locale, labels, "#65a30d"))
       }
