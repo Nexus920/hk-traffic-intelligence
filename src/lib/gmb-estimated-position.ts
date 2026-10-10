@@ -7,6 +7,7 @@ export type EstimatedMinibus = {
   etaMinutes: number
   observedAt: string
   positionType: "estimated"
+  label: string
 }
 
 export type RouteStopCoordinate = {
@@ -20,6 +21,7 @@ export type RouteStopCoordinate = {
  * Interpolates a visual estimate between consecutive stops.
  * This is not a live GPS location. The caller must only use this
  * when it has a valid ETA and a known segment duration.
+ * The returned coordinate is a display estimate, never a GPS fix.
  */
 export function estimateBetweenStops(
   from: RouteStopCoordinate,
