@@ -630,23 +630,12 @@ async function loadGmbArrivals(
         distanceMetres([b.long, b.lat], station.point),
     )
 
-
-      // 必須在該監控卡的站點白名單內
-      if (!allowedStopIds.includes(Number(stop.stop))) {
-        return false
-      }
-
-      // 保留距離限制，避免錯誤站點混入
-      const stopPoint: Point = [stop.long, stop.lat]
-      const thisDistance = distanceMetres(
-        stopPoint,
-        station.point,
-      )
-
-      if (thisDistance > 250) return false
-
-      return true
-    })
+      // 每條路線、每個方向保留最近站點
+  const nearestByRouteDirection = new Map<
+    string,
+    GmbNearbyStop
+  >()
+     
     .sort(
       (a, b) =>
         distanceMetres([a.long, a.lat], station.point) -
