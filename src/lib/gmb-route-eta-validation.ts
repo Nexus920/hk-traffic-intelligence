@@ -29,10 +29,17 @@ export function parseGmbRouteStopEtaResponse(input: unknown): GmbRouteStopEta[] 
     !(typeof stopId === "number" && Number.isSafeInteger(stopId) && stopId > 0)
   ) return []
 
+  const entries = data.eta.filter(isRecord) as RawEtaEntry[]
+  const sequenceCounts = new Map<number, number>()
+  for (const raw of entries) {
+    const etaSeq = raw.eta_seq
+    if (typeof etaSeq === "number" && Number.isSafeInteger(etaSeq) && etaSeq > 0) {
+      sequenceCounts.set(etaSeq, (sequenceCounts.get(etaSeq) ?? 0) + 1)
+    }
+  }
+
   const rows: GmbRouteStopEta[] = []
-  const seen = new Set<number>()
-  for (const raw of data.eta as RawEtaEntry[]) {
-    if (!isRecord(raw)) continue
+  for (const raw of entries) {
     const etaSeq = raw.eta_seq
     const diff = raw.diff
     const timestamp = raw.timestamp
@@ -40,7 +47,7 @@ export function parseGmbRouteStopEtaResponse(input: unknown): GmbRouteStopEta[] 
       typeof etaSeq !== "number" ||
       !Number.isSafeInteger(etaSeq) ||
       etaSeq <= 0 ||
-      seen.has(etaSeq) ||
+      sequenceCounts.get(etaSeq) !== 1 ||
       typeof diff !== "number" ||
       !Number.isSafeInteger(diff) ||
       diff < 0 ||
@@ -49,7 +56,6 @@ export function parseGmbRouteStopEtaResponse(input: unknown): GmbRouteStopEta[] 
       !Number.isFinite(Date.parse(timestamp))
     ) continue
 
-    seen.add(etaSeq)
     rows.push({ etaSeq, diffMinutes: diff, timestamp })
   }
 
