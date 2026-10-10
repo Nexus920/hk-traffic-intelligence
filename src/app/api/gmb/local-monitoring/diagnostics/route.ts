@@ -57,11 +57,12 @@ export async function GET(request: Request) {
           etaChecks.push({
             stopSeq: stop.stopSeq,
             stopId: stop.stopId,
-            enabled: eta.length > 0,
+            hasValidEta: eta.length > 0,
+            validEtaCount: eta.length,
             eta: eta.slice(0, 3),
           })
         } catch {
-          etaChecks.push({ stopSeq: stop.stopSeq, stopId: stop.stopId, enabled: false, eta: [], status: "unavailable" })
+          etaChecks.push({ stopSeq: stop.stopSeq, stopId: stop.stopId, hasValidEta: false, validEtaCount: 0, eta: [], status: "unavailable" })
         }
       }
       results.push({
