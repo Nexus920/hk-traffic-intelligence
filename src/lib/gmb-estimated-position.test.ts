@@ -76,6 +76,10 @@ assert.deepEqual(uniqueGmbRouteStopRows([
   { stop_seq: 2, stop_id: "102b" },
   { stop_seq: 0, stop_id: "100" },
   { stop_seq: 3, stop_id: "" },
+  { stop_seq: 4, stop_id: "not-a-stop-id" },
+  { stop_seq: 5, stop_id: "00104" },
+  { stop_seq: 6, stop_id: "9007199254740992" },
+  { stop_seq: 7, stop_id: Number.MAX_SAFE_INTEGER + 1 },
   { stop_seq: Number.MAX_SAFE_INTEGER + 1, stop_id: "unsafe-sequence" },
 ]), [{ stopSeq: 1, stopId: "101" }])
 
