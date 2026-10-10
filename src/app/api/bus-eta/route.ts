@@ -573,14 +573,27 @@ async function loadGmbArrivals(
 ): Promise<ArrivalItem[]> {
   const now = Date.now()
 
-  // 只查監測位置 450 米範圍內、而且屬於指定路線的站
-  const nearby = stops.filter((stop) =>
-    station.gmbRoutes.some((route) => route === stop.route) &&
-    distanceMetres(
-      [stop.long, stop.lat],
-      station.point,
-    ) <= 450,
-  )
+  
+  // 只保留指定路線、距離監測點 250 米內的站
+  const candidates = stops
+    .filter((stop) =>
+      station.gmbRoutes.some((route) => route === stop.route) &&
+      distanceMetres([stop.long, stop.lat], station.point) <= 250,
+    )
+    .sort((a, b) =>
+      distanceMetres([a.long, a.lat], station.point) -
+      distanceMetres([b.long, b.lat], station.point),
+    )
+
+  // 每條路線、每個方向只保留最近的一個站
+  const nearestByRouteDirection = new Map<string, GmbNearbyStop>()
+  for (const stop of candidates) {
+    const key = `${stop.route}|${stop.route_seq}`
+    if (!nearestByRouteDirection.has(key)) {
+      nearestByRouteDirection.set(key, stop)
+    }
+  }
+  const nearby = Array.from(nearestByRouteDirection.values())
 
   const results = await mapWithConcurrency(
     nearby,
