@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const areaId = url.searchParams.get("area") ?? ""
   const routeSeqRaw = url.searchParams.get("routeSeq") ?? "1"
 
-  if (!(areaId in LOCAL_GMB_MONITORING) || !/^[12]$/.test(routeSeqRaw) || !isGmbRouteDirection(Number(routeSeqRaw))) {
+  if (!Object.hasOwn(LOCAL_GMB_MONITORING, areaId) || !/^[12]$/.test(routeSeqRaw) || !isGmbRouteDirection(Number(routeSeqRaw))) {
     return Response.json(
       { ok: false, error: "Provide area=lasalle|beverly and routeSeq=1|2" },
       { status: 400 },
@@ -27,16 +27,25 @@ export async function GET(request: Request) {
   const [lng, lat] = area.point
   const routeSeq = Number(routeSeqRaw)
   const routeIdsByLabel = gmbOfficialRouteIdsNearPoint(area.gmbRoutes, lng, lat, 300)
-  const results = []
+  const results: Array<Record<string, unknown>> = []
 
   // Keep upstream requests bounded and sequential for this diagnostic endpoint.
-  const uniqueRouteIds = [...new Set(Object.values(routeIdsByLabel).flat())].sort((a, b) => a - b)
+  const labelsByRouteId = new Map<number, string[]>()
+  for (const [label, ids] of Object.entries(routeIdsByLabel)) {
+    for (const id of ids) {
+      const labels = labelsByRouteId.get(id) ?? []
+      labels.push(label)
+      labelsByRouteId.set(id, labels)
+    }
+  }
+  const uniqueRouteIds = [...labelsByRouteId.keys()].sort((a, b) => a - b)
   for (const routeId of uniqueRouteIds) {
     try {
       await loadGmbRouteStopCoordinates(routeId, routeSeq)
       const diagnostics = getGmbRouteStopCoordinateDiagnostics(routeId, routeSeq)
       results.push({
         routeId,
+        routeLabels: labelsByRouteId.get(routeId) ?? [],
         routeSeq,
         qualityStatus: diagnostics ? getGmbRouteStopQualityStatus(diagnostics) : "unavailable",
         inputRows: diagnostics?.inputRows ?? null,
@@ -48,7 +57,7 @@ export async function GET(request: Request) {
         duplicateSequences: diagnostics?.duplicateSequences ?? [],
       })
     } catch {
-      results.push({ routeId, routeSeq, qualityStatus: "unavailable" })
+      results.push({ routeId, routeLabels: labelsByRouteId.get(routeId) ?? [], routeSeq, qualityStatus: "unavailable" })
     }
   }
 
