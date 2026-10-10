@@ -13,7 +13,7 @@ import {
   type TrainObservation,
 } from "./mtr-estimate.ts"
 import { advanceRuns, mergeRuns, runCollection, runsFromTrains, type TrainRun } from "./mtr-run.ts"
-import { useTrackEdges } from "./rail-tracks.ts"
+import { setTrackEdges } from "./rail-tracks.ts"
 
 const now = Date.parse("2026-10-01T05:40:00Z")
 
@@ -259,13 +259,13 @@ const railBend = [
   [places.A!.lng + 0.008, ((places.A!.lat ?? 0) + (places.B!.lat ?? 0)) / 2],
   [places.B!.lng, places.B!.lat],
 ]
-useTrackEdges({ "A>B": railBend })
+setTrackEdges({ "A>B": railBend })
 const onBend = projectTrain({ ...obsTrain("B", "C", 1), path: ["A", "B", "C"], hold: ["A", "B", "C"] }, locate, now)
 assert.ok(onBend)
 assert.equal(onBend.from, "A")
 assert.equal(onBend.to, "B")
 assert.ok(onBend.lng > places.A!.lng + 0.001)
-useTrackEdges({})
+setTrackEdges({})
 
 const first = asFeed(estimateTrains(line, [obs("C", "C", 80, 80)], locate))
 let parked = runsFromTrains(first, locate, () => "#111", now)
