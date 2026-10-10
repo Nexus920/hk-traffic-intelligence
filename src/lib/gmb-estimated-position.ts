@@ -18,6 +18,13 @@ export type RouteStopCoordinate = {
   lat: number
 }
 
+function validCoordinate(point: { lng: number; lat: number }): boolean {
+  return Number.isFinite(point.lng) &&
+    Number.isFinite(point.lat) &&
+    point.lng >= -180 && point.lng <= 180 &&
+    point.lat >= -90 && point.lat <= 90
+}
+
 /**
  * Interpolates a visual estimate between consecutive stops.
  * This is not a live GPS location. The caller must only use this
@@ -31,10 +38,8 @@ export function estimateBetweenStops(
   segmentMinutes: number,
 ): { lng: number; lat: number } | null {
   if (
-    !Number.isFinite(from.lng) ||
-    !Number.isFinite(from.lat) ||
-    !Number.isFinite(to.lng) ||
-    !Number.isFinite(to.lat) ||
+    !validCoordinate(from) ||
+    !validCoordinate(to) ||
     !Number.isFinite(etaMinutes) ||
     !Number.isFinite(segmentMinutes) ||
     etaMinutes < 0 ||
@@ -114,7 +119,9 @@ export function estimatesFromEtaObservations(
     if (
       !observation.route ||
       !Number.isInteger(observation.routeSeq) ||
+      observation.routeSeq <= 0 ||
       !Number.isInteger(observation.nextStopSeq) ||
+      observation.nextStopSeq <= 1 ||
       !Number.isFinite(observation.etaMinutes) ||
       !Number.isFinite(observation.segmentMinutes) ||
       observation.etaMinutes < 0 ||
@@ -127,7 +134,14 @@ export function estimatesFromEtaObservations(
     if (!stops) continue
     const to = stops.find((stop) => stop.stopSeq === observation.nextStopSeq)
     const from = stops.find((stop) => stop.stopSeq === observation.nextStopSeq - 1)
-    if (!from || !to) continue
+    if (
+      !from ||
+      !to ||
+      !validCoordinate(from) ||
+      !validCoordinate(to) ||
+      from.stopSeq <= 0 ||
+      to.stopSeq !== from.stopSeq + 1
+    ) continue
 
     vehicles.push({
       route: observation.route,
