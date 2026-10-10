@@ -171,7 +171,7 @@ let gmbStopsCache: {
 } | null = null
 
 
-let gmbStopsDebug = {
+const gmbStopsDebug = {
   variants: 0,
   routeStops: 0,
   uniqueStopIds: 0,
@@ -601,7 +601,7 @@ async function loadGmbArrivals(
 
   const candidates = stops
     .filter((stop) => {
-      if (!station.gmbRoutes.includes(stop.route)) {
+      if (!station.gmbRoutes.some((route) => route === stop.route)) {
         return false
       }
 
