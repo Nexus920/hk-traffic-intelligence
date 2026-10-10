@@ -97,53 +97,29 @@ export function LocalRoadAlertsPanel({
         )
       }
 
-      const nearby = (
-        body.works?.features ?? []
-      )
-        .map((feature): Omit<NearbyAlert, "distance"> | null => {
-          const coordinates =
-            feature.geometry?.coordinates
-
-          if (
-            !Array.isArray(coordinates) ||
-            coordinates.length < 2
-          ) {
-            return null
-          }
-
-          const point: [number, number] = [
-            Number(coordinates[0]),
-            Number(coordinates[1]),
-          ]
-
-          return {
-            id:
-              String(
-                feature.properties?.id ??
-                  feature.properties?.roadworksId ??
-                  `${String(feature.properties?.road ?? "road")}-${String(coordinates[0])}-${String(coordinates[1])}`,
-              ),
-            road: textValue(feature.properties?.road, "未知道路"),
-            place: textValue(feature.properties?.place),
-            status: textValue(feature.properties?.status),
-            kind: textValue(feature.properties?.kind, "道路工程"),
-            lane: textValue(feature.properties?.lane),
-            bound: textValue(feature.properties?.bound),
-            district: textValue(feature.properties?.district),
-            start: textValue(feature.properties?.start),
-            end: textValue(feature.properties?.end),
-            point,
-          }
-        })
-        .filter(Boolean)
-        .map((item): NearbyAlert | null => item ? ({
-          ...item,
-          distance: nearestRoadDistance(
-            item.point,
-            roads,
-          ),
-        }) : null)
-        .filter((item): item is NearbyAlert => item !== null && item.distance <= radiusMetres)
+      const nearby = (body.works?.features ?? []).flatMap((feature): NearbyAlert[] => {
+        const coordinates = feature.geometry?.coordinates
+        if (!Array.isArray(coordinates) || coordinates.length < 2) return []
+        const lng = Number(coordinates[0])
+        const lat = Number(coordinates[1])
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return []
+        const point: [number, number] = [lng, lat]
+        const item: Alert & { point: [number, number] } = {
+          id: String(feature.properties?.id ?? feature.properties?.roadworksId ?? `${String(feature.properties?.road ?? "road")}-${lng}-${lat}`),
+          road: textValue(feature.properties?.road, "未知道路"),
+          place: textValue(feature.properties?.place),
+          status: textValue(feature.properties?.status),
+          kind: textValue(feature.properties?.kind, "道路工程"),
+          lane: textValue(feature.properties?.lane),
+          bound: textValue(feature.properties?.bound),
+          district: textValue(feature.properties?.district),
+          start: textValue(feature.properties?.start),
+          end: textValue(feature.properties?.end),
+          point,
+        }
+        const distance = nearestRoadDistance(point, roads)
+        return distance <= radiusMetres ? [{ ...item, distance }] : []
+      })
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 12)
 
