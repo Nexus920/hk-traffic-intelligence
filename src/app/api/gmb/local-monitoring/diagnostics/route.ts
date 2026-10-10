@@ -1,4 +1,5 @@
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
+import { buildGmbRouteLabelCoverage } from "@/lib/gmb-route-label-coverage"
 import { gmbOfficialRouteIdsNearPoint } from "@/lib/gmb-reach"
 import { loadGmbRouteStopCoordinates, getGmbRouteStopCoordinateDiagnostics } from "@/lib/gmb-route-stops"
 import { getGmbRouteStopQualityStatus, rankNearbyGmbRouteStops } from "@/lib/gmb-route-stop-diagnostics-validation"
@@ -29,14 +30,8 @@ export async function GET(request: Request) {
   const [lng, lat] = area.point
   const routeSeq = Number(routeSeqRaw)
   const routeIdsByLabel = gmbOfficialRouteIdsNearPoint(area.gmbRoutes, lng, lat, 300)
-  const routeLabelCoverage = area.gmbRoutes.map((label) => ({
-    label,
-    nearbyOfficialRouteIds: routeIdsByLabel[label] ?? [],
-    hasNearbyOfficialRouteId: (routeIdsByLabel[label] ?? []).length > 0,
-  }))
-  const routeLabelsWithoutNearbyOfficialIds = routeLabelCoverage
-    .filter((item) => !item.hasNearbyOfficialRouteId)
-    .map((item) => item.label)
+  const { routeLabelCoverage, routeLabelsWithoutNearbyOfficialIds } =
+    buildGmbRouteLabelCoverage(area.gmbRoutes, routeIdsByLabel)
   const results: Array<Record<string, unknown>> = []
 
   // Keep upstream requests bounded and sequential for this diagnostic endpoint.
