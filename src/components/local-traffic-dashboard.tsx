@@ -883,6 +883,32 @@ map.on("load", () => {
           // Keep the last successful layer if the live GMB feed is temporarily unavailable.
         }
       }
+      map.on("click", "local-gmb-stop-circles", (event) => {
+        const feature = event.features?.[0]
+        const properties = feature?.properties as { name?: string; routes?: string; eta?: string } | undefined
+        const geometry = feature?.geometry
+        if (!properties || !geometry || geometry.type !== "Point") return
+        const point = geometry.coordinates as [number, number]
+        const content = document.createElement("div")
+        const title = document.createElement("strong")
+        title.textContent = properties.name || "綠色小巴站"
+        const routes = document.createElement("div")
+        routes.textContent = `路線：${properties.routes || "—"}`
+        const eta = document.createElement("div")
+        eta.textContent = `到站預報：${properties.eta || "暫無資料"}`
+        content.append(title, routes, eta)
+        new maplibregl.Popup({ closeButton: true, maxWidth: "260px" })
+          .setLngLat(point)
+          .setDOMContent(content)
+          .addTo(map)
+      })
+      map.on("mouseenter", "local-gmb-stop-circles", () => {
+        map.getCanvas().style.cursor = "pointer"
+      })
+      map.on("mouseleave", "local-gmb-stop-circles", () => {
+        map.getCanvas().style.cursor = ""
+      })
+
       void refreshLocalGmbStops()
       // Refresh the nearby-stop layer after a completed pan or zoom.
       map.on("moveend", refreshLocalGmbStops)
