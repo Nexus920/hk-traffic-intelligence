@@ -9,6 +9,7 @@ export type EstimatedMinibus = {
   observedAt: string
   positionType: "estimated"
   label: string
+  observedAt: string
 }
 
 export type RouteStopCoordinate = {
@@ -86,4 +87,61 @@ export function estimatedMinibusCollection(
       }]
     }),
   }
+}
+
+
+export type GmbEtaObservation = {
+  route: string
+  routeSeq: number
+  nextStopSeq: number
+  etaMinutes: number
+  segmentMinutes: number
+  observedAt: string
+  label: string
+}
+
+/**
+ * Creates display estimates only when the caller has matched an ETA to the
+ * immediately following stop and has a defensible segment duration.
+ * ETA alone is not a vehicle position, so invalid/incomplete observations
+ * are omitted rather than replaced with a guessed midpoint.
+ */
+export function estimatesFromEtaObservations(
+  observations: GmbEtaObservation[],
+  routeStops: Map<string, RouteStopCoordinate[]>,
+): EstimatedMinibus[] {
+  const vehicles: EstimatedMinibus[] = []
+  for (const observation of observations) {
+    if (
+      !observation.route ||
+      !Number.isInteger(observation.routeSeq) ||
+      !Number.isInteger(observation.nextStopSeq) ||
+      !Number.isFinite(observation.etaMinutes) ||
+      !Number.isFinite(observation.segmentMinutes) ||
+      observation.etaMinutes < 0 ||
+      observation.segmentMinutes <= 0 ||
+      observation.etaMinutes > observation.segmentMinutes ||
+      !Number.isFinite(Date.parse(observation.observedAt))
+    ) continue
+
+    const stops = routeStops.get(`${observation.route}/${observation.routeSeq}`)
+    if (!stops) continue
+    const to = stops.find((stop) => stop.stopSeq === observation.nextStopSeq)
+    const from = stops.find((stop) => stop.stopSeq === observation.nextStopSeq - 1)
+    if (!from || !to) continue
+
+    vehicles.push({
+      route: observation.route,
+      routeSeq: observation.routeSeq,
+      stopSeq: from.stopSeq,
+      from: { lng: from.lng, lat: from.lat },
+      to: { lng: to.lng, lat: to.lat },
+      etaMinutes: observation.etaMinutes,
+      segmentMinutes: observation.segmentMinutes,
+      observedAt: observation.observedAt,
+      positionType: "estimated",
+      label: observation.label,
+    })
+  }
+  return vehicles
 }
