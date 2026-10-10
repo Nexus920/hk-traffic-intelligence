@@ -427,11 +427,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
               message,
             )
 
-            return []
-          }
-
-
-            return []
+                      return []
           }
 
         }),
