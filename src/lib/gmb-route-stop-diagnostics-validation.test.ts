@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { parseGmbRouteStopDiagnosticsBatchParams } from "./gmb-route-stop-diagnostics-validation.ts"
 import {
   getGmbRouteStopQualityStatus,
   parseGmbRouteStopDiagnosticsParams,
@@ -30,8 +31,6 @@ assert.equal(getGmbRouteStopQualityStatus({ validRows: 0, isComplete: false }), 
 assert.equal(getGmbRouteStopQualityStatus({ validRows: 0, isComplete: true }), "no-valid-stops")
 
 console.log("gmb-route-stop-diagnostics-validation-ok")
-
-import { parseGmbRouteStopDiagnosticsBatchParams } from "./gmb-route-stop-diagnostics-validation.ts"
 
 assert.deepEqual(
   parseGmbRouteStopDiagnosticsBatchParams("2000410,2000511", "1"),
