@@ -590,10 +590,10 @@ const selected =
                   : band,
               dataQuality:
                 direct.length > 0
-                  ? "DIRECT"
+                  ? ("DIRECT" as const)
                   : selected.length > 0
-                    ? "NEARBY"
-                    : "NO_DATA",
+                    ? ("NEARBY" as const)
+                    : ("NO_DATA" as const),
               nearbyRoads:
                 selected
                   .map(
