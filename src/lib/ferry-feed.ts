@@ -251,7 +251,7 @@ async function fetchSun(route: (typeof SUN_ROUTES)[number]): Promise<SunFix | nu
           minutes: null,
           destTc: route.destTc,
           destEn: route.destEn,
-          fix: "gps",
+          fix: "gps" as const,
         }
       : null
     return { vessel, clocks: next }
