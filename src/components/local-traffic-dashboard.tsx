@@ -1014,7 +1014,7 @@ paint: {
         },
       })
 
-      // Draw estimated vehicles above road lines and stop markers.
+      // Draw validated estimated vehicles above road lines and stop markers in the local preview map.
       map.addLayer({
         id: "local-gmb-vehicle-circles",
         type: "circle",
