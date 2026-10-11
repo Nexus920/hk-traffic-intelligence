@@ -41,9 +41,9 @@ export function camerasFromWfs(wfs: unknown): GeoJSON.FeatureCollection {
       type: "Feature",
       properties: {
         id,
-        name: text(feature.properties ?? {}?.DESCRIPTION) || id,
+        name: text((feature.properties as GeoJsonProperties | null)?.DESCRIPTION) || id,
         district,
-        region: text(feature.properties ?? {}?.TD_REGION),
+        region: text((feature.properties as GeoJsonProperties | null)?.TD_REGION),
         url: isCameraSnapshotUrl(url) ? url : "",
         rotation: rotationOf(feature.properties ?? {}?.ROTATION),
         harbour: HARBOUR_DISTRICTS.has(district) ? 1 : 0,
@@ -86,7 +86,7 @@ export function tollsFromWfs(wfs: unknown): GeoJSON.FeatureCollection {
   for (const feature of featuresOf(wfs)) {
     const coordinates = pointOf(feature.geometry)
     const code = text((feature.properties as GeoJsonProperties | null)?.TunnelCode)
-    const featureId = text((feature.properties as GeoJsonProperties | null)?.FeatureID) || numbertext((feature.properties as GeoJsonProperties | null)?.FeatureID)
+    const featureId = text((feature.properties as GeoJsonProperties | null)?.FeatureID) || numberText((feature.properties as GeoJsonProperties | null)?.FeatureID)
     if (!code || !coordinates || !featureId || seen.has(featureId)) continue
     seen.add(featureId)
     const scale = text((feature.properties as GeoJsonProperties | null)?.Scale)
@@ -111,13 +111,13 @@ export function withTraditionalText(
 ): GeoJSON.FeatureCollection {
   const byId = new Map<string, GeoJsonProperties>()
   for (const feature of traditional.features) {
-    const id = propertytext((feature.properties as GeoJsonProperties | null), "id")
+    const id = propertyText((feature.properties as GeoJsonProperties | null), "id")
     if (id) byId.set(id, feature.properties ?? {})
   }
   return {
     type: "FeatureCollection",
     features: english.features.map((feature) => {
-      const id = propertytext((feature.properties as GeoJsonProperties | null), "id")
+      const id = propertyText((feature.properties as GeoJsonProperties | null), "id")
       const translated = id ? byId.get(id) : null
       const properties: GeoJsonProperties = { ...(feature.properties ?? {}) }
       for (const field of fields) {
@@ -194,15 +194,15 @@ export function withPortalCameras(
     type: "FeatureCollection",
     features: cameras.features.map((feature) => {
       const name =
-        typeof ( ?? {}).name === "string"
-         ? ( ?? {}).name
-        : ""
+       typeof feature.properties?.name === "string"
+       ? feature.properties.name
+       : ""
       const coordinates = pointCoordinates(feature)
       const atPortal = coordinates != null && portals.some((point) => metres(coordinates, point) <= PORTAL_METRES)
       return {
         ...feature,
         properties: {
-          ... ?? {},
+          ...(feature.properties ?? {}),
           portal: PORTAL_NAME.test(name) || atPortal ? 1 : 0,
         },
       }
