@@ -1,3 +1,4 @@
+import type { GeoJsonProperties } from "geojson";
 import { facingWord, parsePlace, type CameraPlace } from "@/lib/camera-place"
 import {
   bandWord,
@@ -65,7 +66,7 @@ export function approachPopup(point: ApproachPoint, m: Messages): HTMLElement {
   return card.root
 }
 
-export function corridorPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function corridorPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const card = openCard(textProp(properties, "name") || m.roads)
   const direction = presentBound(textProp(properties, "direction"), m.locale)
   if (direction) card.head.append(paragraph("city-card-detail", direction))
@@ -76,7 +77,7 @@ export function corridorPopup(properties: GeoJSON.GeoJsonProperties, m: Messages
   return card.root
 }
 
-export function cameraPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function cameraPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const description = displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "name"))
   const place = parsePlace(description)
   const card = openCard(place.road || description || m.cameras)
@@ -105,7 +106,7 @@ export function cameraPopup(properties: GeoJSON.GeoJsonProperties, m: Messages):
   return card.root
 }
 
-export function controlPointPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function controlPointPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const title = controlName(m.locale, textProp(properties, "code"), textProp(properties, "name") || m.controlPoint)
   const card = openCard(title)
   card.head.append(paragraph("city-card-detail", m.passengerClearance))
@@ -132,7 +133,7 @@ export function controlPointPopup(properties: GeoJSON.GeoJsonProperties, m: Mess
   return card.root
 }
 
-export function incidentPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function incidentPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const title = displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "name")) || m.incident
   const card = openCard(title)
   const location = displayText(m.locale, textProp(properties, "location"), textProp(properties, "locationEn"))
@@ -151,7 +152,7 @@ export function incidentPopup(properties: GeoJSON.GeoJsonProperties, m: Messages
   return card.root
 }
 
-export function workPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function workPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const road = displayText(m.locale, textProp(properties, "roadTc"), textProp(properties, "road")) || m.roadWork
   const card = openCard(road)
   const place = displayText(m.locale, textProp(properties, "placeTc"), textProp(properties, "place"))
@@ -172,7 +173,7 @@ export function workPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): H
   return card.root
 }
 
-export function lrtStationPopup(properties: GeoJSON.GeoJsonProperties, snapshot: LrtResponse | null, m: Messages): HTMLElement {
+export function lrtStationPopup(properties: GeoJsonProperties, snapshot: LrtResponse | null, m: Messages): HTMLElement {
   const code = textProp(properties, "code")
   const record = lrtStation(code)
   const title = record ? displayText(m.locale, record.tc, record.en) : code || m.lrt
@@ -195,7 +196,7 @@ export function lrtStationPopup(properties: GeoJSON.GeoJsonProperties, snapshot:
   return card.root
 }
 
-export function lrtTrainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: LrtResponse | null, m: Messages): HTMLElement {
+export function lrtTrainPopup(properties: GeoJsonProperties, snapshot: LrtResponse | null, m: Messages): HTMLElement {
   const listed = snapshot?.trains.find((item) => item.id === textProp(properties, "id"))
   const route = textProp(properties, "line") || listed?.line || ""
   const destCode = textProp(properties, "dest") || listed?.dest || ""
@@ -218,7 +219,7 @@ export function lrtTrainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: L
 const BOARD_MS = 60_000
 const seenBoards = new Map<string, { at: number; calls: KmbBoardCall[]; routes: string[] }>()
 
-function busStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages, title: string, empty: string, operator: StopOperator): HTMLElement {
+function busStopPopup(properties: GeoJsonProperties, m: Messages, title: string, empty: string, operator: StopOperator): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || title
   const card = openCard(heading)
   const id = textProp(properties, "id")
@@ -311,7 +312,7 @@ function routeOnly(route: string): HTMLElement {
   return row
 }
 
-function routeList(properties: GeoJSON.GeoJsonProperties): string[] {
+function routeList(properties: GeoJsonProperties): string[] {
   const raw = textProp(properties, "routes")
   if (!raw) return []
   try {
@@ -323,29 +324,29 @@ function routeList(properties: GeoJSON.GeoJsonProperties): string[] {
   }
 }
 
-export function citybusStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function citybusStopPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   return busStopPopup(properties, m, m.citybus, m.citybusNone, "citybus")
 }
 
-export function kmbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function kmbStopPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   return busStopPopup(properties, m, m.kmb, m.kmbNone, "kmb")
 }
 
-export function gmbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function gmbStopPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   return busStopPopup(properties, m, m.gmb, m.gmbNone, "gmb")
 }
 
-export function nlbStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function nlbStopPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   return busStopPopup(properties, m, m.nlb, m.nlbNone, "nlb")
 }
 
-export function mtrBusStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function mtrBusStopPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   return busStopPopup(properties, m, m.mtrBus, m.mtrBusNone, "mtrbus")
 }
 
 const seenParks = new Map<string, { at: number; spaces: ParkingSpace[] }>()
 
-export function kerbPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function kerbPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const street = readablePlace(displayText(m.locale, textProp(properties, "streetTc"), textProp(properties, "streetEn")))
   const card = openCard(street || m.kerb)
   const bays = numberProp(properties, "bays")
@@ -356,7 +357,7 @@ export function kerbPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): H
   return card.root
 }
 
-export function parkingPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function parkingPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.parking
   const card = openCard(heading)
   const address = displayText(m.locale, textProp(properties, "addressTc"), textProp(properties, "addressEn"))
@@ -436,7 +437,7 @@ function parkingKindLabel(kind: ParkingKind, m: Messages): string {
   }
 }
 
-export function chargerPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function chargerPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.charger
   const card = openCard(heading)
   const district = districtFromTraditional(m.locale, textProp(properties, "districtTc"))
@@ -445,7 +446,7 @@ export function chargerPopup(properties: GeoJSON.GeoJsonProperties, m: Messages)
   return card.root
 }
 
-function appendChargerCounts(parent: HTMLElement, properties: GeoJSON.GeoJsonProperties, m: Messages) {
+function appendChargerCounts(parent: HTMLElement, properties: GeoJsonProperties, m: Messages) {
   const rows = [
     [m.chargerStandard, countProp(properties, "standard")],
     [m.chargerMedium, countProp(properties, "medium")],
@@ -461,14 +462,14 @@ function appendChargerCounts(parent: HTMLElement, properties: GeoJSON.GeoJsonPro
   parent.append(board)
 }
 
-function countProp(properties: GeoJSON.GeoJsonProperties, key: string): number {
+function countProp(properties: GeoJsonProperties, key: string): number {
   const value = properties?.[key]
   if (typeof value === "number" && Number.isFinite(value) && value > 0) return Math.round(value)
   if (typeof value === "string" && /^\d+$/.test(value)) return Number(value)
   return 0
 }
 
-export function meterPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function meterPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const street = readablePlace(displayText(m.locale, textProp(properties, "streetTc"), textProp(properties, "streetEn"))) || m.meter
   const card = openCard(street)
   const section = displayText(m.locale, textProp(properties, "sectionTc"), textProp(properties, "sectionEn"))
@@ -542,7 +543,7 @@ function readParkingSpaces(payload: unknown): ParkingSpace[] | null {
   })
 }
 
-export function ferryStopPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function ferryStopPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const heading = readablePlace(displayText(m.locale, textProp(properties, "nameTc"), textProp(properties, "nameEn"))) || m.ferry
   const card = openCard(heading)
   const calls = kmbBoard(properties)
@@ -622,7 +623,7 @@ type KmbBoardCall = {
   company?: "KMB" | "LWB"
 }
 
-function kmbBoard(properties: GeoJSON.GeoJsonProperties): KmbBoardCall[] {
+function kmbBoard(properties: GeoJsonProperties): KmbBoardCall[] {
   const raw = textProp(properties, "board")
   if (!raw) return []
   try {
@@ -653,7 +654,7 @@ function kmbBoard(properties: GeoJSON.GeoJsonProperties): KmbBoardCall[] {
   }
 }
 
-export function stationPopup(properties: GeoJSON.GeoJsonProperties, snapshot: MtrResponse | null, m: Messages): HTMLElement {
+export function stationPopup(properties: GeoJsonProperties, snapshot: MtrResponse | null, m: Messages): HTMLElement {
   const code = textProp(properties, "code")
   const record = stationRecord(code)
   const title = record ? displayText(m.locale, record.tc, record.en) : code || m.mtr
@@ -695,7 +696,7 @@ export function stationPopup(properties: GeoJSON.GeoJsonProperties, snapshot: Mt
   return card.root
 }
 
-export function trainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: MtrResponse | null, m: Messages): HTMLElement {
+export function trainPopup(properties: GeoJsonProperties, snapshot: MtrResponse | null, m: Messages): HTMLElement {
   const listed = snapshot?.trains.find((item) => item.id === textProp(properties, "id"))
   const lineCode = textProp(properties, "line") || listed?.line || ""
   const destCode = textProp(properties, "dest") || listed?.dest || ""
@@ -747,7 +748,7 @@ export function trainPopup(properties: GeoJSON.GeoJsonProperties, snapshot: MtrR
   return card.root
 }
 
-export function tollPopup(properties: GeoJSON.GeoJsonProperties, m: Messages): HTMLElement {
+export function tollPopup(properties: GeoJsonProperties, m: Messages): HTMLElement {
   const name = textProp(properties, "name")
   const card = openCard(displayText(m.locale, TUNNEL_TC[name] ?? "", name) || m.tunnel)
   if (textProp(properties, "band") === "portal") card.head.append(paragraph("city-card-detail", m.tunnelPortal))
@@ -823,7 +824,7 @@ function localName(
   return fallback(m.locale, english)
 }
 
-function workStatus(properties: GeoJSON.GeoJsonProperties, m: Messages): string {
+function workStatus(properties: GeoJsonProperties, m: Messages): string {
   const traditional = textProp(properties, "statusTc")
   const english = textProp(properties, "status")
   if (traditional) return displayText(m.locale, traditional, english)
@@ -954,13 +955,13 @@ function clock(value: string, locale: Locale): string {
   return `${part("month")}月${part("day")}日 ${part("hour")}:${part("minute")}`
 }
 
-function numberProp(properties: GeoJSON.GeoJsonProperties, key: string): number | null {
+function numberProp(properties: GeoJsonProperties, key: string): number | null {
   const value = properties?.[key]
   if (typeof value !== "number" || !Number.isFinite(value)) return null
   return value
 }
 
-function textProp(properties: GeoJSON.GeoJsonProperties, key: string): string {
+function textProp(properties: GeoJsonProperties, key: string): string {
   const value = properties?.[key]
   return typeof value === "string" ? value : ""
 }
