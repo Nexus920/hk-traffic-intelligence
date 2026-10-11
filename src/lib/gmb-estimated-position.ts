@@ -118,6 +118,8 @@ export type GmbEtaObservation = {
   segmentMinutes: number
   observedAt: string
   label: string
+  /** Stable route-variant key; optional for legacy callers. */
+  routeKey?: string
 }
 
 /**
@@ -148,7 +150,7 @@ export function estimatesFromEtaObservations(
       now - Date.parse(observation.observedAt) > GMB_ESTIMATE_MAX_AGE_MS
     ) continue
 
-    const stops = routeStops.get(`${observation.route}/${observation.routeSeq}`)
+    const stops = routeStops.get(observation.routeKey ?? `${observation.route}/${observation.routeSeq}`)
     if (!stops) continue
     // Ambiguous sequence numbers can point at the wrong physical stop.
     // Require exactly one coordinate for each end of the segment.
