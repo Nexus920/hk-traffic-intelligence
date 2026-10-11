@@ -145,7 +145,7 @@ function featuresOf(wfs: unknown): WfsFeature[] {
     if (!isRecord(feature)) return []
     return [
       {
-        properties: isRecord( ?? {}) ?  ?? {} : null,
+        properties: isRecord(feature.properties ?? {}) ? feature.properties ?? {} : null,
         geometry: isRecord(feature.geometry) ? feature.geometry : null,
       },
     ]
