@@ -119,7 +119,7 @@ export function withTraditionalText(
     features: english.features.map((feature) => {
       const id = propertytext((feature.properties as GeoJsonProperties | null), "id")
       const translated = id ? byId.get(id) : null
-      const properties: GeoJsonProperties = { ... ?? {} }
+      const properties: GeoJsonProperties = { ...(feature.properties ?? {}) }
       for (const field of fields) {
         const value = translated ? propertyText(translated, field) : ""
         if (properties) properties[`${field}Tc`] = value ? standardHan(value) : ""
