@@ -722,7 +722,7 @@ async function loadLocalGmbEstimatedPositions(
   // Only build candidates for the selected GMB routes near the Local Traffic Dashboard.
   const localStops = allStops.filter((stop) =>
     CONFIG.some((station) =>
-      station.gmbRoutes.includes(stop.route) &&
+      station.gmbRoutes.some((route) => route === stop.route) &&
       distanceMetres([stop.long, stop.lat], station.point) <= 450,
     ),
   )
