@@ -109,7 +109,7 @@ export function withTraditionalText(
   traditional: GeoJSON.FeatureCollection,
   fields: readonly string[],
 ): GeoJSON.FeatureCollection {
-  const byId = new Map<string, GeoJSON.GeoJsonProperties>()
+  const byId = new Map<string, GeoJsonProperties>()
   for (const feature of traditional.features) {
     const id = propertyText(feature.properties ?? {}, "id")
     if (id) byId.set(id, feature.properties ?? {})
@@ -119,7 +119,7 @@ export function withTraditionalText(
     features: english.features.map((feature) => {
       const id = propertyText(feature.properties ?? {}, "id")
       const translated = id ? byId.get(id) : null
-      const properties: GeoJSON.GeoJsonProperties = { ...feature.properties ?? {} }
+      const properties: GeoJsonProperties = { ...feature.properties ?? {} }
       for (const field of fields) {
         const value = translated ? propertyText(translated, field) : ""
         if (properties) properties[`${field}Tc`] = value ? standardHan(value) : ""
@@ -129,7 +129,7 @@ export function withTraditionalText(
   }
 }
 
-function propertyText(properties: GeoJSON.GeoJsonProperties, key: string): string {
+function propertyText(properties: GeoJsonProperties, key: string): string {
   const value = properties?.[key]
   return typeof value === "string" ? value.trim() : ""
 }
