@@ -164,6 +164,7 @@ type GmbNearbyStop = {
 let gmbStopsCache: {
   expires: number
   data: GmbNearbyStop[]
+  complete: boolean
 } | null = null
 
 
@@ -378,16 +379,39 @@ const url =
 }
 
 
+type GmbCloudflareFetchInit = RequestInit & {
+  cf?: {
+    cacheEverything?: boolean
+    cacheTtl?: number
+    cacheTtlByStatus?: Record<string, number>
+  }
+}
+
 async function gmbJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
+  // Cache stable route/stop metadata for a day at Cloudflare's edge, and cache
+  // ETA responses briefly. Do not cache upstream 403/429/5xx responses.
+  const isEtaRequest = url.includes("/eta/")
+  const cacheTtl = isEtaRequest ? 30 : 24 * 60 * 60
+  const init: GmbCloudflareFetchInit = {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "User-Agent": "Mozilla/5.0",
     },
-    cache: "no-store",
     signal: AbortSignal.timeout(10000),
-  })
+    cf: {
+      cacheEverything: true,
+      cacheTtl,
+      cacheTtlByStatus: {
+        "200-299": cacheTtl,
+        "403": 0,
+        "404": 0,
+        "429": 0,
+        "500-599": 0,
+      },
+    },
+  }
+  const response = await fetch(url, init)
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "")
@@ -427,9 +451,18 @@ async function mapWithConcurrency<T, R>(
 }
 
 async function getGmbStops(): Promise<GmbNearbyStop[]> {
+  const previousCompleteCache = gmbStopsCache?.complete ? gmbStopsCache : null
   if (gmbStopsCache && gmbStopsCache.expires > Date.now()) {
     return gmbStopsCache.data
   }
+
+  // Avoid carrying old counters forward when a refresh has to be attempted.
+  gmbStopsDebug.variants = 0
+  gmbStopsDebug.routeStops = 0
+  gmbStopsDebug.uniqueStopIds = 0
+  gmbStopsDebug.stopInfoFound = 0
+  gmbStopsDebug.nearbyStops = 0
+  gmbStopsDebug.routeErrors.length = 0
 
   // 合併兩個監測位置的指定小巴路線
   const routes = Array.from(
@@ -439,42 +472,33 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
   const regions = ["HKI", "KLN", "NT"]
 
   const variants = (
-    await mapWithConcurrency(routes, 4, async (route) => {
-      const results = await Promise.all(
-        regions.map(async (region) => {
-          
-          try {
-            const result = await gmbJson<{
-              data?: GmbRouteVariant[]
-            }>(
-              `${GMB}/route/${region}/${encodeURIComponent(route)}`,
-            )
+    await mapWithConcurrency(routes, 2, async (route) => {
+      // Query regions serially for each route to avoid bursting the official API.
+      const results: Array<Array<{ route: string; variant: GmbRouteVariant }>> = []
+      for (const region of regions) {
+        try {
+          const result = await gmbJson<{
+            data?: GmbRouteVariant[]
+          }>(
+            `${GMB}/route/${region}/${encodeURIComponent(route)}`,
+          )
+          results.push((result.data ?? []).map((variant) => ({ route, variant })))
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : String(error)
 
-            return (result.data ?? []).map((variant) => ({
-              route,
-              variant,
-            }))
-          } catch (error) {
-            const message =
-              error instanceof Error
-                ? error.message
-                : String(error)
-
-            gmbStopsDebug.routeErrors.push(
-              `${region}/${route}: ${message}`,
-            )
-
-            console.error(
-              `[GMB route API] region=${region}, route=${route}:`,
-              message,
-            )
-
-                      return []
-          }
-
-        }),
-      )
-
+          gmbStopsDebug.routeErrors.push(
+            `${region}/${route}: ${message}`,
+          )
+          console.error(
+            `[GMB route API] region=${region}, route=${route}:`,
+            message,
+          )
+          results.push([])
+        }
+      }
       return results.flat()
     })
   ).flat()
@@ -483,12 +507,12 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
 
   const routeStopGroups = await mapWithConcurrency(
     variants,
-    4,
+    3,
     async ({ route, variant }) => {
       const directions = variant.directions ?? []
 
       return (
-        await mapWithConcurrency(directions, 3, async (direction) => {
+        await mapWithConcurrency(directions, 2, async (direction) => {
           try {
             const result = await gmbJson<{
               data?: { route_stops?: GmbRouteStop[] }
@@ -532,7 +556,7 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
   
   const stopInfoList = await mapWithConcurrency(
     uniqueStopIds,
-    8,
+    4,
     async (stopId) => {
       try {
         const result = await gmbJson<{ data?: GmbStopInfo }>(
@@ -593,9 +617,31 @@ async function getGmbStops(): Promise<GmbNearbyStop[]> {
   gmbStopsDebug.nearbyStops = nearbyStops.length
 
   
+  const routesWithVariants = new Set(variants.map((item) => item.route))
+  const missingRoutes = routes.filter((route) => !routesWithVariants.has(route))
+  const stopInfoCoverage = uniqueStopIds.length === 0
+    ? 0
+    : stopInfoMap.size / uniqueStopIds.length
+  const cacheComplete = nearbyStops.length > 0 &&
+    missingRoutes.length === 0 &&
+    stopInfoCoverage >= 0.9
+
+  // A partial upstream response must not poison the 24-hour cache. If this
+  // isolate has a previously complete result, continue serving it briefly while
+  // retrying the refresh; otherwise keep partial data only for a short interval.
+  if (!cacheComplete && previousCompleteCache) {
+    gmbStopsCache = {
+      expires: Date.now() + 30_000,
+      data: previousCompleteCache.data,
+      complete: true,
+    }
+    return previousCompleteCache.data
+  }
+
   gmbStopsCache = {
-    expires: Date.now() + 24 * 60 * 60 * 1000,
+    expires: Date.now() + (cacheComplete ? 24 * 60 * 60 * 1000 : 30_000),
     data: nearbyStops,
+    complete: cacheComplete,
   }
 
   return nearbyStops
@@ -805,7 +851,7 @@ async function loadLocalGmbEstimatedPositions(
   )
   gmbEstimatedPositionDebug.queriedStops = uniqueTargets.length
 
-  const etaResponses = await mapWithConcurrency(uniqueTargets, 6, async (stop) => {
+  const etaResponses = await mapWithConcurrency(uniqueTargets, 4, async (stop) => {
     try {
       const result = await gmbJson<{ data?: GmbEtaItem[] }>(
         `${GMB}/eta/route-stop/${encodeURIComponent(stop.route_id)}/${encodeURIComponent(stop.stop)}`,
