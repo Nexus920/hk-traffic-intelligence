@@ -112,7 +112,7 @@ export function withTraditionalText(
   const byId = new Map<string, GeoJsonProperties>()
   for (const feature of traditional.features) {
     const id = propertytext((feature.properties as GeoJsonProperties | null), "id")
-    if (id) byId.set(id,  ?? {})
+    if (id) byId.set(id, feature.properties ?? {})
   }
   return {
     type: "FeatureCollection",
