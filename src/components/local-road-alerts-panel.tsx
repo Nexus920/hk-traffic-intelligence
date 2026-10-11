@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -14,7 +15,13 @@ type Alert = {
   start: string
   end: string
 }
-
+type RoadAlertResponse = {
+  ok?: boolean
+  error?: string
+  works?: {
+    features?: any[]
+  }
+}
 type Props = {
   roads: [number, number][][]
   radiusMetres?: number
@@ -76,10 +83,7 @@ export function LocalRoadAlertsPanel({
 
       const body = await response.json() as RoadAlertResponse
 
-setAlerts(body.alerts)
-      type RoadAlertResponse = {
-  alerts?: RoadAlert[]
-}
+      
 
       if (!response.ok || !body.ok) {
         throw new Error(
