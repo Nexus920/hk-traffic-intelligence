@@ -58,21 +58,21 @@ export function worksFromWfs(wfs: unknown): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = []
   for (const feature of featuresOf(wfs)) {
     const coordinates = pointOf(feature.geometry)
-    const id = text( ?? {}?.ROADWORKS_ID)
+    const id = text((feature.properties as GeoJsonProperties | null)?.ROADWORKS_ID)
     if (!id || !coordinates) continue
     features.push({
       type: "Feature",
       properties: {
         id,
-        road: text( ?? {}?.ROAD_NAME),
-        place: text( ?? {}?.LOC_DESC),
-        status: text( ?? {}?.WORKS_STATUS) || "Road work",
-        kind: text( ?? {}?.WORKS_TYPE),
-        lane: text( ?? {}?.LANE),
-        bound: text( ?? {}?.BOUND),
-        district: text( ?? {}?.DISTRICT),
-        start: text( ?? {}?.START_TIME),
-        end: text( ?? {}?.END_TIME),
+        road: text((feature.properties as GeoJsonProperties | null)?.ROAD_NAME),
+        place: text((feature.properties as GeoJsonProperties | null)?.LOC_DESC),
+        status: text((feature.properties as GeoJsonProperties | null)?.WORKS_STATUS) || "Road work",
+        kind: text((feature.properties as GeoJsonProperties | null)?.WORKS_TYPE),
+        lane: text((feature.properties as GeoJsonProperties | null)?.LANE),
+        bound: text((feature.properties as GeoJsonProperties | null)?.BOUND),
+        district: text((feature.properties as GeoJsonProperties | null)?.DISTRICT),
+        start: text((feature.properties as GeoJsonProperties | null)?.START_TIME),
+        end: text((feature.properties as GeoJsonProperties | null)?.END_TIME),
       },
       geometry: { type: "Point", coordinates },
     })
@@ -85,11 +85,11 @@ export function tollsFromWfs(wfs: unknown): GeoJSON.FeatureCollection {
   const seen = new Set<string>()
   for (const feature of featuresOf(wfs)) {
     const coordinates = pointOf(feature.geometry)
-    const code = text( ?? {}?.TunnelCode)
-    const featureId = text( ?? {}?.FeatureID) || numberText( ?? {}?.FeatureID)
+    const code = text((feature.properties as GeoJsonProperties | null)?.TunnelCode)
+    const featureId = text((feature.properties as GeoJsonProperties | null)?.FeatureID) || numbertext((feature.properties as GeoJsonProperties | null)?.FeatureID)
     if (!code || !coordinates || !featureId || seen.has(featureId)) continue
     seen.add(featureId)
-    const scale = text( ?? {}?.Scale)
+    const scale = text((feature.properties as GeoJsonProperties | null)?.Scale)
     features.push({
       type: "Feature",
       properties: {
@@ -111,13 +111,13 @@ export function withTraditionalText(
 ): GeoJSON.FeatureCollection {
   const byId = new Map<string, GeoJsonProperties>()
   for (const feature of traditional.features) {
-    const id = propertyText( ?? {}, "id")
+    const id = propertytext((feature.properties as GeoJsonProperties | null), "id")
     if (id) byId.set(id,  ?? {})
   }
   return {
     type: "FeatureCollection",
     features: english.features.map((feature) => {
-      const id = propertyText( ?? {}, "id")
+      const id = propertytext((feature.properties as GeoJsonProperties | null), "id")
       const translated = id ? byId.get(id) : null
       const properties: GeoJsonProperties = { ... ?? {} }
       for (const field of fields) {
