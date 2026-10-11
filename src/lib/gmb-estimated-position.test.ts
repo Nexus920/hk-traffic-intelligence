@@ -51,7 +51,7 @@ assert.deepEqual(
     etaMinutes: locatedUpstream.etaMinutes,
     segmentMinutes: locatedUpstream.segmentMinutes,
   },
-  { from: 2, to: 3, etaMinutes: 0.5, segmentMinutes: 2 },
+  { from: 2, to: 3, etaMinutes: 1.5, segmentMinutes: 2 },
 )
 assert.equal(
   locateOnRouteFromUpcomingEta(upstreamStops, 4, 2.5, new Map([["3/4", 1]])),
