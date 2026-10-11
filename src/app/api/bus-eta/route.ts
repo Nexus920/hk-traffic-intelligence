@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 import {
+  estimateBetweenStops,
   estimatedMinibusCollection,
   estimatesFromEtaObservations,
+  locateOnRouteFromUpcomingEta,
   type GmbEtaObservation,
   type RouteStopCoordinate,
 } from "@/lib/gmb-estimated-position"
@@ -142,6 +144,7 @@ type GmbEtaItem = {
     eta_seq?: number
     timestamp?: string
     remarks_tc?: string
+    remarks_en?: string
   }>
 }
 
@@ -183,10 +186,12 @@ let gmbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollecti
 let gmbEstimatedPositionDebug = {
   localStops: 0,
   queriedStops: 0,
-  pastEtaEntriesChecked: 0,
-  futureEtaEntriesChecked: 0,
-  etaPairsStraddlingNow: 0,
-  etaSeqMismatches: 0,
+  etaEntriesChecked: 0,
+  segmentsWithEtaTravelTimes: 0,
+  anchorsExamined: 0,
+  anchorsLocated: 0,
+  anchorsWithoutSegmentTiming: 0,
+  anchorsOutsideLocalArea: 0,
   candidateSegments: 0,
   estimatedVehicles: 0,
   apiErrors: 0,
@@ -723,7 +728,8 @@ async function loadLocalGmbEstimatedPositions(
     return gmbEstimatedPositionsCache.data
   }
 
-  // Only build candidates for the selected GMB routes near the Local Traffic Dashboard.
+  // Query ETAs only for selected local routes. Keep full official route coordinates
+  // so a future ETA can be walked upstream across observed, consecutive segments.
   const localStops = allStops.filter((stop) =>
     CONFIG.some((station) =>
       station.gmbRoutes.some((route) => route === stop.route) &&
@@ -733,21 +739,26 @@ async function loadLocalGmbEstimatedPositions(
   gmbEstimatedPositionDebug = {
     localStops: localStops.length,
     queriedStops: 0,
-    pastEtaEntriesChecked: 0,
-    futureEtaEntriesChecked: 0,
-    etaPairsStraddlingNow: 0,
-    etaSeqMismatches: 0,
+    etaEntriesChecked: 0,
+    segmentsWithEtaTravelTimes: 0,
+    anchorsExamined: 0,
+    anchorsLocated: 0,
+    anchorsWithoutSegmentTiming: 0,
+    anchorsOutsideLocalArea: 0,
     candidateSegments: 0,
     estimatedVehicles: 0,
     apiErrors: 0,
   }
 
   const routeStops = new Map<string, RouteStopCoordinate[]>()
-  const stopsByDirection = new Map<string, GmbNearbyStop[]>()
-  for (const stop of localStops) {
+  const localStopsByDirection = new Map<string, GmbNearbyStop[]>()
+
+  for (const stop of allStops) {
     const routeKey = `${stop.route_id}/${stop.route_seq}`
     const coordinates = routeStops.get(routeKey) ?? []
-    if (!coordinates.some((item) => item.stopSeq === stop.stop_seq && item.stopId === stop.stop)) {
+    if (!coordinates.some((item) =>
+      item.stopSeq === stop.stop_seq && item.stopId === stop.stop
+    )) {
       coordinates.push({
         stopSeq: stop.stop_seq,
         stopId: stop.stop,
@@ -756,10 +767,15 @@ async function loadLocalGmbEstimatedPositions(
       })
     }
     routeStops.set(routeKey, coordinates)
+  }
 
-    const directionStops = stopsByDirection.get(routeKey) ?? []
-    directionStops.push(stop)
-    stopsByDirection.set(routeKey, directionStops)
+  for (const stop of localStops) {
+    const routeKey = `${stop.route_id}/${stop.route_seq}`
+    const directionStops = localStopsByDirection.get(routeKey) ?? []
+    if (!directionStops.some((item) =>
+      item.stop_seq === stop.stop_seq && item.stop === stop.stop
+    )) directionStops.push(stop)
+    localStopsByDirection.set(routeKey, directionStops)
   }
 
   const uniqueTargets = Array.from(
@@ -767,8 +783,6 @@ async function loadLocalGmbEstimatedPositions(
   )
   gmbEstimatedPositionDebug.queriedStops = uniqueTargets.length
 
-  // Read official ETA data at nearby stops. Emit a dot only when consecutive
-  // stop ETAs straddle now and imply a plausible travel time for that segment.
   const etaResponses = await mapWithConcurrency(uniqueTargets, 6, async (stop) => {
     try {
       const result = await gmbJson<{ data?: GmbEtaItem[] }>(
@@ -782,15 +796,35 @@ async function loadLocalGmbEstimatedPositions(
   })
   const etaByStop = new Map(etaResponses.map((result) => [result.key, result.rows]))
 
-  const observedAt = new Date(now).toISOString()
-  const bestByRouteDirection = new Map<string, GmbEtaObservation>()
+  const isUsableEta = (eta: NonNullable<GmbEtaItem["eta"]>[number]) => {
+    const timestamp = eta.timestamp ? Date.parse(eta.timestamp) : NaN
+    const remarkTc = eta.remarks_tc?.trim()
+    const remarkEn = eta.remarks_en?.trim().toLowerCase()
+    return Number.isFinite(timestamp) &&
+      timestamp > now &&
+      timestamp <= now + 20 * 60_000 &&
+      remarkTc !== "未開出" &&
+      remarkTc !== "行車受阻" &&
+      remarkEn !== "scheduled"
+  }
 
-  for (const [routeKey, directionStops] of stopsByDirection) {
+  const observedAt = new Date(now).toISOString()
+  const travelTimesByRoute = new Map<string, Map<string, number>>()
+
+  // Calibrate each consecutive local segment from the differences between
+  // adjacent-stop ETA predictions at the same ETA order. eta_seq is an order,
+  // not a vehicle ID; use it only to derive plausible travel-time samples.
+  for (const [routeKey, directionStops] of localStopsByDirection) {
     const ordered = directionStops.slice().sort((a, b) => a.stop_seq - b.stop_seq)
+    const segmentSamples = new Map<string, number[]>()
+
     for (let i = 0; i < ordered.length - 1; i += 1) {
       const from = ordered[i]
       const to = ordered[i + 1]
       if (!from || !to || to.stop_seq !== from.stop_seq + 1) continue
+
+      const segmentMetres = distanceMetres([from.long, from.lat], [to.long, to.lat])
+      if (segmentMetres < 15 || segmentMetres > 800) continue
 
       const fromRows = etaByStop.get(`${from.route_id}|${from.stop}`) ?? []
       const toRows = etaByStop.get(`${to.route_id}|${to.stop}`) ?? []
@@ -800,89 +834,156 @@ async function loadLocalGmbEstimatedPositions(
       const toRecord = toRows.find(
         (row) => row.route_seq === to.route_seq && row.stop_seq === to.stop_seq,
       )
-      const fromEtas = (fromRecord?.eta ?? []).flatMap((eta) => {
-        const timestamp = eta.timestamp ? Date.parse(eta.timestamp) : NaN
-        return Number.isFinite(timestamp) && timestamp >= now - 8 * 60_000 && timestamp <= now + 8 * 60_000
-          ? [{ etaSeq: eta.eta_seq, timestamp }]
-          : []
-      })
-      const toEtas = (toRecord?.eta ?? []).flatMap((eta) => {
-        const timestamp = eta.timestamp ? Date.parse(eta.timestamp) : NaN
-        return Number.isFinite(timestamp) && timestamp > now && timestamp <= now + 8 * 60_000
-          ? [{ etaSeq: eta.eta_seq, timestamp }]
-          : []
-      })
+      const fromEtas = (fromRecord?.eta ?? []).filter(isUsableEta)
+      const toEtas = (toRecord?.eta ?? []).filter(isUsableEta)
+      gmbEstimatedPositionDebug.etaEntriesChecked += fromEtas.length + toEtas.length
 
-      gmbEstimatedPositionDebug.pastEtaEntriesChecked += fromEtas.filter(
-        (eta) => eta.timestamp <= now,
-      ).length
-      gmbEstimatedPositionDebug.futureEtaEntriesChecked += toEtas.length
+      const toByRank = new Map(
+        toEtas
+          .filter((eta) => Number.isInteger(eta.eta_seq) && eta.eta_seq! > 0)
+          .map((eta) => [eta.eta_seq!, eta]),
+      )
 
       for (const fromEta of fromEtas) {
-        if (fromEta.timestamp > now) continue
-        for (const toEta of toEtas) {
-          // eta_seq is only the order of ETA entries at an individual stop,
-          // not a vehicle identifier shared across stops. Keep time/geometry
-          // validation as the pairing rule instead of requiring identical indexes.
-          gmbEstimatedPositionDebug.etaPairsStraddlingNow += 1
-          if (
-            fromEta.etaSeq !== undefined &&
-            toEta.etaSeq !== undefined &&
-            fromEta.etaSeq !== toEta.etaSeq
-          ) {
-            gmbEstimatedPositionDebug.etaSeqMismatches += 1
-          }
+        if (!Number.isInteger(fromEta.eta_seq) || fromEta.eta_seq! <= 0) continue
+        const toEta = toByRank.get(fromEta.eta_seq!)
+        if (!toEta?.timestamp || !fromEta.timestamp) continue
 
-          const segmentMinutes = (toEta.timestamp - fromEta.timestamp) / 60_000
-          const etaMinutes = (toEta.timestamp - now) / 60_000
-          const segmentMetres = distanceMetres([from.long, from.lat], [to.long, to.lat])
-          const speedKmh = segmentMinutes > 0
-            ? segmentMetres / 1000 / segmentMinutes * 60
-            : Number.POSITIVE_INFINITY
+        const segmentMinutes =
+          (Date.parse(toEta.timestamp) - Date.parse(fromEta.timestamp)) / 60_000
+        const speedKmh = segmentMinutes > 0
+          ? segmentMetres / 1000 / segmentMinutes * 60
+          : Number.POSITIVE_INFINITY
 
-          // Ignore duplicate/ambiguous stop geometry, stale timing, and implausible travel speeds.
-          if (
-            segmentMinutes < 0.4 ||
-            segmentMinutes > 8 ||
-            etaMinutes < 0 ||
-            etaMinutes > segmentMinutes ||
-            segmentMetres < 15 ||
-            segmentMetres > 800 ||
-            speedKmh > 60
-          ) continue
+        if (
+          segmentMinutes < 0.4 ||
+          segmentMinutes > 8 ||
+          speedKmh > 60
+        ) continue
 
-          gmbEstimatedPositionDebug.candidateSegments += 1
-          const observation: GmbEtaObservation = {
-            route: to.route,
-            routeSeq: to.route_seq,
-            nextStopSeq: to.stop_seq,
-            etaMinutes,
-            segmentMinutes,
-            observedAt,
-            label: `小巴 ${to.route} · ${to.destination}（估算）`,
-            routeKey,
-          }
-          const visibleDirection = `${to.route}|${to.route_seq}`
-          const current = bestByRouteDirection.get(visibleDirection)
-          if (!current || observation.etaMinutes < current.etaMinutes) {
-            bestByRouteDirection.set(visibleDirection, observation)
-          }
-        }
+        const key = `${from.stop_seq}/${to.stop_seq}`
+        const samples = segmentSamples.get(key) ?? []
+        samples.push(segmentMinutes)
+        segmentSamples.set(key, samples)
       }
+    }
+
+    const segmentMinutesByPair = new Map<string, number>()
+    for (const [key, samples] of segmentSamples) {
+      const sorted = samples.slice().sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]
+      if (median === undefined) continue
+      segmentMinutesByPair.set(key, median)
+      gmbEstimatedPositionDebug.segmentsWithEtaTravelTimes += 1
+    }
+    travelTimesByRoute.set(routeKey, segmentMinutesByPair)
+  }
+
+  const candidates: Array<{
+    observation: GmbEtaObservation
+    distanceToStation: number
+  }> = []
+
+  for (const [routeKey, directionStops] of localStopsByDirection) {
+    const coordinates = routeStops.get(routeKey)
+    const segmentMinutesByPair = travelTimesByRoute.get(routeKey)
+    if (!coordinates || !segmentMinutesByPair?.size) continue
+
+    const ordered = directionStops.slice().sort((a, b) => a.stop_seq - b.stop_seq)
+    const anchors = ordered.flatMap((stop) => {
+      const rows = etaByStop.get(`${stop.route_id}|${stop.stop}`) ?? []
+      const record = rows.find(
+        (row) => row.route_seq === stop.route_seq && row.stop_seq === stop.stop_seq,
+      )
+      const eta = (record?.eta ?? [])
+        .filter(isUsableEta)
+        .sort((a, b) => Date.parse(a.timestamp!) - Date.parse(b.timestamp!))[0]
+      if (!eta?.timestamp) return []
+      const etaMinutes = (Date.parse(eta.timestamp) - now) / 60_000
+      if (etaMinutes < 0 || etaMinutes > 8) return []
+      return [{ stop, etaMinutes }]
+    }).sort((a, b) => a.etaMinutes - b.etaMinutes)
+
+    for (const anchor of anchors) {
+      gmbEstimatedPositionDebug.anchorsExamined += 1
+      const located = locateOnRouteFromUpcomingEta(
+        coordinates,
+        anchor.stop.stop_seq,
+        anchor.etaMinutes,
+        segmentMinutesByPair,
+      )
+      if (!located) {
+        gmbEstimatedPositionDebug.anchorsWithoutSegmentTiming += 1
+        continue
+      }
+
+      const position = estimateBetweenStops(
+        located.from,
+        located.to,
+        located.etaMinutes,
+        located.segmentMinutes,
+      )
+      if (!position) continue
+
+      const distanceToStation = Math.min(...CONFIG.map((station) =>
+        distanceMetres([position.lng, position.lat], station.point),
+      ))
+      if (distanceToStation > 450) {
+        gmbEstimatedPositionDebug.anchorsOutsideLocalArea += 1
+        continue
+      }
+
+      gmbEstimatedPositionDebug.anchorsLocated += 1
+      gmbEstimatedPositionDebug.candidateSegments += 1
+      candidates.push({
+        distanceToStation,
+        observation: {
+          route: anchor.stop.route,
+          routeSeq: anchor.stop.route_seq,
+          nextStopSeq: located.to.stopSeq,
+          etaMinutes: located.etaMinutes,
+          segmentMinutes: located.segmentMinutes,
+          observedAt,
+          label: `小巴 ${anchor.stop.route} · ${anchor.stop.destination}（ETA 估算，非 GPS）`,
+          routeKey,
+        },
+      })
+      // Prefer the nearest upcoming ETA that can be placed within this local segment.
+      break
+    }
+  }
+
+  const bestByRouteDirection = new Map<string, {
+    observation: GmbEtaObservation
+    distanceToStation: number
+  }>()
+  for (const candidate of candidates) {
+    const key = `${candidate.observation.route}|${candidate.observation.routeSeq}`
+    const current = bestByRouteDirection.get(key)
+    if (!current || candidate.distanceToStation < current.distanceToStation) {
+      bestByRouteDirection.set(key, candidate)
     }
   }
 
   const vehicles = estimatesFromEtaObservations(
-    [...bestByRouteDirection.values()],
+    [...bestByRouteDirection.values()].map((item) => item.observation),
     routeStops,
     now,
   )
-  const collection = estimatedMinibusCollection(vehicles, now)
+  const rawCollection = estimatedMinibusCollection(vehicles, now)
+  const collection: GeoJSON.FeatureCollection = {
+    ...rawCollection,
+    features: rawCollection.features.filter((feature) => {
+      if (feature.geometry.type !== "Point") return false
+      const point = feature.geometry.coordinates as [number, number]
+      return CONFIG.some((station) => distanceMetres(point, station.point) <= 450)
+    }),
+  }
+
   gmbEstimatedPositionDebug.estimatedVehicles = collection.features.length
   gmbEstimatedPositionsCache = { expires: now + 20_000, data: collection }
   return collection
 }
-
 function distanceMetres(a: Point, b: Point): number {
   const lat = (a[1] * Math.PI) / 180
   const dx = (a[0] - b[0]) * 111320 * Math.cos(lat)
