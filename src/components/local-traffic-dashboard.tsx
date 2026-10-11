@@ -772,6 +772,7 @@ map.resize()
 
 mapRef.current = map
 let gmbRefreshTimer: number | null = null
+let gmbVehicleRefreshTimer: number | null = null
 
 map.on("load", () => {
 
@@ -784,6 +785,10 @@ map.on("load", () => {
       )
 
       map.addSource("local-gmb-stops", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      })
+      map.addSource("local-gmb-vehicles", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       })
@@ -883,6 +888,23 @@ map.on("load", () => {
           // Keep the last successful layer if the live GMB feed is temporarily unavailable.
         }
       }
+      const refreshLocalGmbVehicles = async () => {
+        try {
+          const response = await fetch("/api/bus-eta", { cache: "no-store" })
+          if (!response.ok) return
+          const body = await response.json() as {
+            ok?: boolean
+            gmbEstimatedPositions?: GeoJSON.FeatureCollection
+          }
+          const collection = body.gmbEstimatedPositions
+          if (!body.ok || !collection || !Array.isArray(collection.features)) return
+          const source = map.getSource("local-gmb-vehicles") as GeoJSONSource | undefined
+          source?.setData(collection)
+        } catch {
+          // Keep the last valid estimate while the official ETA feed is unavailable.
+        }
+      }
+
       map.on("click", "local-gmb-stop-circles", (event) => {
         const feature = event.features?.[0]
         const properties = feature?.properties as { name?: string; routes?: string; eta?: string } | undefined
@@ -992,6 +1014,69 @@ paint: {
         },
       })
 
+      // Draw estimated vehicles above road lines and stop markers.
+      map.addLayer({
+        id: "local-gmb-vehicle-circles",
+        type: "circle",
+        source: "local-gmb-vehicles",
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "#22c55e",
+          "circle-stroke-color": "#064e3b",
+          "circle-stroke-width": 2,
+        },
+      })
+      map.addLayer({
+        id: "local-gmb-vehicle-labels",
+        type: "symbol",
+        source: "local-gmb-vehicles",
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 12,
+          "text-offset": [0, -1.2],
+          "text-anchor": "bottom",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#065f46",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,
+        },
+      })
+      map.on("click", "local-gmb-vehicle-circles", (event) => {
+        const feature = event.features?.[0]
+        const properties = feature?.properties as {
+          label?: string
+          route?: string
+          observedAt?: string
+          positionType?: string
+        } | undefined
+        const geometry = feature?.geometry
+        if (!properties || !geometry || geometry.type !== "Point") return
+        const point = geometry.coordinates as [number, number]
+        const content = document.createElement("div")
+        const title = document.createElement("strong")
+        title.textContent = properties.label || `小巴 ${properties.route || ""}（估算位置）`
+        const note = document.createElement("div")
+        note.textContent = "位置由相鄰站點 ETA 推算，並非 GPS 即時定位。"
+        content.append(title, note)
+        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+          .setLngLat(point)
+          .setDOMContent(content)
+          .addTo(map)
+      })
+      map.on("mouseenter", "local-gmb-vehicle-circles", () => {
+        map.getCanvas().style.cursor = "pointer"
+      })
+      map.on("mouseleave", "local-gmb-vehicle-circles", () => {
+        map.getCanvas().style.cursor = ""
+      })
+      void refreshLocalGmbVehicles()
+      gmbVehicleRefreshTimer = window.setInterval(() => {
+        void refreshLocalGmbVehicles()
+      }, 45_000)
+
       const bounds =
         new maplibregl.LngLatBounds()
 
@@ -1026,6 +1111,7 @@ paint: {
 
     return () => {
   if (gmbRefreshTimer !== null) window.clearInterval(gmbRefreshTimer)
+  if (gmbVehicleRefreshTimer !== null) window.clearInterval(gmbVehicleRefreshTimer)
   resizeObserver.disconnect()
   map.remove()
   mapRef.current = null
