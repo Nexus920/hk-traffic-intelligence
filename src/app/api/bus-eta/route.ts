@@ -183,6 +183,10 @@ let gmbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollecti
 let gmbEstimatedPositionDebug = {
   localStops: 0,
   queriedStops: 0,
+  pastEtaEntriesChecked: 0,
+  futureEtaEntriesChecked: 0,
+  etaPairsStraddlingNow: 0,
+  etaSeqMismatches: 0,
   candidateSegments: 0,
   estimatedVehicles: 0,
   apiErrors: 0,
@@ -729,6 +733,10 @@ async function loadLocalGmbEstimatedPositions(
   gmbEstimatedPositionDebug = {
     localStops: localStops.length,
     queriedStops: 0,
+    pastEtaEntriesChecked: 0,
+    futureEtaEntriesChecked: 0,
+    etaPairsStraddlingNow: 0,
+    etaSeqMismatches: 0,
     candidateSegments: 0,
     estimatedVehicles: 0,
     apiErrors: 0,
@@ -805,14 +813,25 @@ async function loadLocalGmbEstimatedPositions(
           : []
       })
 
+      gmbEstimatedPositionDebug.pastEtaEntriesChecked += fromEtas.filter(
+        (eta) => eta.timestamp <= now,
+      ).length
+      gmbEstimatedPositionDebug.futureEtaEntriesChecked += toEtas.length
+
       for (const fromEta of fromEtas) {
         if (fromEta.timestamp > now) continue
         for (const toEta of toEtas) {
-          const canMatch =
-            fromEta.etaSeq !== undefined || toEta.etaSeq !== undefined
-              ? fromEta.etaSeq === toEta.etaSeq
-              : fromEtas.length === 1 && toEtas.length === 1
-          if (!canMatch) continue
+          // eta_seq is only the order of ETA entries at an individual stop,
+          // not a vehicle identifier shared across stops. Keep time/geometry
+          // validation as the pairing rule instead of requiring identical indexes.
+          gmbEstimatedPositionDebug.etaPairsStraddlingNow += 1
+          if (
+            fromEta.etaSeq !== undefined &&
+            toEta.etaSeq !== undefined &&
+            fromEta.etaSeq !== toEta.etaSeq
+          ) {
+            gmbEstimatedPositionDebug.etaSeqMismatches += 1
+          }
 
           const segmentMinutes = (toEta.timestamp - fromEta.timestamp) / 60_000
           const etaMinutes = (toEta.timestamp - now) / 60_000
