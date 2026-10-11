@@ -74,7 +74,12 @@ export function LocalRoadAlertsPanel({
         },
       )
 
-      const body = await response.json()
+      const body = await response.json() as RoadAlertResponse
+
+setAlerts(body.alerts)
+      type RoadAlertResponse = {
+  alerts?: RoadAlert[]
+}
 
       if (!response.ok || !body.ok) {
         throw new Error(
