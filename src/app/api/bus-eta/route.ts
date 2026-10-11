@@ -950,8 +950,8 @@ async function loadLocalGmbEstimatedPositions(
       const metres = distanceMetres([from.long, from.lat], [to.long, to.lat])
       if (metres < 15 || metres > 800) continue
 
-      const minutes = metres / 1000 / fallbackSpeedKmh * 60
-      if (!Number.isFinite(minutes) || minutes < 0.4 || minutes > 8) continue
+      const minutes = Math.max(0.4, metres / 1000 / fallbackSpeedKmh * 60)
+      if (!Number.isFinite(minutes) || minutes > 8) continue
       segmentMinutesByPair.set(key, minutes)
       gmbEstimatedPositionDebug.segmentsFilledBySpeedFallback += 1
       filledAny = true
