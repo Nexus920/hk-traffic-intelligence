@@ -379,39 +379,39 @@ const url =
 }
 
 
-type GmbCloudflareFetchInit = RequestInit & {
-  cf?: {
-    cacheEverything?: boolean
-    cacheTtl?: number
-    cacheTtlByStatus?: Record<string, number>
-  }
+type CloudflareCacheStorage = CacheStorage & {
+  default?: Cache
 }
 
 async function gmbJson<T>(url: string): Promise<T> {
-  // Cache stable route/stop metadata for a day at Cloudflare's edge, and cache
-  // ETA responses briefly. Do not cache upstream 403/429/5xx responses.
+  // Cache stable route/stop metadata at the edge for a day and ETA responses
+  // briefly. Cache API is used separately from fetch so Next/Vinext's dynamic
+  // no-store request mode cannot conflict with Cloudflare cf.cacheTtl options.
   const isEtaRequest = url.includes("/eta/")
-  const cacheTtl = isEtaRequest ? 30 : 24 * 60 * 60
-  const init: GmbCloudflareFetchInit = {
+  const cacheTtlSeconds = isEtaRequest ? 20 : 24 * 60 * 60
+  const cache = (globalThis as typeof globalThis & {
+    caches?: CloudflareCacheStorage
+  }).caches?.default
+  const cacheKey = new Request(url, { method: "GET" })
+
+  if (cache) {
+    try {
+      const cached = await cache.match(cacheKey)
+      if (cached) return await cached.json() as T
+    } catch {
+      // A cache miss or cache API issue should fall through to the official API.
+    }
+  }
+
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       "Accept": "application/json",
       "User-Agent": "Mozilla/5.0",
     },
+    cache: "no-store",
     signal: AbortSignal.timeout(10000),
-    cf: {
-      cacheEverything: true,
-      cacheTtl,
-      cacheTtlByStatus: {
-        "200-299": cacheTtl,
-        "403": 0,
-        "404": 0,
-        "429": 0,
-        "500-599": 0,
-      },
-    },
-  }
-  const response = await fetch(url, init)
+  })
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "")
@@ -420,7 +420,23 @@ async function gmbJson<T>(url: string): Promise<T> {
     )
   }
 
-  return await response.json() as T
+  const body = await response.json() as T
+  if (cache) {
+    try {
+      const cachedResponse = new Response(JSON.stringify(body), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": `public, max-age=${cacheTtlSeconds}`,
+        },
+      })
+      await cache.put(cacheKey, cachedResponse)
+    } catch {
+      // Cache storage is an optimization; never fail the live data request.
+    }
+  }
+
+  return body
 }
 
 
