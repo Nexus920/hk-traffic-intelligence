@@ -773,6 +773,7 @@ map.resize()
 mapRef.current = map
 let gmbRefreshTimer: number | null = null
 let gmbVehicleRefreshTimer: number | null = null
+let gmbVehicleBoundsFitted = false
 
 map.on("load", () => {
 
@@ -900,6 +901,32 @@ map.on("load", () => {
           if (!body.ok || !collection || !Array.isArray(collection.features)) return
           const source = map.getSource("local-gmb-vehicles") as GeoJSONSource | undefined
           source?.setData(collection)
+
+          // The initial road-only fit can exclude an estimated minibus that sits
+          // just beyond the monitored road endpoints. Fit once more when the first
+          // usable vehicle point arrives so the point and local roads are both visible.
+          if (!gmbVehicleBoundsFitted && collection.features.length > 0) {
+            const bounds = new maplibregl.LngLatBounds()
+            for (const road of LOCAL_ROADS) {
+              for (const point of road.coordinates) bounds.extend(point)
+            }
+            for (const feature of collection.features) {
+              if (!feature.geometry || feature.geometry.type !== "Point") continue
+              const lng = feature.geometry.coordinates[0]
+              const lat = feature.geometry.coordinates[1]
+              if (Number.isFinite(lng) && Number.isFinite(lat)) {
+                bounds.extend([lng as number, lat as number])
+              }
+            }
+            if (!bounds.isEmpty()) {
+              map.fitBounds(bounds, {
+                padding: { top: 160, bottom: 40, left: 40, right: 40 },
+                maxZoom: 16.7,
+                duration: 0,
+              })
+              gmbVehicleBoundsFitted = true
+            }
+          }
         } catch {
           // Keep the last valid estimate while the official ETA feed is unavailable.
         }
