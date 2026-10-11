@@ -125,20 +125,20 @@ function incidentsOf(collection: GeoJSON.FeatureCollection | null, limit: number
   if (!collection) return []
   const rows = collection.features.map((feature, index) => ({
     feature,
-    announced: textProp(feature.properties, "announced"),
+    announced: textProp(feature.properties ?? {}, "announced"),
     index,
   }))
   rows.sort((a, b) => b.announced.localeCompare(a.announced) || a.index - b.index)
   return rows.slice(0, limit).map((row, index) => {
-    const location = displayText(m.locale, textProp(row.feature.properties, "location"), textProp(row.feature.properties, "locationEn"))
-    const direction = displayText(m.locale, textProp(row.feature.properties, "directionTc"), textProp(row.feature.properties, "direction"))
+    const location = displayText(m.locale, textProp(row.feature.properties ?? {}, "location"), textProp(row.feature.properties ?? {}, "locationEn"))
+    const direction = displayText(m.locale, textProp(row.feature.properties ?? {}, "directionTc"), textProp(row.feature.properties ?? {}, "direction"))
     return {
       id: `incident-${index}-${location}`,
       kind: "incident" as const,
       score: 800_000 - index,
       urgent: true,
       label: m.incident,
-      title: clip(displayText(m.locale, textProp(row.feature.properties, "nameTc"), textProp(row.feature.properties, "name")) || m.incident, 90),
+      title: clip(displayText(m.locale, textProp(row.feature.properties ?? {}, "nameTc"), textProp(row.feature.properties ?? {}, "name")) || m.incident, 90),
       detail: [location, direction].filter(Boolean).join(" · "),
       tone: "red" as const,
       coordinates: pointOf(row.feature),
@@ -149,9 +149,9 @@ function incidentsOf(collection: GeoJSON.FeatureCollection | null, limit: number
 function controlPointsOf(collection: GeoJSON.FeatureCollection | null, limit: number, m: Messages): IntelItem[] {
   if (!collection) return []
   const rows = collection.features.flatMap((feature) => {
-    const worst = numberProp(feature.properties, "worst")
+    const worst = numberProp(feature.properties ?? {}, "worst")
     if (hallClosed(worst)) return []
-    const vehicleBand = textProp(feature.properties, "vehicleBand")
+    const vehicleBand = textProp(feature.properties ?? {}, "vehicleBand")
     const passengerHot = worst === 1 || worst === 2
     const vehicleHot = vehicleBand === "congested" || vehicleBand === "slow"
     if (!passengerHot && !vehicleHot) return []
@@ -169,7 +169,7 @@ function boundaryOf(input: IntelInput, m: Messages): IntelItem[] {
   if (input.controlError) return [fault("fault-boundary", 580_000, m.faultBoundary, input.controlError, m)]
   if (!input.controlPoints) return []
   return input.controlPoints.features
-    .map((feature) => controlItem(feature, numberProp(feature.properties, "worst"), textProp(feature.properties, "vehicleBand"), m))
+    .map((feature) => controlItem(feature, numberProp(feature.properties ?? {}, "worst"), textProp(feature.properties ?? {}, "vehicleBand"), m))
     .sort(byScore)
 }
 
@@ -184,7 +184,7 @@ function hallClosedScore(score: number): boolean {
 }
 
 function controlItem(feature: GeoJSON.Feature, worst: number | null, vehicleBand: string, m: Messages): IntelItem {
-  const code = textProp(feature.properties, "code")
+  const code = textProp(feature.properties ?? {}, "code")
   const name = controlTitle(feature, m)
   const closed = hallClosed(worst)
   const veryBusy = !closed && (worst === 2 || vehicleBand === "congested")
@@ -213,14 +213,14 @@ function controlItem(feature: GeoJSON.Feature, worst: number | null, vehicleBand
 }
 
 function controlTitle(feature: GeoJSON.Feature, m: Messages): string {
-  const code = textProp(feature.properties, "code")
-  const english = textProp(feature.properties, "name") || m.controlPoint
+  const code = textProp(feature.properties ?? {}, "code")
+  const english = textProp(feature.properties ?? {}, "name") || m.controlPoint
   if (!code) return english
   return controlName(m.locale, code, english)
 }
 
 function controlDetail(feature: GeoJSON.Feature, m: Messages): string {
-  const properties = feature.properties
+  const properties = feature.properties ?? {}
   const rows = (
     [
       [m.residentArrival, numberProp(properties, "residentArrCode")],
@@ -323,15 +323,15 @@ function jamsOf(corridors: Corridor[], jamLimit: number, slowLimit: number, m: M
 function worksOf(collection: GeoJSON.FeatureCollection | null, limit: number, m: Messages): IntelItem[] {
   if (!collection) return []
   const rows = collection.features.flatMap((feature) => {
-    const status = textProp(feature.properties, "status")
+    const status = textProp(feature.properties ?? {}, "status")
     const live = /in progress/i.test(status)
     const preparing = /preparation/i.test(status)
     if (!live && !preparing) return []
-    const road = displayText(m.locale, textProp(feature.properties, "roadTc"), textProp(feature.properties, "road")) || m.roadWork
-    const place = displayText(m.locale, textProp(feature.properties, "placeTc"), textProp(feature.properties, "place"))
+    const road = displayText(m.locale, textProp(feature.properties ?? {}, "roadTc"), textProp(feature.properties ?? {}, "road")) || m.roadWork
+    const place = displayText(m.locale, textProp(feature.properties ?? {}, "placeTc"), textProp(feature.properties ?? {}, "place"))
     return [
       {
-        id: `works-${textProp(feature.properties, "id") || road}`,
+        id: `works-${textProp(feature.properties ?? {}, "id") || road}`,
         kind: "works" as const,
         score: live ? 250_000 : 120_000,
         urgent: live,
