@@ -778,8 +778,24 @@ async function loadLocalGmbEstimatedPositions(
     localStopsByDirection.set(routeKey, directionStops)
   }
 
+  // Fetch nearby stops plus context stops immediately before/after the local
+  // area. The point is only emitted if its final coordinate is local, but ETA
+  // timing for upstream segments often needs stops just outside the 450m circle.
+  const etaStopsByDirection = new Map<string, GmbNearbyStop[]>()
+  for (const [routeKey, localDirectionStops] of localStopsByDirection) {
+    const minSeq = Math.min(...localDirectionStops.map((stop) => stop.stop_seq))
+    const maxSeq = Math.max(...localDirectionStops.map((stop) => stop.stop_seq))
+    const contextStops = allStops.filter((stop) =>
+      `${stop.route_id}/${stop.route_seq}` === routeKey &&
+      stop.stop_seq >= Math.max(1, minSeq - 8) &&
+      stop.stop_seq <= maxSeq + 2,
+    )
+    etaStopsByDirection.set(routeKey, contextStops)
+  }
+
+  const etaQueryStops = [...etaStopsByDirection.values()].flat()
   const uniqueTargets = Array.from(
-    new Map(localStops.map((stop) => [`${stop.route_id}|${stop.stop}`, stop])).values(),
+    new Map(etaQueryStops.map((stop) => [`${stop.route_id}|${stop.stop}`, stop])).values(),
   )
   gmbEstimatedPositionDebug.queriedStops = uniqueTargets.length
 
@@ -814,7 +830,7 @@ async function loadLocalGmbEstimatedPositions(
   // Calibrate each consecutive local segment from the differences between
   // adjacent-stop ETA predictions at the same ETA order. eta_seq is an order,
   // not a vehicle ID; use it only to derive plausible travel-time samples.
-  for (const [routeKey, directionStops] of localStopsByDirection) {
+  for (const [routeKey, directionStops] of etaStopsByDirection) {
     const ordered = directionStops.slice().sort((a, b) => a.stop_seq - b.stop_seq)
     const segmentSamples = new Map<string, number[]>()
 
