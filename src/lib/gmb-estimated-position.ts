@@ -60,6 +60,71 @@ export function estimateBetweenStops(
 }
 
 /**
+ * Locates the current segment by walking upstream from a stop's next published
+ * ETA. Segment durations must be derived from adjacent-stop ETA observations;
+ * this helper never fills gaps with a guessed travel time.
+ */
+export type LocatedEstimatedSegment = {
+  from: RouteStopCoordinate
+  to: RouteStopCoordinate
+  etaMinutes: number
+  segmentMinutes: number
+}
+
+export function locateOnRouteFromUpcomingEta(
+  routeStops: RouteStopCoordinate[],
+  anchorStopSeq: number,
+  etaMinutes: number,
+  segmentMinutesByPair: Map<string, number>,
+): LocatedEstimatedSegment | null {
+  if (
+    !Number.isInteger(anchorStopSeq) ||
+    anchorStopSeq <= 1 ||
+    !Number.isFinite(etaMinutes) ||
+    etaMinutes < 0
+  ) return null
+
+  let remainingMinutes = etaMinutes
+  let toStopSeq = anchorStopSeq
+
+  // Do not extrapolate outside segments for which ETA timing was observed.
+  for (let hops = 0; hops < routeStops.length; hops += 1) {
+    const fromStopSeq = toStopSeq - 1
+    if (fromStopSeq <= 0) return null
+
+    const segmentMinutes = segmentMinutesByPair.get(`${fromStopSeq}/${toStopSeq}`)
+    if (
+      segmentMinutes === undefined ||
+      !Number.isFinite(segmentMinutes) ||
+      segmentMinutes < 0.4 ||
+      segmentMinutes > 8
+    ) return null
+
+    const fromMatches = routeStops.filter((stop) => stop.stopSeq === fromStopSeq)
+    const toMatches = routeStops.filter((stop) => stop.stopSeq === toStopSeq)
+    if (fromMatches.length !== 1 || toMatches.length !== 1) return null
+
+    const from = fromMatches[0]
+    const to = toMatches[0]
+    if (!from || !to || !validCoordinate(from) || !validCoordinate(to)) return null
+
+    if (remainingMinutes <= segmentMinutes) {
+      return {
+        from,
+        to,
+        etaMinutes: remainingMinutes,
+        segmentMinutes,
+      }
+    }
+
+    remainingMinutes -= segmentMinutes
+    toStopSeq = fromStopSeq
+  }
+
+  return null
+}
+
+/**
  * Converts validated estimates into a GeoJSON source for the map.
  * Only emits a point when ETA and segment duration pass validation.
  * The coordinate is a display estimate, never a GPS fix.
