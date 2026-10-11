@@ -425,8 +425,7 @@ const boundaryMapRef =
           },
         )
 
-      const body =
-        await response.json()
+      const body = await response.json() as any
 
       if (
         !response.ok ||
@@ -639,8 +638,7 @@ const selected =
           },
         )
 
-      const body =
-        await response.json()
+      const body = await response.json() as any
 
       if (!response.ok) {
         throw new Error(
