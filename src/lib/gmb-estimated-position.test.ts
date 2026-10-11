@@ -9,6 +9,7 @@ import {
   estimateBetweenStops,
   estimatesFromEtaObservations,
   estimatedMinibusCollection,
+  locateOnRouteFromUpcomingEta,
   GMB_ESTIMATE_MAX_AGE_MS,
   type RouteStopCoordinate,
 } from "./gmb-estimated-position.ts"
@@ -25,6 +26,41 @@ assert.equal(estimateBetweenStops(from, to, 1, 0), null)
 assert.equal(estimateBetweenStops({ ...from, lng: Number.NaN }, to, 1, 10), null)
 assert.equal(estimateBetweenStops({ ...from, lng: 200 }, to, 1, 10), null)
 assert.equal(estimateBetweenStops(from, { ...to, lat: -95 }, 1, 10), null)
+
+const upstreamStops: RouteStopCoordinate[] = [
+  { stopSeq: 1, stopId: "201", lng: 114.10, lat: 22.30 },
+  { stopSeq: 2, stopId: "202", lng: 114.11, lat: 22.30 },
+  { stopSeq: 3, stopId: "203", lng: 114.12, lat: 22.30 },
+  { stopSeq: 4, stopId: "204", lng: 114.13, lat: 22.30 },
+]
+const upstreamSegmentTimes = new Map([
+  ["1/2", 1],
+  ["2/3", 2],
+  ["3/4", 1],
+])
+const locatedUpstream = locateOnRouteFromUpcomingEta(
+  upstreamStops,
+  4,
+  2.5,
+  upstreamSegmentTimes,
+)
+assert.deepEqual(
+  locatedUpstream && {
+    from: locatedUpstream.from.stopSeq,
+    to: locatedUpstream.to.stopSeq,
+    etaMinutes: locatedUpstream.etaMinutes,
+    segmentMinutes: locatedUpstream.segmentMinutes,
+  },
+  { from: 2, to: 3, etaMinutes: 0.5, segmentMinutes: 2 },
+)
+assert.equal(
+  locateOnRouteFromUpcomingEta(upstreamStops, 4, 2.5, new Map([["3/4", 1]])),
+  null,
+)
+assert.equal(
+  locateOnRouteFromUpcomingEta(upstreamStops, 4, -1, upstreamSegmentTimes),
+  null,
+)
 
 const stops = new Map([["route-a/1", [from, to]]])
 const base = {
