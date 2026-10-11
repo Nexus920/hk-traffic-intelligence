@@ -188,6 +188,9 @@ let gmbEstimatedPositionDebug = {
   queriedStops: 0,
   etaEntriesChecked: 0,
   segmentsWithEtaTravelTimes: 0,
+  segmentsFilledBySpeedFallback: 0,
+  routesWithSpeedFallback: 0,
+  fallbackSpeedKmh: null as number | null,
   anchorsExamined: 0,
   anchorsLocated: 0,
   anchorsWithoutSegmentTiming: 0,
@@ -741,6 +744,9 @@ async function loadLocalGmbEstimatedPositions(
     queriedStops: 0,
     etaEntriesChecked: 0,
     segmentsWithEtaTravelTimes: 0,
+    segmentsFilledBySpeedFallback: 0,
+    routesWithSpeedFallback: 0,
+    fallbackSpeedKmh: null,
     anchorsExamined: 0,
     anchorsLocated: 0,
     anchorsWithoutSegmentTiming: 0,
@@ -826,13 +832,16 @@ async function loadLocalGmbEstimatedPositions(
 
   const observedAt = new Date(now).toISOString()
   const travelTimesByRoute = new Map<string, Map<string, number>>()
+  const routeSpeedsByLabel = new Map<string, number[]>()
+  const pooledObservedSpeeds: number[] = []
 
-  // Calibrate each consecutive local segment from the differences between
-  // adjacent-stop ETA predictions at the same ETA order. eta_seq is an order,
-  // not a vehicle ID; use it only to derive plausible travel-time samples.
+  // Calibrate adjacent segments from ETA differences. eta_seq is an ETA ordering
+  // at a stop (not a vehicle ID), so only retain differences that also produce a
+  // plausible journey time and speed. These observed values are preferred.
   for (const [routeKey, directionStops] of etaStopsByDirection) {
     const ordered = directionStops.slice().sort((a, b) => a.stop_seq - b.stop_seq)
     const segmentSamples = new Map<string, number[]>()
+    const segmentDistances = new Map<string, number>()
 
     for (let i = 0; i < ordered.length - 1; i += 1) {
       const from = ordered[i]
@@ -841,6 +850,8 @@ async function loadLocalGmbEstimatedPositions(
 
       const segmentMetres = distanceMetres([from.long, from.lat], [to.long, to.lat])
       if (segmentMetres < 15 || segmentMetres > 800) continue
+      const segmentKey = `${from.stop_seq}/${to.stop_seq}`
+      segmentDistances.set(segmentKey, segmentMetres)
 
       const fromRows = etaByStop.get(`${from.route_id}|${from.stop}`) ?? []
       const toRows = etaByStop.get(`${to.route_id}|${to.stop}`) ?? []
@@ -874,13 +885,13 @@ async function loadLocalGmbEstimatedPositions(
         if (
           segmentMinutes < 0.4 ||
           segmentMinutes > 8 ||
+          speedKmh < 4 ||
           speedKmh > 60
         ) continue
 
-        const key = `${from.stop_seq}/${to.stop_seq}`
-        const samples = segmentSamples.get(key) ?? []
+        const samples = segmentSamples.get(segmentKey) ?? []
         samples.push(segmentMinutes)
-        segmentSamples.set(key, samples)
+        segmentSamples.set(segmentKey, samples)
       }
     }
 
@@ -888,11 +899,66 @@ async function loadLocalGmbEstimatedPositions(
     for (const [key, samples] of segmentSamples) {
       const sorted = samples.slice().sort((a, b) => a - b)
       const median = sorted[Math.floor(sorted.length / 2)]
-      if (median === undefined) continue
+      const distance = segmentDistances.get(key)
+      if (median === undefined || distance === undefined) continue
       segmentMinutesByPair.set(key, median)
       gmbEstimatedPositionDebug.segmentsWithEtaTravelTimes += 1
+
+      const speedKmh = distance / 1000 / median * 60
+      if (speedKmh >= 4 && speedKmh <= 45) {
+        const routeLabel = ordered[0]?.route ?? ""
+        const routeSpeeds = routeSpeedsByLabel.get(routeLabel) ?? []
+        routeSpeeds.push(speedKmh)
+        routeSpeedsByLabel.set(routeLabel, routeSpeeds)
+        pooledObservedSpeeds.push(speedKmh)
+      }
     }
     travelTimesByRoute.set(routeKey, segmentMinutesByPair)
+  }
+
+  // Fill gaps only with an ETA-derived local speed profile. Prefer samples from
+  // the same displayed route; use the pooled nearby GMB-corridor median only when
+  // there are at least five plausible observed segment speeds. This remains an
+  // estimate, not GPS, and has hard distance/time bounds.
+  const medianOf = (values: number[]): number | null => {
+    if (values.length === 0) return null
+    const sorted = values.slice().sort((a, b) => a - b)
+    return sorted[Math.floor(sorted.length / 2)] ?? null
+  }
+  const pooledFallbackSpeed = pooledObservedSpeeds.length >= 5
+    ? medianOf(pooledObservedSpeeds)
+    : null
+
+  for (const [routeKey, directionStops] of etaStopsByDirection) {
+    const ordered = directionStops.slice().sort((a, b) => a.stop_seq - b.stop_seq)
+    const routeLabel = ordered[0]?.route ?? ""
+    const routeSamples = routeSpeedsByLabel.get(routeLabel) ?? []
+    const fallbackSpeedKmh = routeSamples.length >= 2
+      ? medianOf(routeSamples)
+      : pooledFallbackSpeed
+    const segmentMinutesByPair = travelTimesByRoute.get(routeKey)
+    if (!segmentMinutesByPair || fallbackSpeedKmh === null || fallbackSpeedKmh === undefined) continue
+
+    let filledAny = false
+    for (let i = 0; i < ordered.length - 1; i += 1) {
+      const from = ordered[i]
+      const to = ordered[i + 1]
+      if (!from || !to || to.stop_seq !== from.stop_seq + 1) continue
+      const key = `${from.stop_seq}/${to.stop_seq}`
+      if (segmentMinutesByPair.has(key)) continue
+
+      const metres = distanceMetres([from.long, from.lat], [to.long, to.lat])
+      if (metres < 15 || metres > 800) continue
+
+      const minutes = metres / 1000 / fallbackSpeedKmh * 60
+      if (!Number.isFinite(minutes) || minutes < 0.4 || minutes > 8) continue
+      segmentMinutesByPair.set(key, minutes)
+      gmbEstimatedPositionDebug.segmentsFilledBySpeedFallback += 1
+      filledAny = true
+    }
+
+    if (filledAny) gmbEstimatedPositionDebug.routesWithSpeedFallback += 1
+    gmbEstimatedPositionDebug.fallbackSpeedKmh ??= fallbackSpeedKmh
   }
 
   const candidates: Array<{
