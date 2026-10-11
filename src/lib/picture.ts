@@ -1,5 +1,5 @@
 import { standardHan } from "@/lib/camera-place"
-
+import type { GeoJsonProperties } from "geojson";
 export const CAMERA_LAYER_MS = 6 * 60 * 60 * 1000
 export const TOLL_LAYER_MS = 6 * 60 * 60 * 1000
 export const WORKS_LAYER_MS = 5 * 60 * 1000
