@@ -31,12 +31,12 @@ export function camerasFromWfs(wfs: unknown): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = []
   const seen = new Set<string>()
   for (const feature of featuresOf(wfs)) {
-    const id = text( ?? {}?.KEY)
+    const id = text((feature.properties as GeoJsonProperties | null)?.KEY)
     const coordinates = pointOf(feature.geometry)
     if (!id || !coordinates || seen.has(id)) continue
     seen.add(id)
-    const district = text(feature.properties ?? {}?.DISTRICT)
-    const url = text(feature.properties ?? {}?.URL)
+    const district = text((feature.properties as GeoJsonProperties | null)?.DISTRICT)
+    const url = text((feature.properties as GeoJsonProperties | null)?.URL)
     features.push({
       type: "Feature",
       properties: {
