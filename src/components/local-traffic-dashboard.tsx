@@ -2161,6 +2161,28 @@ useEffect(() => {
 
         // Black square + explicit ID remark for the two requested CCTV points.
         // Install the label layer even when the GeoJSON source already exists.
+        if (!currentMap.getLayer("local-cctv-target-square")) {
+          currentMap.addLayer({
+            id: "local-cctv-target-square",
+            type: "symbol",
+            source: "local-cctv",
+            filter: ["==", ["get", "isTargetCctv"], true],
+            layout: {
+              "text-field": "■",
+              "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+              "text-size": 22,
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+              "text-anchor": "center",
+            },
+            paint: {
+              "text-color": "#000000",
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 1.5,
+            },
+          })
+        }
+
         if (!currentMap.getLayer("local-cctv-target-labels")) {
           currentMap.addLayer({
             id: "local-cctv-target-labels",
@@ -2170,7 +2192,7 @@ useEffect(() => {
             layout: {
               "text-field": ["get", "markerLabel"],
               "text-size": 10,
-              "text-offset": [0, 1.3],
+              "text-offset": [0, 1.8],
               "text-anchor": "top",
               "text-allow-overlap": true,
               "text-ignore-placement": true,
