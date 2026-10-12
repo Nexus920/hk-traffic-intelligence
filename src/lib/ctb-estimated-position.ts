@@ -24,5 +24,6 @@ export function buildCtbEstimatedPositions(
     now,
     radiusMetres,
     "CTB",
+    3,
   )
 }

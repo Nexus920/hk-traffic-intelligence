@@ -34,11 +34,11 @@ function etaRow(route: string, seq: number, etaSeq: number, minutes: number, sta
 const eta = [
   etaRow("22", 1, 1, 1),
   etaRow("22", 2, 1, 3),
-  etaRow("22", 2, 2, 5),
-  etaRow("22", 3, 1, 2),
-  etaRow("22", 3, 2, 6),
-  etaRow("22", 4, 1, 3),
-  etaRow("22", 4, 2, 7),
+  etaRow("22", 2, 2, 1),
+  etaRow("22", 3, 1, 1),
+  etaRow("22", 3, 2, 2),
+  etaRow("22", 4, 1, 2),
+  etaRow("22", 4, 2, 3),
   etaRow("113", 1, 1, 1),
   etaRow("113", 2, 1, 3),
   etaRow("113", 3, 1, 2),
@@ -52,13 +52,17 @@ const monitoring = [{
 }]
 
 const result = buildCtbEstimatedPositions(stops, eta, monitoring, now)
-assert.equal(result.collection.features.length, 1, "only the selected CTB route near the monitoring point should appear")
+assert.equal(result.collection.features.length, 2, "CTB should show two ETA-ranked vehicles when both have validated local timing")
 const feature = result.collection.features[0]
 assert.ok(feature, "a CTB estimate should be emitted when local ETA samples support adjacent-stop timing")
 assert.equal(feature.properties?.operator, "CTB")
 assert.equal(feature.properties?.route, "22")
 assert.equal(feature.properties?.positionType, "estimated")
-assert.equal(feature.properties?.label, "城巴 22（ETA 估算，非 GPS）")
+assert.match(String(feature.properties?.label), /^城巴 22 · ETA 次序 [12]（估算，非 GPS）$/)
+const rankedFeatures = result.collection.features
+  .map((item) => Number(item.properties?.etaSequence))
+  .sort((a, b) => a - b)
+assert.deepEqual(rankedFeatures, [1, 2], "each CTB ETA rank should produce at most one estimated point")
 
 const stale = buildCtbEstimatedPositions(
   stops.filter((stop) => stop.route === "22"),

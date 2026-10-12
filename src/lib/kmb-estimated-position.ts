@@ -253,7 +253,11 @@ export function buildKmbEstimatedPositions(
   now = Date.now(),
   radiusMetres = 450,
   operator: "KMB" | "CTB" = "KMB",
+  maxVehiclesPerVariant = 1,
 ): { collection: GeoJSON.FeatureCollection; diagnostics: KmbEstimatedPositionDiagnostics } {
+  const vehicleLimit = Number.isFinite(maxVehiclesPerVariant)
+    ? Math.max(1, Math.min(3, Math.trunc(maxVehiclesPerVariant)))
+    : 1
   const diagnostics: KmbEstimatedPositionDiagnostics = {
     routeVariants: 0,
     localRouteVariants: 0,
@@ -342,6 +346,7 @@ export function buildKmbEstimatedPositions(
     bound: KmbDirection
     serviceType: string
     destination: string
+    etaSequence: number
   }> = []
 
   const observedSpeedsByVariant = new Map<string, number[]>()
@@ -388,7 +393,7 @@ export function buildKmbEstimatedPositions(
     }
     if (filledAny) diagnostics.routesWithFallback += 1
 
-    const anchors: Array<{ stop: KmbRouteStopCoordinate; etaMinutes: number; destination: string }> = []
+    const anchors: Array<{ stop: KmbRouteStopCoordinate; etaMinutes: number; destination: string; etaSequence: number }> = []
     for (const stop of context.localStops) {
       const rows = (etaBySequence.get(etaKey(stop)) ?? [])
         .filter((row) => usableEta(row, now))
@@ -400,6 +405,7 @@ export function buildKmbEstimatedPositions(
           stop,
           etaMinutes,
           destination: row.dest_tc?.trim() || row.dest_en?.trim() || "方向未明",
+          etaSequence: Number(row.eta_seq),
         })
       }
     }
@@ -447,20 +453,34 @@ export function buildKmbEstimatedPositions(
         bound: anchor.stop.bound,
         serviceType: anchor.stop.serviceType,
         destination: segment.destination,
+        etaSequence: anchor.etaSequence,
       })
-      break
+      if (vehicleLimit === 1) break
     }
   }
 
-  const bestByVariant = new Map<string, typeof candidates[number]>()
+  // CTB eta_seq is an arrival-order rank, not a vehicle ID. Retain at most
+  // one estimate per rank, selecting the candidate closest to the monitored area.
+  // Keep the single-dot KMB behaviour unchanged.
+  const bestByVariant = new Map<string, Map<number, typeof candidates[number]>>()
   for (const candidate of candidates) {
-    const current = bestByVariant.get(candidate.key)
-    if (!current || candidate.distance < current.distance) bestByVariant.set(candidate.key, candidate)
+    const rankKey = vehicleLimit === 1 ? 1 : candidate.etaSequence
+    const ranked = bestByVariant.get(candidate.key) ?? new Map<number, typeof candidates[number]>()
+    const current = ranked.get(rankKey)
+    if (!current || candidate.distance < current.distance) ranked.set(rankKey, candidate)
+    bestByVariant.set(candidate.key, ranked)
   }
+
+  const selectedCandidates = [...bestByVariant.values()].flatMap((ranked) =>
+    [...ranked.entries()]
+      .sort(([rankA], [rankB]) => rankA - rankB)
+      .slice(0, vehicleLimit)
+      .map(([, candidate]) => candidate)
+  )
 
   const observedAt = new Date(now).toISOString()
   const features: GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties>[] = []
-  for (const item of bestByVariant.values()) {
+  for (const item of selectedCandidates) {
     const progress = 1 - item.etaMinutes / item.segmentMinutes
     const lng = item.from.lng + (item.to.lng - item.from.lng) * progress
     const lat = item.from.lat + (item.to.lat - item.from.lat) * progress
@@ -474,7 +494,10 @@ export function buildKmbEstimatedPositions(
         route: item.route,
         bound: item.bound,
         serviceType: item.serviceType,
-        label: (operator === "CTB" ? "城巴 " : "九巴 ") + item.route + "（ETA 估算，非 GPS）",
+        label: operator === "CTB" && vehicleLimit > 1
+          ? "城巴 " + item.route + " · ETA 次序 " + item.etaSequence + "（估算，非 GPS）"
+          : (operator === "CTB" ? "城巴 " : "九巴 ") + item.route + "（ETA 估算，非 GPS）",
+        etaSequence: item.etaSequence,
         destination: item.destination,
         positionType: "estimated",
         observedAt,

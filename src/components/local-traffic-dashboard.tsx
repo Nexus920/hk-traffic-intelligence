@@ -1321,16 +1321,27 @@ boundaryMap.on("load", () => {
     },
   })
 
-  // CTB estimated positions use blue markers to distinguish them from KMB and GMB.
+  // CTB ETA estimates use a bright cyan halo and a larger foreground marker.
+  boundaryMap.addLayer({
+    id: "boundary-ctb-vehicle-glow",
+    type: "circle",
+    source: "boundary-ctb-vehicles",
+    paint: {
+      "circle-radius": 17,
+      "circle-color": "#38bdf8",
+      "circle-opacity": 0.28,
+      "circle-blur": 0.6,
+    },
+  })
   boundaryMap.addLayer({
     id: "boundary-ctb-vehicle-circles",
     type: "circle",
     source: "boundary-ctb-vehicles",
     paint: {
-      "circle-radius": 7,
-      "circle-color": "#2563eb",
-      "circle-stroke-color": "#1e3a8a",
-      "circle-stroke-width": 2,
+      "circle-radius": 9,
+      "circle-color": "#00bfff",
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 3,
     },
   })
   boundaryMap.addLayer({
@@ -1338,17 +1349,17 @@ boundaryMap.on("load", () => {
     type: "symbol",
     source: "boundary-ctb-vehicles",
     layout: {
-      "text-field": ["concat", "城巴 ", ["get", "route"]],
-      "text-size": 11,
-      "text-offset": [0, -1.15],
+      "text-field": ["concat", "城巴 ", ["get", "route"], " · #", ["to-string", ["get", "etaSequence"]]],
+      "text-size": 12,
+      "text-offset": [0, -1.35],
       "text-anchor": "bottom",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
     paint: {
-      "text-color": "#1d4ed8",
+      "text-color": "#075985",
       "text-halo-color": "#ffffff",
-      "text-halo-width": 2,
+      "text-halo-width": 2.5,
     },
   })
 
@@ -1524,6 +1535,7 @@ boundaryMap.on("load", () => {
 
     const point = geometry.coordinates as [number, number]
     const route = String(properties.route ?? "").trim()
+    const etaSequence = Number(properties.etaSequence)
     const destination = String(properties.destination ?? "").trim()
     const observedAt = Date.parse(String(properties.observedAt ?? ""))
     const etaMinutes = Number(properties.etaMinutes)
@@ -1546,6 +1558,10 @@ boundaryMap.on("load", () => {
     title.style.marginBottom = "4px"
     title.textContent = route ? "城巴 CTB " + route : "城巴（估算位置）"
 
+    const orderLine = document.createElement("div")
+    orderLine.style.marginBottom = "4px"
+    orderLine.textContent = Number.isInteger(etaSequence) ? "官方 ETA 次序：第 " + etaSequence + " 班" : ""
+
     const destinationLine = document.createElement("div")
     destinationLine.style.marginBottom = "4px"
     destinationLine.textContent = "方向／目的地：" + (destination || "暫無資料")
@@ -1563,7 +1579,7 @@ boundaryMap.on("load", () => {
     note.style.color = "#475569"
     note.textContent = "位置由城巴 ETA 與相鄰站點時間推算，並非 GPS 即時定位。"
 
-    content.append(title, destinationLine, etaLine, note)
+    content.append(title, orderLine, destinationLine, etaLine, note)
     new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
       .setLngLat(point)
       .setDOMContent(content)
@@ -2558,8 +2574,8 @@ useEffect(() => {
   ref={boundaryMapElement}
   style={{
     width: "100%",
-    height: "240px",
-    minHeight: "240px",
+    height: "300px",
+    minHeight: "300px",
   }}
   className="w-full overflow-hidden rounded-xl border border-white/10"
 />
