@@ -1,4 +1,4 @@
-name: GMB estimated position validation
+name: Local bus estimated position validation
 
 on:
   push:
@@ -9,6 +9,9 @@ on:
       - main
     paths:
       - "src/lib/gmb-*.ts"
+      - "src/lib/kmb-*.ts"
+      - "src/app/api/bus-eta/route.ts"
+      - "src/components/local-traffic-dashboard.tsx"
       - "src/lib/gmb-*.json"
       - "src/lib/gmb-feed.ts"
       - "src/app/api/gmb/**"
@@ -33,6 +36,8 @@ jobs:
         run: npm ci
       - name: Run estimated-position validation
         run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
+      - name: Run KMB estimated-position validation
+        run: node --experimental-strip-types src/lib/kmb-estimated-position.test.ts
       - name: Run GMB route mapping validation
         run: node --experimental-strip-types src/lib/gmb-route-mapping-validation.test.ts
       - name: Run local monitoring allowlist validation

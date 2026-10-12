@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server"
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 import {
+  buildKmbEstimatedPositions,
+  type KmbEtaRecord,
+  type KmbEstimatedPositionDiagnostics,
+  type KmbRouteStopCoordinate,
+} from "@/lib/kmb-estimated-position"
+import {
   estimateBetweenStops,
   estimatedMinibusCollection,
   estimatesFromEtaObservations,
@@ -182,6 +188,31 @@ const CTB_ROUTES = ["20A", "22", "113"] as const
 
 let kmbStopCache: { expires: number; data: Stop[] } | null = null
 let ctbStopCache: { expires: number; data: Stop[] } | null = null
+let kmbRouteCoordinatesCache: { expires: number; data: KmbRouteStopCoordinate[] } | null = null
+let kmbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
+const kmbRouteEtaCache = new Map<string, { expires: number; data: KmbEtaRecord[] }>()
+let kmbEstimatedPositionDebug: KmbEstimatedPositionDiagnostics & {
+  routeStopCoordinates: number
+  routeEtaQueries: number
+  routeEtaErrors: number
+} = {
+  routeVariants: 0,
+  localRouteVariants: 0,
+  localStops: 0,
+  etaRowsChecked: 0,
+  observedSegments: 0,
+  fallbackSegments: 0,
+  routesWithFallback: 0,
+  anchorsExamined: 0,
+  anchorsLocated: 0,
+  anchorsWithoutTiming: 0,
+  anchorsOutsideLocalArea: 0,
+  estimatedVehicles: 0,
+  apiErrors: 0,
+  routeStopCoordinates: 0,
+  routeEtaQueries: 0,
+  routeEtaErrors: 0,
+}
 let responseCache: { expires: number; body: unknown } | null = null
 let gmbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
 let gmbEstimatedPositionDebug = {
@@ -784,6 +815,179 @@ async function loadGmbArrivals(
 }
 
 
+
+type KmbRouteStopApiRecord = {
+  route?: string
+  bound?: string
+  service_type?: string | number
+  seq?: string | number
+  stop?: string
+}
+
+const KMB_ROUTE_COORDINATES_TTL_MS = 24 * 60 * 60 * 1000
+const KMB_ROUTE_ETA_TTL_MS = 20_000
+const KMB_ESTIMATED_POSITION_TTL_MS = 20_000
+const KMB_ESTIMATED_POSITION_RADIUS_METRES = 450
+
+async function getKmbRouteCoordinates(stops: Stop[], now = Date.now()): Promise<KmbRouteStopCoordinate[]> {
+  if (kmbRouteCoordinatesCache && kmbRouteCoordinatesCache.expires > now) {
+    return kmbRouteCoordinatesCache.data
+  }
+
+  // This official daily resource provides route, direction, service type,
+  // stop sequence and stop ID. Coordinates are joined only from KMB's stop API.
+  const routeRows = await readData<KmbRouteStopApiRecord>(KMB + "/route-stop")
+  const stopById = new Map(stops.map((stop) => [stop.stop, stop]))
+  const selectedRoutes = new Set<string>(CONFIG.flatMap((station) => [...station.routes]))
+  const allCoordinates: KmbRouteStopCoordinate[] = []
+
+  for (const row of routeRows) {
+    const route = String(row.route ?? "").trim()
+    const bound = String(row.bound ?? "")
+    const serviceType = String(row.service_type ?? "").trim()
+    const stopSeq = Number(row.seq)
+    const stopId = String(row.stop ?? "").trim()
+    if (
+      !selectedRoutes.has(route) ||
+      (bound !== "I" && bound !== "O") ||
+      !serviceType ||
+      !Number.isInteger(stopSeq) ||
+      stopSeq <= 0 ||
+      !stopId
+    ) continue
+
+    const stop = stopById.get(stopId)
+    if (!stop) continue
+    const lng = Number(stop.long)
+    const lat = Number(stop.lat)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+    allCoordinates.push({
+      route,
+      bound,
+      serviceType,
+      stopSeq,
+      stopId,
+      lng,
+      lat,
+    })
+  }
+
+  // Keep only route variants that actually serve one of the dashboard's
+  // route-specific monitoring areas, while retaining their full stop sequence
+  // so the estimator can look upstream from nearby stops.
+  const localVariantKeys = new Set<string>()
+  for (const stop of allCoordinates) {
+    const key = [stop.route, stop.bound, stop.serviceType].join("|")
+    if (CONFIG.some((station) =>
+      station.routes.some((route) => route === stop.route) &&
+      distanceMetres([stop.lng, stop.lat], station.point) <= KMB_ESTIMATED_POSITION_RADIUS_METRES
+    )) localVariantKeys.add(key)
+  }
+  const localCoordinates = allCoordinates.filter((stop) =>
+    localVariantKeys.has([stop.route, stop.bound, stop.serviceType].join("|"))
+  )
+
+  if (localCoordinates.length === 0) {
+    throw new Error("KMB official route-stop list did not contain selected routes near the local monitoring points")
+  }
+
+  kmbRouteCoordinatesCache = {
+    expires: now + KMB_ROUTE_COORDINATES_TTL_MS,
+    data: localCoordinates,
+  }
+  return localCoordinates
+}
+
+async function loadLocalKmbEstimatedPositions(
+  kmbStops: Stop[],
+  now = Date.now(),
+): Promise<GeoJSON.FeatureCollection> {
+  if (kmbEstimatedPositionsCache && kmbEstimatedPositionsCache.expires > now) {
+    return kmbEstimatedPositionsCache.data
+  }
+
+  kmbEstimatedPositionDebug = {
+    routeVariants: 0,
+    localRouteVariants: 0,
+    localStops: 0,
+    etaRowsChecked: 0,
+    observedSegments: 0,
+    fallbackSegments: 0,
+    routesWithFallback: 0,
+    anchorsExamined: 0,
+    anchorsLocated: 0,
+    anchorsWithoutTiming: 0,
+    anchorsOutsideLocalArea: 0,
+    estimatedVehicles: 0,
+    apiErrors: 0,
+    routeStopCoordinates: 0,
+    routeEtaQueries: 0,
+    routeEtaErrors: 0,
+  }
+
+  const routeStops = await getKmbRouteCoordinates(kmbStops, now)
+  const routeServiceTypes = Array.from(new Set(
+    routeStops.map((stop) => [stop.route, stop.serviceType].join("|"))
+  ))
+  kmbEstimatedPositionDebug.routeStopCoordinates = routeStops.length
+  kmbEstimatedPositionDebug.routeEtaQueries = routeServiceTypes.length
+
+  const etaResponses = await mapWithConcurrency(routeServiceTypes, 4, async (routeServiceType) => {
+    const separator = routeServiceType.lastIndexOf("|")
+    const route = routeServiceType.slice(0, separator)
+    const serviceType = routeServiceType.slice(separator + 1)
+    const cached = kmbRouteEtaCache.get(routeServiceType)
+    if (cached && cached.expires > now) {
+      return { key: routeServiceType, rows: cached.data }
+    }
+
+    try {
+      // The official route-eta resource returns ETA rows for the whole route,
+      // avoiding a separate request for every stop on a local route.
+      const rows = await readData<KmbEtaRecord>(
+        KMB + "/route-eta/" + encodeURIComponent(route) + "/" + encodeURIComponent(serviceType),
+      )
+      kmbRouteEtaCache.set(routeServiceType, {
+        expires: now + KMB_ROUTE_ETA_TTL_MS,
+        data: rows,
+      })
+      return { key: routeServiceType, rows }
+    } catch (error) {
+      kmbEstimatedPositionDebug.routeEtaErrors += 1
+      kmbEstimatedPositionDebug.apiErrors += 1
+      console.error(
+        "[KMB estimated positions] route=" + route + " service_type=" + serviceType + ":",
+        error instanceof Error ? error.message : String(error),
+      )
+      return { key: routeServiceType, rows: [] as KmbEtaRecord[] }
+    }
+  })
+
+  const result = buildKmbEstimatedPositions(
+    routeStops,
+    etaResponses.flatMap((response) => response.rows),
+    CONFIG.map((station) => ({
+      id: station.id,
+      name: station.name,
+      point: station.point,
+      routes: station.routes,
+    })),
+    now,
+    KMB_ESTIMATED_POSITION_RADIUS_METRES,
+  )
+  kmbEstimatedPositionDebug = {
+    ...result.diagnostics,
+    apiErrors: result.diagnostics.apiErrors + kmbEstimatedPositionDebug.apiErrors,
+    routeStopCoordinates: routeStops.length,
+    routeEtaQueries: routeServiceTypes.length,
+    routeEtaErrors: kmbEstimatedPositionDebug.routeEtaErrors,
+  }
+  kmbEstimatedPositionsCache = {
+    expires: now + KMB_ESTIMATED_POSITION_TTL_MS,
+    data: result.collection,
+  }
+  return result.collection
+}
 
 async function loadLocalGmbEstimatedPositions(
   allStops: GmbNearbyStop[],
@@ -1456,7 +1660,7 @@ export async function GET() {
   }),
 ])
 
-  const [stations, gmbEstimatedPositions] = await Promise.all([
+  const [stations, gmbEstimatedPositions, kmbEstimatedPositions] = await Promise.all([
     Promise.all(
       CONFIG.map((station) =>
         loadStation(station, kmbStops, ctbStops, gmbStops),
@@ -1467,6 +1671,11 @@ export async function GET() {
       console.error("[GMB estimated positions]", error instanceof Error ? error.message : String(error))
       return { type: "FeatureCollection" as const, features: [] }
     }),
+    loadLocalKmbEstimatedPositions(kmbStops).catch((error) => {
+      kmbEstimatedPositionDebug.apiErrors += 1
+      console.error("[KMB estimated positions]", error instanceof Error ? error.message : String(error))
+      return { type: "FeatureCollection" as const, features: [] }
+    }),
   ])
 
   const body = {
@@ -1474,7 +1683,8 @@ export async function GET() {
     observedAt: new Date().toISOString(),
     stations,
     gmbEstimatedPositions,
-    
+    kmbEstimatedPositions,
+
     debug: {
       kmbStopTotal: kmbStops.length,
       ctbStopTotal: ctbStops.length,
@@ -1482,6 +1692,7 @@ export async function GET() {
       stopListErrors,
       gmbDiagnostics: gmbStopsDebug,
       gmbEstimatedPosition: gmbEstimatedPositionDebug,
+      kmbEstimatedPosition: kmbEstimatedPositionDebug,
     },
   }
 

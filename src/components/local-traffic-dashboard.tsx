@@ -1117,6 +1117,10 @@ paint: {
     type: "FeatureCollection",
     features: [],
   }
+  let latestBoundaryKmbCollection: GeoJSON.FeatureCollection = {
+    type: "FeatureCollection",
+    features: [],
+  }
 
 boundaryMap.on("load", () => {
   boundaryMap.addSource(
@@ -1147,6 +1151,10 @@ boundaryMap.on("load", () => {
   )
 
   boundaryMap.addSource("boundary-gmb-vehicles", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  })
+  boundaryMap.addSource("boundary-kmb-vehicles", {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   })
@@ -1274,6 +1282,37 @@ boundaryMap.on("load", () => {
     },
   })
 
+  // KMB estimated positions use red markers to distinguish them from GMB.
+  boundaryMap.addLayer({
+    id: "boundary-kmb-vehicle-circles",
+    type: "circle",
+    source: "boundary-kmb-vehicles",
+    paint: {
+      "circle-radius": 7,
+      "circle-color": "#dc2626",
+      "circle-stroke-color": "#7f1d1d",
+      "circle-stroke-width": 2,
+    },
+  })
+  boundaryMap.addLayer({
+    id: "boundary-kmb-vehicle-labels",
+    type: "symbol",
+    source: "boundary-kmb-vehicles",
+    layout: {
+      "text-field": ["concat", "九巴 ", ["get", "route"]],
+      "text-size": 11,
+      "text-offset": [0, -1.15],
+      "text-anchor": "bottom",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#991b1b",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 2,
+    },
+  })
+
   // Visually distinct orange bus-stop markers with labels on opposing sides,
   // so the two nearby names remain easy to distinguish on the compact map.
   boundaryMap.addLayer({
@@ -1384,6 +1423,60 @@ boundaryMap.on("load", () => {
       .addTo(boundaryMap)
   })
 
+  boundaryMap.on("click", "boundary-kmb-vehicle-circles", (event) => {
+    const feature = event.features?.[0]
+    const properties = feature?.properties as Record<string, unknown> | null | undefined
+    const geometry = feature?.geometry
+    if (!properties || !geometry || geometry.type !== "Point") return
+
+    const point = geometry.coordinates as [number, number]
+    const route = String(properties.route ?? "").trim()
+    const destination = String(properties.destination ?? "").trim()
+    const observedAt = Date.parse(String(properties.observedAt ?? ""))
+    const etaMinutes = Number(properties.etaMinutes)
+    const elapsedMinutes = Number.isFinite(observedAt)
+      ? Math.max(0, (Date.now() - observedAt) / 60_000)
+      : 0
+    const etaRemaining = Number.isFinite(etaMinutes)
+      ? Math.max(0, etaMinutes - elapsedMinutes)
+      : null
+
+    const content = document.createElement("div")
+    content.style.color = "#0f172a"
+    content.style.fontSize = "13px"
+    content.style.lineHeight = "1.5"
+    content.style.minWidth = "170px"
+
+    const title = document.createElement("strong")
+    title.style.display = "block"
+    title.style.fontSize = "14px"
+    title.style.marginBottom = "4px"
+    title.textContent = route ? "九巴 KMB " + route : "九巴（估算位置）"
+
+    const destinationLine = document.createElement("div")
+    destinationLine.style.marginBottom = "4px"
+    destinationLine.textContent = "方向／目的地：" + (destination || "暫無資料")
+
+    const etaLine = document.createElement("div")
+    etaLine.style.marginBottom = "6px"
+    etaLine.textContent = etaRemaining === null
+      ? "到下一站時間：暫無資料"
+      : "到下一站估算：約 " + (etaRemaining < 1 ? "少於 1 分鐘" : Math.ceil(etaRemaining) + " 分鐘")
+
+    const note = document.createElement("div")
+    note.style.borderTop = "1px solid #e2e8f0"
+    note.style.paddingTop = "5px"
+    note.style.fontSize = "11px"
+    note.style.color = "#475569"
+    note.textContent = "位置由九巴 ETA 與相鄰站點時間推算，並非 GPS 即時定位。"
+
+    content.append(title, destinationLine, etaLine, note)
+    new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+      .setLngLat(point)
+      .setDOMContent(content)
+      .addTo(boundaryMap)
+  })
+
   /*
    * Endpoint markers.
    */
@@ -1464,12 +1557,16 @@ const end = coordinates[coordinates.length - 1]
       .addTo(boundaryMap)
   }
 
-  const animateBoundaryGmbVehicles = () => {
-    const source = boundaryMap.getSource("boundary-gmb-vehicles") as GeoJSONSource | undefined
-    if (!source || latestBoundaryGmbCollection.features.length === 0) return
+  const animateEstimatedVehicleCollection = (
+    sourceId: string,
+    collection: GeoJSON.FeatureCollection,
+  ) => {
+    const source = boundaryMap.getSource(sourceId) as GeoJSONSource | undefined
+    if (!source) return
+    if (collection.features.length === 0) return
 
     const now = Date.now()
-    const features = latestBoundaryGmbCollection.features.map((feature) => {
+    const features = collection.features.map((feature) => {
       if (!feature.geometry || feature.geometry.type !== "Point" || !feature.properties) return feature
       const properties = feature.properties as Record<string, unknown>
       const fromLng = Number(properties.fromLng)
@@ -1506,6 +1603,11 @@ const end = coordinates[coordinates.length - 1]
     source.setData({ type: "FeatureCollection", features })
   }
 
+  const animateBoundaryGmbVehicles = () =>
+    animateEstimatedVehicleCollection("boundary-gmb-vehicles", latestBoundaryGmbCollection)
+  const animateBoundaryKmbVehicles = () =>
+    animateEstimatedVehicleCollection("boundary-kmb-vehicles", latestBoundaryKmbCollection)
+
   const refreshBoundaryGmbVehicles = async () => {
     try {
       const response = await fetch("/api/bus-eta", { cache: "no-store" })
@@ -1513,16 +1615,30 @@ const end = coordinates[coordinates.length - 1]
       const body = await response.json() as {
         ok?: boolean
         gmbEstimatedPositions?: GeoJSON.FeatureCollection
+        kmbEstimatedPositions?: GeoJSON.FeatureCollection
       }
-      const collection = body.gmbEstimatedPositions
-      if (!body.ok || !collection || !Array.isArray(collection.features)) return
+      if (!body.ok) return
 
-      latestBoundaryGmbCollection = collection
-      animateBoundaryGmbVehicles()
+      if (body.gmbEstimatedPositions && Array.isArray(body.gmbEstimatedPositions.features)) {
+        latestBoundaryGmbCollection = body.gmbEstimatedPositions
+        animateBoundaryGmbVehicles()
+      }
+      if (body.kmbEstimatedPositions && Array.isArray(body.kmbEstimatedPositions.features)) {
+        latestBoundaryKmbCollection = body.kmbEstimatedPositions
+        animateBoundaryKmbVehicles()
+      }
 
-      // Fit the inset map once to the two monitored roads and the first set of
-      // valid estimated dots, instead of leaving the dots beyond its narrow road bounds.
-      if (!boundaryGmbBoundsFitted && collection.features.length > 0) {
+      const allVehicleCollections = [
+        latestBoundaryGmbCollection,
+        latestBoundaryKmbCollection,
+      ]
+      const hasEstimatedVehicles = allVehicleCollections.some(
+        (collection) => collection.features.length > 0,
+      )
+
+      // Fit the inset map once to the monitored roads and any valid estimated
+      // dots, rather than leaving either company's dots beyond its initial bounds.
+      if (!boundaryGmbBoundsFitted && hasEstimatedVehicles) {
         const localBounds = new maplibregl.LngLatBounds()
         for (const road of LOCAL_ROADS) {
           for (const point of road.coordinates) localBounds.extend(point)
@@ -1530,11 +1646,13 @@ const end = coordinates[coordinates.length - 1]
         for (const station of LOCAL_BUS_STOP_MARKERS) {
           localBounds.extend(station.point)
         }
-        for (const feature of collection.features) {
-          if (!feature.geometry || feature.geometry.type !== "Point") continue
-          const [lng, lat] = feature.geometry.coordinates
-          if (Number.isFinite(lng) && Number.isFinite(lat)) {
-            localBounds.extend([lng as number, lat as number])
+        for (const collection of allVehicleCollections) {
+          for (const feature of collection.features) {
+            if (!feature.geometry || feature.geometry.type !== "Point") continue
+            const [lng, lat] = feature.geometry.coordinates
+            if (Number.isFinite(lng) && Number.isFinite(lat)) {
+              localBounds.extend([lng as number, lat as number])
+            }
           }
         }
         if (!localBounds.isEmpty()) {
