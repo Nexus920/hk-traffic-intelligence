@@ -2171,8 +2171,9 @@ useEffect(() => {
             const longitude = Number(coordinates[0])
             const latitude = Number(coordinates[1])
             if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
-            const halfWidth = 0.000035
-            const halfHeight = 0.000035
+            // Make the target square large enough to remain visible at local-map zoom.
+            const halfWidth = 0.00010
+            const halfHeight = 0.00010
             return {
               type: "Feature" as const,
               properties: { id: feature.properties?.id },
@@ -2258,9 +2259,8 @@ useEffect(() => {
           })
         }
 
-        // Keep the target squares above the regular CCTV circles.
-        // The circle layer is added later and its 8px radius can otherwise
-        // completely cover these small polygon markers.
+        // Put the target CCTV markers at the top of the style stack.
+        // Other map layers may be added after the base CCTV layers.
         if (currentMap.getLayer("local-cctv-target-square-fill")) {
           currentMap.moveLayer("local-cctv-target-square-fill")
         }
