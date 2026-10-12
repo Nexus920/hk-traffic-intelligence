@@ -2463,7 +2463,8 @@ useEffect(() => {
         ref={mapElement}
         className="absolute inset-0"
       />
-{/* Do not place an opaque overlay above the map; it hides map layers and markers. */}
+{/* Full-screen background: #2E2D2D */}
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[#2E2D2D]" />
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
