@@ -1097,7 +1097,12 @@ paint: {
    boundaryMapRef.current =
   boundaryMap
   let localGmbVehicleRefreshTimer: number | null = null
+  let boundaryGmbAnimationTimer: number | null = null
   let boundaryGmbBoundsFitted = false
+  let latestBoundaryGmbCollection: GeoJSON.FeatureCollection = {
+    type: "FeatureCollection",
+    features: [],
+  }
 
 boundaryMap.on("load", () => {
   boundaryMap.addSource(
@@ -1241,19 +1246,56 @@ boundaryMap.on("load", () => {
   })
   boundaryMap.on("click", "boundary-gmb-vehicle-circles", (event) => {
     const feature = event.features?.[0]
-    const properties = feature?.properties as {
-      label?: string
-      route?: string
-    } | undefined
+    const properties = feature?.properties as Record<string, unknown> | null | undefined
     const geometry = feature?.geometry
     if (!properties || !geometry || geometry.type !== "Point") return
+
     const point = geometry.coordinates as [number, number]
+    const route = String(properties.route ?? "").trim()
+    const destination = String(properties.destination ?? "").trim()
+    const label = String(properties.label ?? "").trim()
+    const observedAt = Date.parse(String(properties.observedAt ?? ""))
+    const etaMinutes = Number(properties.etaMinutes)
+    const segmentMinutes = Number(properties.segmentMinutes)
+    const elapsedMinutes = Number.isFinite(observedAt)
+      ? Math.max(0, (Date.now() - observedAt) / 60_000)
+      : 0
+    const etaRemaining = Number.isFinite(etaMinutes)
+      ? Math.max(0, etaMinutes - elapsedMinutes)
+      : null
+
     const content = document.createElement("div")
+    // Make popup text explicitly dark: the page theme is white-on-dark and
+    // would otherwise inherit white text on MapLibre's white popup surface.
+    content.style.color = "#0f172a"
+    content.style.fontSize = "13px"
+    content.style.lineHeight = "1.5"
+    content.style.minWidth = "170px"
+
     const title = document.createElement("strong")
-    title.textContent = properties.label || `小巴 ${properties.route || ""}（估算位置）`
+    title.style.display = "block"
+    title.style.fontSize = "14px"
+    title.style.marginBottom = "4px"
+    title.textContent = route ? `綠色專線小巴 ${route}` : (label || "綠色小巴（估算位置）")
+
+    const destinationLine = document.createElement("div")
+    destinationLine.style.marginBottom = "4px"
+    destinationLine.textContent = `目的地：${destination || "暫無資料"}`
+
+    const etaLine = document.createElement("div")
+    etaLine.style.marginBottom = "6px"
+    etaLine.textContent = etaRemaining === null
+      ? "到下一站時間：暫無資料"
+      : `到下一站估算：約 ${etaRemaining < 1 ? "少於 1 分鐘" : `${Math.ceil(etaRemaining)} 分鐘`}`
+
     const note = document.createElement("div")
-    note.textContent = "位置由官方 ETA 與相鄰站點時間推算，並非 GPS 即時定位。"
-    content.append(title, note)
+    note.style.borderTop = "1px solid #e2e8f0"
+    note.style.paddingTop = "5px"
+    note.style.fontSize = "11px"
+    note.style.color = "#475569"
+    note.textContent = "位置由 ETA 與相鄰站點時間推算，並非 GPS 即時定位。"
+
+    content.append(title, destinationLine, etaLine, note)
     new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
       .setLngLat(point)
       .setDOMContent(content)
@@ -1340,6 +1382,48 @@ const end = coordinates[coordinates.length - 1]
       .addTo(boundaryMap)
   }
 
+  const animateBoundaryGmbVehicles = () => {
+    const source = boundaryMap.getSource("boundary-gmb-vehicles") as GeoJSONSource | undefined
+    if (!source || latestBoundaryGmbCollection.features.length === 0) return
+
+    const now = Date.now()
+    const features = latestBoundaryGmbCollection.features.map((feature) => {
+      if (!feature.geometry || feature.geometry.type !== "Point" || !feature.properties) return feature
+      const properties = feature.properties as Record<string, unknown>
+      const fromLng = Number(properties.fromLng)
+      const fromLat = Number(properties.fromLat)
+      const toLng = Number(properties.toLng)
+      const toLat = Number(properties.toLat)
+      const etaMinutes = Number(properties.etaMinutes)
+      const segmentMinutes = Number(properties.segmentMinutes)
+      const observedAtMs = Date.parse(String(properties.observedAt ?? ""))
+
+      if (
+        ![fromLng, fromLat, toLng, toLat, etaMinutes, segmentMinutes, observedAtMs].every(Number.isFinite) ||
+        segmentMinutes <= 0 ||
+        etaMinutes < 0
+      ) return feature
+
+      // Elapsed time reduces the published ETA. Interpolate from the upstream
+      // stop toward the next stop once per second so dots visibly move between API refreshes.
+      const elapsedMinutes = Math.max(0, (now - observedAtMs) / 60_000)
+      const etaRemainingMinutes = Math.max(0, etaMinutes - elapsedMinutes)
+      const progress = Math.max(0, Math.min(1, 1 - etaRemainingMinutes / segmentMinutes))
+      return {
+        ...feature,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [
+            fromLng + (toLng - fromLng) * progress,
+            fromLat + (toLat - fromLat) * progress,
+          ],
+        },
+      }
+    })
+
+    source.setData({ type: "FeatureCollection", features })
+  }
+
   const refreshBoundaryGmbVehicles = async () => {
     try {
       const response = await fetch("/api/bus-eta", { cache: "no-store" })
@@ -1351,8 +1435,8 @@ const end = coordinates[coordinates.length - 1]
       const collection = body.gmbEstimatedPositions
       if (!body.ok || !collection || !Array.isArray(collection.features)) return
 
-      const source = boundaryMap.getSource("boundary-gmb-vehicles") as GeoJSONSource | undefined
-      source?.setData(collection)
+      latestBoundaryGmbCollection = collection
+      animateBoundaryGmbVehicles()
 
       // Fit the inset map once to the two monitored roads and the first set of
       // valid estimated dots, instead of leaving the dots beyond its narrow road bounds.
@@ -1386,6 +1470,9 @@ const end = coordinates[coordinates.length - 1]
   localGmbVehicleRefreshTimer = window.setInterval(() => {
     void refreshBoundaryGmbVehicles()
   }, 45_000)
+  boundaryGmbAnimationTimer = window.setInterval(() => {
+    animateBoundaryGmbVehicles()
+  }, 1_000)
 
   if (
     !bounds.isEmpty()
@@ -1404,6 +1491,9 @@ const end = coordinates[coordinates.length - 1]
     return () => {
       if (localGmbVehicleRefreshTimer !== null) {
         window.clearInterval(localGmbVehicleRefreshTimer)
+      }
+      if (boundaryGmbAnimationTimer !== null) {
+        window.clearInterval(boundaryGmbAnimationTimer)
       }
       resizeObserver.disconnect()
       boundaryMap.remove()
@@ -1870,7 +1960,7 @@ useEffect(() => {
         className="absolute inset-0"
       />
 {/* Black background */}
-<div className="pointer-events-none absolute inset-0 z-10 bg-black/10" />
+<div className="pointer-events-none absolute inset-0 z-10 bg-black" />
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
