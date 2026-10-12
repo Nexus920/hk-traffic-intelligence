@@ -1696,8 +1696,11 @@ export async function GET() {
     },
   }
 
+  // Keep this shorter than the dashboard's 45-second polling interval.
+  // A matching TTL could serve the same calculated vehicle positions on the
+  // next poll because the cache starts after all ETA requests have completed.
   responseCache = {
-    expires: Date.now() + 45_000,
+    expires: Date.now() + 20_000,
     body,
   }
 
