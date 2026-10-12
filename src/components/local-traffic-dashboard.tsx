@@ -1949,18 +1949,24 @@ useEffect(() => {
           []
         // Keep these two requested CCTV markers visible even when they are
         // not among the eight nearest cameras returned for the local map.
-        const targetCctvIds = new Set(["222", "241"])
+        // Stable official camera IDs from the /api/picture response.
+        // local-cctv-222: AID01118, Waterloo Road near Kowloon Tong Club (northbound).
+        // local-cctv-241: AID01206, Waterloo Road near Kowloon Tong Club (southbound).
+        // Match by official ID rather than array index, which can change between API responses.
+        const targetCctvLabels = new Map([
+          ["AID01118", "local-cctv-222"],
+          ["AID01206", "local-cctv-241"],
+          ["222", "local-cctv-222"],
+          ["241", "local-cctv-241"],
+        ])
         const normalizeCctvId = (value: unknown) =>
           String(value ?? "").trim().replace(/^local-cctv-/, "")
         const targetCctvLabel = (value: unknown) => {
           const normalized = normalizeCctvId(value)
-          return targetCctvIds.has(normalized)
-            ? `local-cctv-${normalized}`
-            : null
+          return targetCctvLabels.get(normalized) ?? null
         }
         const isTargetCctvId = (value: unknown) =>
           targetCctvLabel(value) !== null
-
         features.forEach(
           (
             feature,
@@ -2024,11 +2030,8 @@ useEffect(() => {
                   properties.id ??
                   `local-cctv-${index}`,
               ).trim()
-            // Support both upstream camera keys (e.g. "222") and the
-            // stable local marker aliases requested for this dashboard.
-            const targetLabel =
-              targetCctvLabel(id) ??
-              targetCctvLabel(`local-cctv-${index}`)
+            // Match requested markers by stable official camera ID, not array index.
+            const targetLabel = targetCctvLabel(id)
             const isTargetCctv = targetLabel !== null
 
             // A target marker is a location annotation; it must not disappear
@@ -2046,9 +2049,8 @@ useEffect(() => {
                 ),
               )
 
-            // Always retain the two explicitly requested cameras, even if
-            // the API's KEY is "222"/"241" or their distance exceeds the
-            // normal 80m corridor used for other CCTV markers.
+            // Always retain the two explicitly requested official cameras,
+            // even if they are outside the normal 80m local-road corridor.
             if (
               distance > CCTV_RADIUS_METRES &&
               !isTargetCctv
