@@ -1952,8 +1952,14 @@ useEffect(() => {
         const targetCctvIds = new Set(["222", "241"])
         const normalizeCctvId = (value: unknown) =>
           String(value ?? "").trim().replace(/^local-cctv-/, "")
+        const targetCctvLabel = (value: unknown) => {
+          const normalized = normalizeCctvId(value)
+          return targetCctvIds.has(normalized)
+            ? `local-cctv-${normalized}`
+            : null
+        }
         const isTargetCctvId = (value: unknown) =>
-          targetCctvIds.has(normalizeCctvId(value))
+          targetCctvLabel(value) !== null
 
         features.forEach(
           (
@@ -2006,10 +2012,6 @@ useEffect(() => {
                   "",
               ).trim()
 
-            if (!imageUrl) {
-              return
-            }
-
             const point:
               [number, number] = [
                 longitude,
@@ -2022,7 +2024,18 @@ useEffect(() => {
                   properties.id ??
                   `local-cctv-${index}`,
               ).trim()
-            const isTargetCctv = isTargetCctvId(id)
+            // Support both upstream camera keys (e.g. "222") and the
+            // stable local marker aliases requested for this dashboard.
+            const targetLabel =
+              targetCctvLabel(id) ??
+              targetCctvLabel(`local-cctv-${index}`)
+            const isTargetCctv = targetLabel !== null
+
+            // A target marker is a location annotation; it must not disappear
+            // just because its snapshot URL is missing or temporarily invalid.
+            if (!imageUrl && !isTargetCctv) {
+              return
+            }
 
             const distance =
               nearestRoadDistance(
@@ -2070,7 +2083,7 @@ useEffect(() => {
                   ),
                 isTargetCctv,
                 markerLabel: isTargetCctv
-                  ? `■ local-cctv-${normalizeCctvId(id)}`
+                  ? `■ ${targetLabel}`
                   : "",
               },
               geometry: {
