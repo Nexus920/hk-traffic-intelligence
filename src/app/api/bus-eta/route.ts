@@ -196,11 +196,29 @@ let kmbStopCache: { expires: number; data: Stop[] } | null = null
 let ctbStopCache: { expires: number; data: Stop[] } | null = null
 let ctbRouteCoordinatesCache: { expires: number; data: CtbRouteStopCoordinate[] } | null = null
 let ctbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
+// Preserve CTB upstream-stage counts in the API response so an empty collection
+// can be traced to the exact data stage without provider-side logs.
+let ctbApiDiagnostics = {
+  routeStopQueries: 0,
+  routeStopRows: 0,
+  routeStopErrors: 0,
+  routeStopErrorDetails: [] as string[],
+  uniqueRouteStopIds: 0,
+  coordinateRowsJoined: 0,
+  localRouteVariants: 0,
+  etaQueries: 0,
+  etaQueriesWithRows: 0,
+  etaRowsReceived: 0,
+  etaQueryErrors: 0,
+  etaErrorDetails: [] as string[],
+  lastEstimateError: null as string | null,
+}
 const ctbRouteEtaCache = new Map<string, { expires: number; data: CtbEtaRecord[] }>()
 let ctbEstimatedPositionDebug: KmbEstimatedPositionDiagnostics & {
   routeStopCoordinates: number
   routeEtaQueries: number
   routeEtaErrors: number
+  lastError: string | null
 } = {
   routeVariants: 0,
   localRouteVariants: 0,
@@ -218,6 +236,7 @@ let ctbEstimatedPositionDebug: KmbEstimatedPositionDiagnostics & {
   routeStopCoordinates: 0,
   routeEtaQueries: 0,
   routeEtaErrors: 0,
+  lastError: null,
 }
 let kmbRouteCoordinatesCache: { expires: number; data: KmbRouteStopCoordinate[] } | null = null
 let kmbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
@@ -1047,26 +1066,39 @@ async function getCtbRouteCoordinates(
   const requests = CTB_ROUTES.flatMap((route) =>
     (["inbound", "outbound"] as const).map((direction) => ({ route, direction }))
   )
+  ctbApiDiagnostics.routeStopQueries = requests.length
+  ctbApiDiagnostics.routeStopRows = 0
+  ctbApiDiagnostics.routeStopErrors = 0
+  ctbApiDiagnostics.routeStopErrorDetails = []
+  ctbApiDiagnostics.uniqueRouteStopIds = 0
+  ctbApiDiagnostics.coordinateRowsJoined = 0
+  ctbApiDiagnostics.localRouteVariants = 0
+
   const routeResults = await mapWithConcurrency(requests, 3, async ({ route, direction }) => {
     try {
       const rows = await readData<CtbRouteStopApiRecord>(
         buildCtbRouteStopApiUrl(CTB, route, direction),
       )
-      return { route, rows }
+      return { route, direction, rows, error: null as string | null }
     } catch (error) {
-      console.error(
-        "[CTB route-stop] route=" + route + " direction=" + direction + ":",
-        error instanceof Error ? error.message : String(error),
-      )
-      return { route, rows: [] as CtbRouteStopApiRecord[] }
+      const message = error instanceof Error ? error.message : String(error)
+      console.error("[CTB route-stop] route=" + route + " direction=" + direction + ":", message)
+      return { route, direction, rows: [] as CtbRouteStopApiRecord[], error: message }
     }
   })
+  ctbApiDiagnostics.routeStopRows = routeResults.reduce((total, result) => total + result.rows.length, 0)
+  const routeStopErrors = routeResults.filter((result) => result.error !== null)
+  ctbApiDiagnostics.routeStopErrors = routeStopErrors.length
+  ctbApiDiagnostics.routeStopErrorDetails = routeStopErrors
+    .slice(0, 6)
+    .map((result) => result.route + "/" + result.direction + ": " + result.error)
 
   const stopById = new Map(stops.map((stop) => [stop.stop, stop]))
   const routeRows = routeResults.flatMap((result) =>
     result.rows.filter((row) => String(row.route ?? result.route) === result.route)
   )
   const stopIds = Array.from(new Set(routeRows.map((row) => String(row.stop ?? "").trim()).filter(Boolean)))
+  ctbApiDiagnostics.uniqueRouteStopIds = stopIds.length
   const missingStopIds = stopIds.filter((stopId) => {
     const stop = stopById.get(stopId)
     return !stop || !Number.isFinite(Number(stop.long)) || !Number.isFinite(Number(stop.lat))
@@ -1131,8 +1163,12 @@ async function getCtbRouteCoordinates(
   const localCoordinates = allCoordinates.filter((stop) =>
     localVariantKeys.has([stop.route, stop.bound, stop.serviceType].join("|"))
   )
+  ctbApiDiagnostics.coordinateRowsJoined = allCoordinates.length
+  ctbApiDiagnostics.localRouteVariants = localVariantKeys.size
 
   if (localCoordinates.length === 0) {
+    ctbApiDiagnostics.lastEstimateError =
+      "No selected CTB route variants had coordinates within " + CTB_ESTIMATED_POSITION_RADIUS_METRES + "m of the monitoring points"
     throw new Error("CTB official route-stop list did not contain selected routes near the local monitoring points")
   }
 
@@ -1151,6 +1187,12 @@ async function loadLocalCtbEstimatedPositions(
     return ctbEstimatedPositionsCache.data
   }
 
+  ctbApiDiagnostics.etaQueries = 0
+  ctbApiDiagnostics.etaQueriesWithRows = 0
+  ctbApiDiagnostics.etaRowsReceived = 0
+  ctbApiDiagnostics.etaQueryErrors = 0
+  ctbApiDiagnostics.etaErrorDetails = []
+  ctbApiDiagnostics.lastEstimateError = null
   ctbEstimatedPositionDebug = {
     routeVariants: 0,
     localRouteVariants: 0,
@@ -1168,6 +1210,7 @@ async function loadLocalCtbEstimatedPositions(
     routeStopCoordinates: 0,
     routeEtaQueries: 0,
     routeEtaErrors: 0,
+    lastError: null,
   }
 
   const routeStops = await getCtbRouteCoordinates(ctbStops, now)
@@ -1206,7 +1249,7 @@ async function loadLocalCtbEstimatedPositions(
     const cacheKey = [stop.route, stop.stopId].join("|")
     const cached = ctbRouteEtaCache.get(cacheKey)
     if (cached && cached.expires > now) {
-      return { key: cacheKey, rows: cached.data }
+      return { key: cacheKey, rows: cached.data, error: null as string | null }
     }
 
     try {
@@ -1220,17 +1263,21 @@ async function loadLocalCtbEstimatedPositions(
         expires: now + CTB_ROUTE_ETA_TTL_MS,
         data: normalized,
       })
-      return { key: cacheKey, rows: normalized }
+      return { key: cacheKey, rows: normalized, error: null as string | null }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       ctbEstimatedPositionDebug.routeEtaErrors += 1
       ctbEstimatedPositionDebug.apiErrors += 1
-      console.error(
-        "[CTB estimated positions] route=" + stop.route + " stop=" + stop.stopId + ":",
-        error instanceof Error ? error.message : String(error),
-      )
-      return { key: cacheKey, rows: [] as CtbEtaRecord[] }
+      console.error("[CTB estimated positions] route=" + stop.route + " stop=" + stop.stopId + ":", message)
+      return { key: cacheKey, rows: [] as CtbEtaRecord[], error: stop.route + "/" + stop.stopId + ": " + message }
     }
   })
+  ctbApiDiagnostics.etaQueries = etaResponses.length
+  ctbApiDiagnostics.etaRowsReceived = etaResponses.reduce((total, response) => total + response.rows.length, 0)
+  ctbApiDiagnostics.etaQueriesWithRows = etaResponses.filter((response) => response.rows.length > 0).length
+  const etaErrors = etaResponses.filter((response) => response.error !== null)
+  ctbApiDiagnostics.etaQueryErrors = etaErrors.length
+  ctbApiDiagnostics.etaErrorDetails = etaErrors.slice(0, 8).map((response) => response.error as string)
 
   const result = buildCtbEstimatedPositions(
     routeStops,
@@ -1250,6 +1297,7 @@ async function loadLocalCtbEstimatedPositions(
     routeStopCoordinates: routeStops.length,
     routeEtaQueries: etaTargetsByKey.size,
     routeEtaErrors: ctbEstimatedPositionDebug.routeEtaErrors,
+    lastError: null,
   }
   ctbEstimatedPositionsCache = {
     expires: now + CTB_ESTIMATED_POSITION_TTL_MS,
@@ -1946,8 +1994,11 @@ export async function GET() {
       return { type: "FeatureCollection" as const, features: [] }
     }),
     loadLocalCtbEstimatedPositions(ctbStops).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error)
       ctbEstimatedPositionDebug.apiErrors += 1
-      console.error("[CTB estimated positions]", error instanceof Error ? error.message : String(error))
+      ctbEstimatedPositionDebug.lastError = message
+      ctbApiDiagnostics.lastEstimateError = message
+      console.error("[CTB estimated positions]", message)
       return { type: "FeatureCollection" as const, features: [] }
     }),
   ])
@@ -1969,6 +2020,7 @@ export async function GET() {
       gmbEstimatedPosition: gmbEstimatedPositionDebug,
       kmbEstimatedPosition: kmbEstimatedPositionDebug,
       ctbEstimatedPosition: ctbEstimatedPositionDebug,
+      ctbApiDiagnostics,
     },
   }
 
