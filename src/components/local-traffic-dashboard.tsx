@@ -374,6 +374,8 @@ function escapeHtml(value: string) {
 }
 
 export function LocalTrafficDashboard() {
+
+  const [whatsAppAlarmSwitch, setWhatsAppAlarmSwitch] = useState(false)
 const mapElement =
   useRef<HTMLDivElement | null>(null)
 
@@ -2521,19 +2523,39 @@ useEffect(() => {
                   </p>
                 </div>
 
-                <button
-                  onClick={loadAllData}
-                  disabled={
-                    loading ||
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadAllData}
+                    disabled={
+                      loading ||
+                      journeyLoading
+                    }
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
+                  >
+                    {loading ||
                     journeyLoading
-                  }
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
-                >
-                  {loading ||
-                  journeyLoading
-                    ? "更新中..."
-                    : "立即更新"}
-                </button>
+                      ? "更新中..."
+                      : "立即更新"}
+                  </button>
+
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={whatsAppAlarmSwitch}
+                      aria-label="What'sAPP Alarm decorative switch"
+                      onClick={() => setWhatsAppAlarmSwitch((value) => !value)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${whatsAppAlarmSwitch ? "border-emerald-300/70 bg-emerald-500/80" : "border-white/30 bg-white/15"}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${whatsAppAlarmSwitch ? "translate-x-5" : "translate-x-1"}`}
+                      />
+                    </button>
+                    <span className="whitespace-nowrap text-[10px] font-medium text-white">
+                      What'sAPP Alarm
+                    </span>
+                  </div>
+                </div>
 
               </div>
 
