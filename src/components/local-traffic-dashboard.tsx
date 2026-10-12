@@ -1181,6 +1181,23 @@ boundaryMap.on("load", () => {
     },
   })
 
+  // Building marker uses the same GeoJSON source/layer approach as
+  // the La Salle School and Beverly Garden station markers.
+  boundaryMap.addSource("boundary-building-164", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature" as const,
+        properties: { label: "九龍仔界限街164號" },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [114.1809, 22.3283],
+        },
+      }],
+    },
+  })
+
   const boundary =
     LOCAL_ROADS.find(
       (road) =>
@@ -1412,6 +1429,36 @@ boundaryMap.on("load", () => {
       "text-color": "#92400e",
       "text-halo-color": "#ffffff",
       "text-halo-width": 2,
+    },
+  })
+
+  boundaryMap.addLayer({
+    id: "boundary-building-164-circle",
+    type: "circle",
+    source: "boundary-building-164",
+    paint: {
+      "circle-radius": 13,
+      "circle-color": "#f97316",
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 3,
+    },
+  })
+  boundaryMap.addLayer({
+    id: "boundary-building-164-label",
+    type: "symbol",
+    source: "boundary-building-164",
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 13,
+      "text-offset": [0, -1.8],
+      "text-anchor": "bottom",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#c2410c",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 3,
     },
   })
 
@@ -1896,36 +1943,6 @@ useEffect(() => {
     mapReady,
   ])
 
-  // Highlight the building at 164 Boundary Street with a map-anchored icon.
-  // Approximate pin position is near the building address and nearby La Salle School stop.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !mapReady) return
-
-    const element = document.createElement("div")
-    element.setAttribute("role", "img")
-    element.setAttribute("aria-label", "九龍仔界限街164號")
-    element.title = "九龍仔界限街164號"
-    element.style.width = "42px"
-    element.style.height = "42px"
-    element.style.display = "flex"
-    element.style.alignItems = "center"
-    element.style.justifyContent = "center"
-    element.style.borderRadius = "50%"
-    element.style.background = "#f97316"
-    element.style.border = "3px solid #ffffff"
-    element.style.boxShadow = "0 2px 8px rgba(0,0,0,0.45)"
-    element.style.boxSizing = "border-box"
-    // Keep this marker above the full-screen background overlay (z-10).
-    element.style.zIndex = "15"
-    element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M8 9v.01"/><path d="M8 12v.01"/><path d="M8 15v.01"/><path d="M8 18v.01"/><path d="M16 13v.01"/><path d="M16 16v.01"/><path d="M16 19v.01"/></svg>'
-
-    const marker = new maplibregl.Marker({ element, anchor: "bottom" })
-      .setLngLat([114.1809, 22.3283])
-      .addTo(map)
-
-    return () => marker.remove()
-  }, [mapReady])
 
   /*
    * Step 6:
