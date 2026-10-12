@@ -2424,7 +2424,8 @@ useEffect(() => {
         ref={mapElement}
         className="absolute inset-0"
       />
-{/* Background color is provided by the main element; keep the map unobstructed. */}
+{/* Full-screen background: #2E2D2D */}
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[#2E2D2D]" />
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
