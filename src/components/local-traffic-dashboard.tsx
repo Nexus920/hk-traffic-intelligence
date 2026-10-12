@@ -11,6 +11,7 @@ import type {
   Map,
 } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
+import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 
 maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs")
 
@@ -84,6 +85,19 @@ type CctvResponse = {
 
 const CCTV_RADIUS_METRES = 80
 const CCTV_PANEL_RADIUS_METRES = 300
+
+const LOCAL_BUS_STOP_MARKERS = [
+  {
+    id: "lasalle",
+    label: "喇沙小學巴士站",
+    point: [...LOCAL_GMB_MONITORING.lasalle.point] as [number, number],
+  },
+  {
+    id: "beverly",
+    label: "碧華花園巴士站",
+    point: [...LOCAL_GMB_MONITORING.beverly.point] as [number, number],
+  },
+] as const
 
 const LOCAL_ROADS: Omit<
   Road,
@@ -1136,6 +1150,20 @@ boundaryMap.on("load", () => {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   })
+  boundaryMap.addSource("boundary-bus-stations", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: LOCAL_BUS_STOP_MARKERS.map((station) => ({
+        type: "Feature" as const,
+        properties: { id: station.id, label: station.label },
+        geometry: {
+          type: "Point" as const,
+          coordinates: station.point,
+        },
+      })),
+    },
+  })
 
   const boundary =
     LOCAL_ROADS.find(
@@ -1150,10 +1178,11 @@ boundaryMap.on("load", () => {
   const bounds =
     new maplibregl.LngLatBounds()
 
-  for (
-    const point of coordinates
-  ) {
-    bounds.extend(point)
+  for (const road of LOCAL_ROADS) {
+    for (const point of road.coordinates) bounds.extend(point)
+  }
+  for (const station of LOCAL_BUS_STOP_MARKERS) {
+    bounds.extend(station.point)
   }
 
   /*
@@ -1244,6 +1273,59 @@ boundaryMap.on("load", () => {
       "text-halo-width": 2,
     },
   })
+
+  // Visually distinct orange bus-stop markers with labels on opposing sides,
+  // so the two nearby names remain easy to distinguish on the compact map.
+  boundaryMap.addLayer({
+    id: "boundary-bus-station-circles",
+    type: "circle",
+    source: "boundary-bus-stations",
+    paint: {
+      "circle-radius": 7,
+      "circle-color": "#f59e0b",
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 2,
+    },
+  })
+  boundaryMap.addLayer({
+    id: "boundary-bus-station-label-lasalle",
+    type: "symbol",
+    source: "boundary-bus-stations",
+    filter: ["==", ["get", "id"], "lasalle"],
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 12,
+      "text-offset": [0, -1.5],
+      "text-anchor": "bottom",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#92400e",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 2,
+    },
+  })
+  boundaryMap.addLayer({
+    id: "boundary-bus-station-label-beverly",
+    type: "symbol",
+    source: "boundary-bus-stations",
+    filter: ["==", ["get", "id"], "beverly"],
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 12,
+      "text-offset": [0, 1.5],
+      "text-anchor": "top",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#92400e",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 2,
+    },
+  })
+
   boundaryMap.on("click", "boundary-gmb-vehicle-circles", (event) => {
     const feature = event.features?.[0]
     const properties = feature?.properties as Record<string, unknown> | null | undefined
@@ -1444,6 +1526,9 @@ const end = coordinates[coordinates.length - 1]
         const localBounds = new maplibregl.LngLatBounds()
         for (const road of LOCAL_ROADS) {
           for (const point of road.coordinates) localBounds.extend(point)
+        }
+        for (const station of LOCAL_BUS_STOP_MARKERS) {
+          localBounds.extend(station.point)
         }
         for (const feature of collection.features) {
           if (!feature.geometry || feature.geometry.type !== "Point") continue
