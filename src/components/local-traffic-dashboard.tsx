@@ -1881,7 +1881,7 @@ useEffect(() => {
         className="absolute inset-0"
       />
 {/* Black background */}
-<div className="pointer-events-none absolute inset-0 z-10 bg-black" />
+<div className="pointer-events-none absolute inset-0 z-10 bg-black/10" />
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
