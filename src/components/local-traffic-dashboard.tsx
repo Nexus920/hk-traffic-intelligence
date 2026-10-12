@@ -2161,30 +2161,63 @@ useEffect(() => {
           )
         }
 
-        // Black square + explicit ID remark for the two requested CCTV points.
-        // Install the label layer even when the GeoJSON source already exists.
-        if (!currentMap.getLayer("local-cctv-target-square")) {
+        // Render target markers as actual polygon squares instead of a text glyph.
+        // This avoids missing-font/glyph issues in MapLibre symbol layers.
+        const targetSquareFeatures = visibleMatched
+          .filter((feature) => Boolean(feature.properties?.isTargetCctv))
+          .map((feature) => {
+            const coordinates = feature.geometry?.coordinates
+            if (!Array.isArray(coordinates) || coordinates.length < 2) return null
+            const longitude = Number(coordinates[0])
+            const latitude = Number(coordinates[1])
+            if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
+            const halfWidth = 0.000035
+            const halfHeight = 0.000035
+            return {
+              type: "Feature" as const,
+              properties: { id: feature.properties?.id },
+              geometry: {
+                type: "Polygon" as const,
+                coordinates: [[
+                  [longitude - halfWidth, latitude - halfHeight],
+                  [longitude + halfWidth, latitude - halfHeight],
+                  [longitude + halfWidth, latitude + halfHeight],
+                  [longitude - halfWidth, latitude + halfHeight],
+                  [longitude - halfWidth, latitude - halfHeight],
+                ]],
+              },
+            }
+          })
+          .filter((feature): feature is NonNullable<typeof feature> => feature !== null)
+
+        const targetSquareCollection = {
+          type: "FeatureCollection" as const,
+          features: targetSquareFeatures,
+        }
+        const existingTargetSquares = currentMap.getSource("local-cctv-target-squares") as GeoJSONSource | undefined
+        if (existingTargetSquares) {
+          existingTargetSquares.setData(targetSquareCollection)
+        } else {
+          currentMap.addSource("local-cctv-target-squares", {
+            type: "geojson",
+            data: targetSquareCollection,
+          })
+        }
+
+        if (!currentMap.getLayer("local-cctv-target-square-fill")) {
           currentMap.addLayer({
-            id: "local-cctv-target-square",
-            type: "symbol",
-            source: "local-cctv",
-            filter: ["==", ["get", "isTargetCctv"], true],
-            layout: {
-              "text-field": "■",
-              "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-              "text-size": 22,
-              "text-allow-overlap": true,
-              "text-ignore-placement": true,
-              "text-anchor": "center",
-            },
+            id: "local-cctv-target-square-fill",
+            type: "fill",
+            source: "local-cctv-target-squares",
             paint: {
-              "text-color": "#000000",
-              "text-halo-color": "#ffffff",
-              "text-halo-width": 1.5,
+              "fill-color": "#000000",
+              "fill-outline-color": "#ffffff",
+              "fill-opacity": 1,
             },
           })
         }
 
+        // Keep text labels separate from the visible square markers.
         if (!currentMap.getLayer("local-cctv-target-labels")) {
           currentMap.addLayer({
             id: "local-cctv-target-labels",
