@@ -1914,6 +1914,10 @@ useEffect(() => {
 
     const map = mapRef.current
 
+    // DOM markers are independent of MapLibre style layers, so style ordering,
+    // GeoJSON fill rendering, or other map layers cannot hide the two targets.
+    const targetDomMarkers = new Map<string, maplibregl.Marker>()
+
     let cancelled = false
 
     async function loadCctvMarkers() {
@@ -2141,6 +2145,39 @@ useEffect(() => {
 
         const currentMap =
           mapRef.current
+
+        // Render the two requested cameras as actual HTML square markers.
+        // This is separate from the GeoJSON style-layer marker path.
+        for (const feature of visibleMatched) {
+          if (!feature.properties?.isTargetCctv) continue
+          const coordinates = feature.geometry?.coordinates
+          if (!Array.isArray(coordinates) || coordinates.length < 2) continue
+          const lng = Number(coordinates[0])
+          const lat = Number(coordinates[1])
+          const id = String(feature.properties.id ?? "")
+          if (!Number.isFinite(lng) || !Number.isFinite(lat) || !id) continue
+
+          let marker = targetDomMarkers.get(id)
+          if (!marker) {
+            const element = document.createElement("div")
+            element.setAttribute("aria-label", String(feature.properties.markerLabel ?? "目標 CCTV"))
+            element.title = String(feature.properties.name ?? "目標 CCTV")
+            element.style.width = "22px"
+            element.style.height = "22px"
+            element.style.backgroundColor = "#000000"
+            element.style.border = "3px solid #ffffff"
+            element.style.boxSizing = "border-box"
+            element.style.boxShadow = "0 0 0 2px #000000, 0 2px 8px rgba(0,0,0,0.65)"
+            element.style.zIndex = "1000"
+            element.style.pointerEvents = "auto"
+            marker = new maplibregl.Marker({ element, anchor: "center" })
+              .setLngLat([lng, lat])
+              .addTo(currentMap)
+            targetDomMarkers.set(id, marker)
+          } else {
+            marker.setLngLat([lng, lat])
+          }
+        }
 
         const existing =
           currentMap.getSource(
@@ -2413,6 +2450,8 @@ useEffect(() => {
     return () => {
       cancelled = true
       window.clearInterval(timer)
+      for (const marker of targetDomMarkers.values()) marker.remove()
+      targetDomMarkers.clear()
     }
   }, [mapReady])
 
