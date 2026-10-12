@@ -1675,6 +1675,7 @@ const end = coordinates[coordinates.length - 1]
   }, 45_000)
   boundaryGmbAnimationTimer = window.setInterval(() => {
     animateBoundaryGmbVehicles()
+    animateBoundaryKmbVehicles()
   }, 1_000)
 
   if (
