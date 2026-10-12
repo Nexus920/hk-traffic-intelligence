@@ -2383,6 +2383,17 @@ useEffect(() => {
               )
           },
         )
+
+        // Re-assert target square visibility and place it above all map layers.
+        if (currentMap.getLayer("local-cctv-target-square-fill")) {
+          currentMap.setLayoutProperty("local-cctv-target-square-fill", "visibility", "visible")
+          currentMap.setPaintProperty("local-cctv-target-square-fill", "fill-color", "#000000")
+          currentMap.setPaintProperty("local-cctv-target-square-fill", "fill-opacity", 1)
+          currentMap.moveLayer("local-cctv-target-square-fill")
+        }
+        if (currentMap.getLayer("local-cctv-target-labels")) {
+          currentMap.moveLayer("local-cctv-target-labels")
+        }
       } catch (error) {
         console.error(
           "Failed to load CCTV map markers:",
