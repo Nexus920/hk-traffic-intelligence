@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { buildCtbEtaApiUrl, buildCtbRouteStopApiUrl } from "@/lib/ctb-api-paths"
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 import {
   buildCtbEstimatedPositions,
@@ -1049,7 +1050,7 @@ async function getCtbRouteCoordinates(
   const routeResults = await mapWithConcurrency(requests, 3, async ({ route, direction }) => {
     try {
       const rows = await readData<CtbRouteStopApiRecord>(
-        CTB + "/route-stop/CTB/" + encodeURIComponent(route) + "/" + direction,
+        buildCtbRouteStopApiUrl(CTB, route, direction),
       )
       return { route, rows }
     } catch (error) {
@@ -1210,7 +1211,7 @@ async function loadLocalCtbEstimatedPositions(
 
     try {
       const rows = await readData<CtbEtaRecord>(
-        CTB + "/eta/CTB/" + encodeURIComponent(stop.stopId) + "/" + encodeURIComponent(stop.route),
+        buildCtbEtaApiUrl(CTB, stop.stopId, stop.route),
       )
       // CTB does not use KMB service_type; set a stable sentinel for the
       // shared estimator while preserving route direction and stop sequence.
@@ -1802,7 +1803,7 @@ async function loadStation(
       station.routes.map(async (route) => {
         try {
           const records = await readData<EtaRecord>(
-            `${CTB}/eta/CTB/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`,
+            buildCtbEtaApiUrl(CTB, stop.stop, route),
           )
 
           return records

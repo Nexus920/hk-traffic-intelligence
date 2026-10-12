@@ -39,6 +39,8 @@ jobs:
         run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
       - name: Run KMB estimated-position validation
         run: node --experimental-strip-types src/lib/kmb-estimated-position.test.ts
+      - name: Run CTB API path validation
+        run: node --experimental-strip-types src/lib/ctb-api-paths.test.ts
       - name: Run CTB estimated-position validation
         run: node --experimental-strip-types src/lib/ctb-estimated-position.test.ts
       - name: Run GMB route mapping validation
