@@ -1916,6 +1916,8 @@ useEffect(() => {
     element.style.border = "3px solid #ffffff"
     element.style.boxShadow = "0 2px 8px rgba(0,0,0,0.45)"
     element.style.boxSizing = "border-box"
+    // Keep this marker above the full-screen background overlay (z-10).
+    element.style.zIndex = "15"
     element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M8 9v.01"/><path d="M8 12v.01"/><path d="M8 15v.01"/><path d="M8 18v.01"/><path d="M16 13v.01"/><path d="M16 16v.01"/><path d="M16 19v.01"/></svg>'
 
     const marker = new maplibregl.Marker({ element, anchor: "bottom" })
