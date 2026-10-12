@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { LOCAL_GMB_MONITORING } from "@/lib/local-gmb-monitoring"
 import {
+  buildCtbEstimatedPositions,
+  type CtbEtaRecord,
+  type CtbRouteStopCoordinate,
+} from "@/lib/ctb-estimated-position"
+import {
   buildKmbEstimatedPositions,
   type KmbEtaRecord,
   type KmbEstimatedPositionDiagnostics,
@@ -188,6 +193,31 @@ const CTB_ROUTES = ["20A", "22", "113"] as const
 
 let kmbStopCache: { expires: number; data: Stop[] } | null = null
 let ctbStopCache: { expires: number; data: Stop[] } | null = null
+let ctbRouteCoordinatesCache: { expires: number; data: CtbRouteStopCoordinate[] } | null = null
+let ctbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
+const ctbRouteEtaCache = new Map<string, { expires: number; data: CtbEtaRecord[] }>()
+let ctbEstimatedPositionDebug: KmbEstimatedPositionDiagnostics & {
+  routeStopCoordinates: number
+  routeEtaQueries: number
+  routeEtaErrors: number
+} = {
+  routeVariants: 0,
+  localRouteVariants: 0,
+  localStops: 0,
+  etaRowsChecked: 0,
+  observedSegments: 0,
+  fallbackSegments: 0,
+  routesWithFallback: 0,
+  anchorsExamined: 0,
+  anchorsLocated: 0,
+  anchorsWithoutTiming: 0,
+  anchorsOutsideLocalArea: 0,
+  estimatedVehicles: 0,
+  apiErrors: 0,
+  routeStopCoordinates: 0,
+  routeEtaQueries: 0,
+  routeEtaErrors: 0,
+}
 let kmbRouteCoordinatesCache: { expires: number; data: KmbRouteStopCoordinate[] } | null = null
 let kmbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
 const kmbRouteEtaCache = new Map<string, { expires: number; data: KmbEtaRecord[] }>()
@@ -989,6 +1019,244 @@ async function loadLocalKmbEstimatedPositions(
   return result.collection
 }
 
+type CtbRouteStopApiRecord = {
+  co?: string
+  route?: string
+  dir?: string
+  seq?: string | number
+  stop?: string
+  data_timestamp?: string
+}
+
+const CTB_ROUTE_COORDINATES_TTL_MS = 24 * 60 * 60 * 1000
+const CTB_ROUTE_ETA_TTL_MS = 20_000
+const CTB_ESTIMATED_POSITION_TTL_MS = 20_000
+const CTB_ESTIMATED_POSITION_RADIUS_METRES = 450
+
+async function getCtbRouteCoordinates(
+  stops: Stop[],
+  now = Date.now(),
+): Promise<CtbRouteStopCoordinate[]> {
+  if (ctbRouteCoordinatesCache && ctbRouteCoordinatesCache.expires > now) {
+    return ctbRouteCoordinatesCache.data
+  }
+
+  // Official CTB V2 route-stop API provides stop sequence and direction.
+  // Inbound/outbound URLs return direction codes I/O in each response row.
+  const requests = CTB_ROUTES.flatMap((route) =>
+    (["inbound", "outbound"] as const).map((direction) => ({ route, direction }))
+  )
+  const routeResults = await mapWithConcurrency(requests, 3, async ({ route, direction }) => {
+    try {
+      const rows = await readData<CtbRouteStopApiRecord>(
+        CTB + "/route-stop/CTB/" + encodeURIComponent(route) + "/" + direction,
+      )
+      return { route, rows }
+    } catch (error) {
+      console.error(
+        "[CTB route-stop] route=" + route + " direction=" + direction + ":",
+        error instanceof Error ? error.message : String(error),
+      )
+      return { route, rows: [] as CtbRouteStopApiRecord[] }
+    }
+  })
+
+  const stopById = new Map(stops.map((stop) => [stop.stop, stop]))
+  const routeRows = routeResults.flatMap((result) =>
+    result.rows.filter((row) => String(row.route ?? result.route) === result.route)
+  )
+  const stopIds = Array.from(new Set(routeRows.map((row) => String(row.stop ?? "").trim()).filter(Boolean)))
+  const missingStopIds = stopIds.filter((stopId) => {
+    const stop = stopById.get(stopId)
+    return !stop || !Number.isFinite(Number(stop.long)) || !Number.isFinite(Number(stop.lat))
+  })
+
+  // The existing stop catalogue is useful for bulk joining. Any missing CTB
+  // coordinates are recovered from CTB's own stop endpoint, not guessed.
+  const missingStops = await mapWithConcurrency(missingStopIds, 4, async (stopId) => {
+    try {
+      return await readSingleStop(CTB + "/stop/" + encodeURIComponent(stopId))
+    } catch (error) {
+      console.error(
+        "[CTB stop detail] stop=" + stopId + ":",
+        error instanceof Error ? error.message : String(error),
+      )
+      return null
+    }
+  })
+  for (const stop of missingStops) {
+    if (stop) stopById.set(stop.stop, stop)
+  }
+
+  const allCoordinates: CtbRouteStopCoordinate[] = []
+  for (const row of routeRows) {
+    const route = String(row.route ?? "").trim()
+    const bound = String(row.dir ?? "")
+    const stopSeq = Number(row.seq)
+    const stopId = String(row.stop ?? "").trim()
+    if (
+      !CTB_ROUTES.some((selectedRoute) => selectedRoute === route) ||
+      (bound !== "I" && bound !== "O") ||
+      !Number.isInteger(stopSeq) ||
+      stopSeq <= 0 ||
+      !stopId
+    ) continue
+
+    const stop = stopById.get(stopId)
+    if (!stop) continue
+    const lng = Number(stop.long)
+    const lat = Number(stop.lat)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+
+    allCoordinates.push({
+      route,
+      bound,
+      serviceType: "CTB",
+      stopSeq,
+      stopId,
+      lng,
+      lat,
+    })
+  }
+
+  const localVariantKeys = new Set<string>()
+  for (const stop of allCoordinates) {
+    const key = [stop.route, stop.bound, stop.serviceType].join("|")
+    if (CONFIG.some((station) =>
+      station.routes.some((route) => route === stop.route) &&
+      distanceMetres([stop.lng, stop.lat], station.point) <= CTB_ESTIMATED_POSITION_RADIUS_METRES
+    )) localVariantKeys.add(key)
+  }
+  const localCoordinates = allCoordinates.filter((stop) =>
+    localVariantKeys.has([stop.route, stop.bound, stop.serviceType].join("|"))
+  )
+
+  if (localCoordinates.length === 0) {
+    throw new Error("CTB official route-stop list did not contain selected routes near the local monitoring points")
+  }
+
+  ctbRouteCoordinatesCache = {
+    expires: now + CTB_ROUTE_COORDINATES_TTL_MS,
+    data: localCoordinates,
+  }
+  return localCoordinates
+}
+
+async function loadLocalCtbEstimatedPositions(
+  ctbStops: Stop[],
+  now = Date.now(),
+): Promise<GeoJSON.FeatureCollection> {
+  if (ctbEstimatedPositionsCache && ctbEstimatedPositionsCache.expires > now) {
+    return ctbEstimatedPositionsCache.data
+  }
+
+  ctbEstimatedPositionDebug = {
+    routeVariants: 0,
+    localRouteVariants: 0,
+    localStops: 0,
+    etaRowsChecked: 0,
+    observedSegments: 0,
+    fallbackSegments: 0,
+    routesWithFallback: 0,
+    anchorsExamined: 0,
+    anchorsLocated: 0,
+    anchorsWithoutTiming: 0,
+    anchorsOutsideLocalArea: 0,
+    estimatedVehicles: 0,
+    apiErrors: 0,
+    routeStopCoordinates: 0,
+    routeEtaQueries: 0,
+    routeEtaErrors: 0,
+  }
+
+  const routeStops = await getCtbRouteCoordinates(ctbStops, now)
+  const localStopsByVariant = new Map<string, CtbRouteStopCoordinate[]>()
+  for (const stop of routeStops) {
+    const key = [stop.route, stop.bound, stop.serviceType].join("|")
+    const isLocal = CONFIG.some((station) =>
+      station.routes.some((route) => route === stop.route) &&
+      distanceMetres([stop.lng, stop.lat], station.point) <= CTB_ESTIMATED_POSITION_RADIUS_METRES
+    )
+    if (!isLocal) continue
+    const list = localStopsByVariant.get(key) ?? []
+    list.push(stop)
+    localStopsByVariant.set(key, list)
+  }
+
+  // Request ETAs only for nearby selected routes plus upstream context stops.
+  // CTB publishes ETA per stop and route rather than a whole-route ETA feed.
+  const etaTargetsByKey = new Map<string, CtbRouteStopCoordinate>()
+  for (const [variantKey, localStops] of localStopsByVariant) {
+    const minSeq = Math.min(...localStops.map((stop) => stop.stopSeq))
+    const maxSeq = Math.max(...localStops.map((stop) => stop.stopSeq))
+    for (const stop of routeStops) {
+      if (
+        [stop.route, stop.bound, stop.serviceType].join("|") !== variantKey ||
+        stop.stopSeq < Math.max(1, minSeq - 8) ||
+        stop.stopSeq > maxSeq + 2
+      ) continue
+      etaTargetsByKey.set([stop.route, stop.stopId].join("|"), stop)
+    }
+  }
+
+  ctbEstimatedPositionDebug.routeStopCoordinates = routeStops.length
+  ctbEstimatedPositionDebug.routeEtaQueries = etaTargetsByKey.size
+  const etaResponses = await mapWithConcurrency([...etaTargetsByKey.values()], 4, async (stop) => {
+    const cacheKey = [stop.route, stop.stopId].join("|")
+    const cached = ctbRouteEtaCache.get(cacheKey)
+    if (cached && cached.expires > now) {
+      return { key: cacheKey, rows: cached.data }
+    }
+
+    try {
+      const rows = await readData<CtbEtaRecord>(
+        CTB + "/eta/CTB/" + encodeURIComponent(stop.stopId) + "/" + encodeURIComponent(stop.route),
+      )
+      // CTB does not use KMB service_type; set a stable sentinel for the
+      // shared estimator while preserving route direction and stop sequence.
+      const normalized = rows.map((row) => ({ ...row, service_type: "CTB" }))
+      ctbRouteEtaCache.set(cacheKey, {
+        expires: now + CTB_ROUTE_ETA_TTL_MS,
+        data: normalized,
+      })
+      return { key: cacheKey, rows: normalized }
+    } catch (error) {
+      ctbEstimatedPositionDebug.routeEtaErrors += 1
+      ctbEstimatedPositionDebug.apiErrors += 1
+      console.error(
+        "[CTB estimated positions] route=" + stop.route + " stop=" + stop.stopId + ":",
+        error instanceof Error ? error.message : String(error),
+      )
+      return { key: cacheKey, rows: [] as CtbEtaRecord[] }
+    }
+  })
+
+  const result = buildCtbEstimatedPositions(
+    routeStops,
+    etaResponses.flatMap((response) => response.rows),
+    CONFIG.map((station) => ({
+      id: station.id,
+      name: station.name,
+      point: station.point,
+      routes: station.routes,
+    })),
+    now,
+    CTB_ESTIMATED_POSITION_RADIUS_METRES,
+  )
+  ctbEstimatedPositionDebug = {
+    ...result.diagnostics,
+    apiErrors: result.diagnostics.apiErrors + ctbEstimatedPositionDebug.apiErrors,
+    routeStopCoordinates: routeStops.length,
+    routeEtaQueries: etaTargetsByKey.size,
+    routeEtaErrors: ctbEstimatedPositionDebug.routeEtaErrors,
+  }
+  ctbEstimatedPositionsCache = {
+    expires: now + CTB_ESTIMATED_POSITION_TTL_MS,
+    data: result.collection,
+  }
+  return result.collection
+}
+
 async function loadLocalGmbEstimatedPositions(
   allStops: GmbNearbyStop[],
   now = Date.now(),
@@ -1660,7 +1928,7 @@ export async function GET() {
   }),
 ])
 
-  const [stations, gmbEstimatedPositions, kmbEstimatedPositions] = await Promise.all([
+  const [stations, gmbEstimatedPositions, kmbEstimatedPositions, ctbEstimatedPositions] = await Promise.all([
     Promise.all(
       CONFIG.map((station) =>
         loadStation(station, kmbStops, ctbStops, gmbStops),
@@ -1676,6 +1944,11 @@ export async function GET() {
       console.error("[KMB estimated positions]", error instanceof Error ? error.message : String(error))
       return { type: "FeatureCollection" as const, features: [] }
     }),
+    loadLocalCtbEstimatedPositions(ctbStops).catch((error) => {
+      ctbEstimatedPositionDebug.apiErrors += 1
+      console.error("[CTB estimated positions]", error instanceof Error ? error.message : String(error))
+      return { type: "FeatureCollection" as const, features: [] }
+    }),
   ])
 
   const body = {
@@ -1684,6 +1957,7 @@ export async function GET() {
     stations,
     gmbEstimatedPositions,
     kmbEstimatedPositions,
+    ctbEstimatedPositions,
 
     debug: {
       kmbStopTotal: kmbStops.length,
@@ -1693,6 +1967,7 @@ export async function GET() {
       gmbDiagnostics: gmbStopsDebug,
       gmbEstimatedPosition: gmbEstimatedPositionDebug,
       kmbEstimatedPosition: kmbEstimatedPositionDebug,
+      ctbEstimatedPosition: ctbEstimatedPositionDebug,
     },
   }
 

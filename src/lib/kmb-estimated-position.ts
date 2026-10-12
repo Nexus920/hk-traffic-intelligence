@@ -241,7 +241,7 @@ function locateFromUpcomingEta(
 }
 
 /**
- * Estimate local KMB positions from official KMB route-stop sequence and ETA
+ * Estimate local KMB or CTB positions from official route-stop sequence and ETA
  * responses. It emits only points supported by recent ETAs and a validated
  * adjacent-stop travel-time sample or a conservative local ETA-derived speed
  * profile. These points are estimates, not vehicle GPS fixes.
@@ -252,6 +252,7 @@ export function buildKmbEstimatedPositions(
   monitoringPoints: readonly KmbMonitoringPoint[],
   now = Date.now(),
   radiusMetres = 450,
+  operator: "KMB" | "CTB" = "KMB",
 ): { collection: GeoJSON.FeatureCollection; diagnostics: KmbEstimatedPositionDiagnostics } {
   const diagnostics: KmbEstimatedPositionDiagnostics = {
     routeVariants: 0,
@@ -469,11 +470,11 @@ export function buildKmbEstimatedPositions(
       type: "Feature",
       geometry: { type: "Point", coordinates: [lng, lat] },
       properties: {
-        operator: "KMB",
+        operator,
         route: item.route,
         bound: item.bound,
         serviceType: item.serviceType,
-        label: "九巴 " + item.route + "（ETA 估算，非 GPS）",
+        label: (operator === "CTB" ? "城巴 " : "九巴 ") + item.route + "（ETA 估算，非 GPS）",
         destination: item.destination,
         positionType: "estimated",
         observedAt,

@@ -10,6 +10,7 @@ on:
     paths:
       - "src/lib/gmb-*.ts"
       - "src/lib/kmb-*.ts"
+      - "src/lib/ctb-*.ts"
       - "src/app/api/bus-eta/route.ts"
       - "src/components/local-traffic-dashboard.tsx"
       - "src/lib/gmb-*.json"
@@ -38,6 +39,8 @@ jobs:
         run: node --experimental-strip-types src/lib/gmb-estimated-position.test.ts
       - name: Run KMB estimated-position validation
         run: node --experimental-strip-types src/lib/kmb-estimated-position.test.ts
+      - name: Run CTB estimated-position validation
+        run: node --experimental-strip-types src/lib/ctb-estimated-position.test.ts
       - name: Run GMB route mapping validation
         run: node --experimental-strip-types src/lib/gmb-route-mapping-validation.test.ts
       - name: Run local monitoring allowlist validation
