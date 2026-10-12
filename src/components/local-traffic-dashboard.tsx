@@ -2037,15 +2037,15 @@ useEffect(() => {
   }, [mapReady])
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden bg-slate-950 text-white">
+    <main className="relative h-dvh w-full overflow-hidden bg-[#2E2D2D] text-white">
 
       {/* Map background */}
       <div
         ref={mapElement}
         className="absolute inset-0"
       />
-{/* Black background */}
-<div className="pointer-events-none absolute inset-0 z-10 bg-black" />
+{/* Full-screen background: #2E2D2D */}
+<div className="pointer-events-none absolute inset-0 z-10 bg-[#2E2D2D]" />
       {/* Dashboard overlay */}
       <div className="pointer-events-none absolute inset-0 z-20">
 
