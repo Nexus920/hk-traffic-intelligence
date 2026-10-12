@@ -2258,6 +2258,16 @@ useEffect(() => {
           })
         }
 
+        // Keep the target squares above the regular CCTV circles.
+        // The circle layer is added later and its 8px radius can otherwise
+        // completely cover these small polygon markers.
+        if (currentMap.getLayer("local-cctv-target-square-fill")) {
+          currentMap.moveLayer("local-cctv-target-square-fill")
+        }
+        if (currentMap.getLayer("local-cctv-target-labels")) {
+          currentMap.moveLayer("local-cctv-target-labels")
+        }
+
         currentMap.on(
           "mouseenter",
           "local-cctv-points",
