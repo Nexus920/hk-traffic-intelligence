@@ -1192,7 +1192,7 @@ boundaryMap.on("load", () => {
         properties: { label: "九龍仔界限街164號" },
         geometry: {
           type: "Point" as const,
-          coordinates: [114.1809, 22.3283],
+          coordinates: [114.1809, 22.32707],
         },
       }],
     },
@@ -1432,15 +1432,35 @@ boundaryMap.on("load", () => {
     },
   })
 
+  // Draw a small building glyph on the orange map pin.
   boundaryMap.addLayer({
     id: "boundary-building-164-circle",
     type: "circle",
     source: "boundary-building-164",
     paint: {
-      "circle-radius": 13,
+      "circle-radius": 15,
       "circle-color": "#f97316",
       "circle-stroke-color": "#ffffff",
       "circle-stroke-width": 3,
+    },
+  })
+  boundaryMap.addLayer({
+    id: "boundary-building-164-glyph",
+    type: "symbol",
+    source: "boundary-building-164",
+    layout: {
+      "text-field": "▥",
+      "text-font": ["Open Sans Bold"],
+      "text-size": 23,
+      "text-offset": [0, 0.02],
+      "text-anchor": "center",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#ffffff",
+      "text-halo-color": "#c2410c",
+      "text-halo-width": 0.8,
     },
   })
   boundaryMap.addLayer({
@@ -1450,7 +1470,7 @@ boundaryMap.on("load", () => {
     layout: {
       "text-field": ["get", "label"],
       "text-size": 13,
-      "text-offset": [0, -1.8],
+      "text-offset": [0, -2.1],
       "text-anchor": "bottom",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
