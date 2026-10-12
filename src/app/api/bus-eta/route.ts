@@ -1089,6 +1089,7 @@ async function loadLocalGmbEstimatedPositions(
           segmentMinutes: located.segmentMinutes,
           observedAt,
           label: `小巴 ${anchor.stop.route} · ${anchor.stop.destination}（ETA 估算，非 GPS）`,
+          destination: anchor.stop.destination,
           routeKey,
         },
       })
