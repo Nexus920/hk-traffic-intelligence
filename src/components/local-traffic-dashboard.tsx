@@ -1947,6 +1947,12 @@ useEffect(() => {
         const matched:
           GeoJSON.Feature[] =
           []
+        // Keep these two requested CCTV markers visible even when they are
+        // not among the eight nearest cameras returned for the local map.
+        const targetCctvIds = new Set([
+          "local-cctv-222",
+          "local-cctv-241",
+        ])
 
         features.forEach(
           (
@@ -2083,10 +2089,23 @@ useEffect(() => {
             ),
         )
 
+        const nearestMatched = matched.slice(0, 8)
+        const priorityMatched = matched.filter((feature) =>
+          targetCctvIds.has(String(feature.properties?.id ?? "")),
+        )
+        const visibleMatched = [
+          ...nearestMatched,
+          ...priorityMatched.filter((priority) =>
+            !nearestMatched.some(
+              (nearest) =>
+                String(nearest.properties?.id ?? "") ===
+                String(priority.properties?.id ?? ""),
+            ),
+          ),
+        ]
+
         const collection =
-          makeCctvFeatureCollection(
-            matched.slice(0, 8),
-          )
+          makeCctvFeatureCollection(visibleMatched)
 
         if (
           cancelled ||
@@ -2119,6 +2138,32 @@ useEffect(() => {
             data: collection,
           },
         )
+
+        // Small black square + ID remark for the two CCTV locations
+        // requested by the user. Existing cyan CCTV dots remain unchanged.
+        currentMap.addLayer({
+          id: "local-cctv-target-labels",
+          type: "symbol",
+          source: "local-cctv",
+          filter: [
+            "in",
+            ["get", "id"],
+            ["literal", ["local-cctv-222", "local-cctv-241"]],
+          ],
+          layout: {
+            "text-field": ["concat", "■ ", ["get", "id"]],
+            "text-size": 10,
+            "text-offset": [0, 1.3],
+            "text-anchor": "top",
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
+          },
+          paint: {
+            "text-color": "#111111",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 2,
+          },
+        })
 
         currentMap.addLayer({
           id: "local-cctv-points",
