@@ -2022,10 +2022,10 @@ useEffect(() => {
         // local-cctv-241: AID01206, Waterloo Road near Kowloon Tong Club (southbound).
         // Match by official ID rather than array index, which can change between API responses.
         const targetCctvLabels = new Map([
-          ["AID01118", "local-cctv-222"],
-          ["AID01206", "local-cctv-241"],
-          ["222", "local-cctv-222"],
-          ["241", "local-cctv-241"],
+          ["AID01118", "222"],
+          ["AID01206", "241"],
+          ["222", "222"],
+          ["241", "241"],
         ])
         const normalizeCctvId = (value: unknown) =>
           String(value ?? "").trim().replace(/^local-cctv-/, "")
