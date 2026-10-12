@@ -1896,6 +1896,35 @@ useEffect(() => {
     mapReady,
   ])
 
+  // Highlight the building at 164 Boundary Street with a map-anchored icon.
+  // Approximate pin position is near the building address and nearby La Salle School stop.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const element = document.createElement("div")
+    element.setAttribute("role", "img")
+    element.setAttribute("aria-label", "九龍仔界限街164號")
+    element.title = "九龍仔界限街164號"
+    element.style.width = "42px"
+    element.style.height = "42px"
+    element.style.display = "flex"
+    element.style.alignItems = "center"
+    element.style.justifyContent = "center"
+    element.style.borderRadius = "50%"
+    element.style.background = "#f97316"
+    element.style.border = "3px solid #ffffff"
+    element.style.boxShadow = "0 2px 8px rgba(0,0,0,0.45)"
+    element.style.boxSizing = "border-box"
+    element.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M8 9v.01"/><path d="M8 12v.01"/><path d="M8 15v.01"/><path d="M8 18v.01"/><path d="M16 13v.01"/><path d="M16 16v.01"/><path d="M16 19v.01"/></svg>'
+
+    const marker = new maplibregl.Marker({ element, anchor: "bottom" })
+      .setLngLat([114.1809, 22.3283])
+      .addTo(map)
+
+    return () => marker.remove()
+  }, [mapReady])
+
   /*
    * Step 6:
    * CCTV markers on the map.
