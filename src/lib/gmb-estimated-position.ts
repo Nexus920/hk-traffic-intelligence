@@ -11,6 +11,7 @@ export type EstimatedMinibus = {
   observedAt: string
   positionType: "estimated"
   label: string
+  destination?: string
 }
 
 export type RouteStopCoordinate = {
@@ -135,9 +136,16 @@ export function estimatedMinibusCollection(
 ): GeoJSON.FeatureCollection<GeoJSON.Point, {
   route: string
   label: string
+  destination?: string
   positionType: "estimated"
   observedAt: string
   stopSeq: number
+  etaMinutes: number
+  segmentMinutes: number
+  fromLng: number
+  fromLat: number
+  toLng: number
+  toLat: number
 }> {
   return {
     type: "FeatureCollection",
@@ -162,9 +170,16 @@ export function estimatedMinibusCollection(
         properties: {
           route: vehicle.route,
           label: vehicle.label,
+          destination: vehicle.destination ?? "",
           positionType: vehicle.positionType,
           observedAt: vehicle.observedAt,
           stopSeq: vehicle.stopSeq,
+          etaMinutes: vehicle.etaMinutes,
+          segmentMinutes: vehicle.segmentMinutes,
+          fromLng: vehicle.from.lng,
+          fromLat: vehicle.from.lat,
+          toLng: vehicle.to.lng,
+          toLat: vehicle.to.lat,
         },
       }]
     }),
@@ -183,6 +198,7 @@ export type GmbEtaObservation = {
   segmentMinutes: number
   observedAt: string
   label: string
+  destination?: string
   /** Stable route-variant key; optional for legacy callers. */
   routeKey?: string
 }
@@ -244,6 +260,7 @@ export function estimatesFromEtaObservations(
       observedAt: observation.observedAt,
       positionType: "estimated",
       label: observation.label,
+      destination: observation.destination,
     })
   }
   return vehicles
