@@ -772,8 +772,6 @@ map.resize()
 
 mapRef.current = map
 let gmbRefreshTimer: number | null = null
-let gmbVehicleRefreshTimer: number | null = null
-let gmbVehicleBoundsFitted = false
 
 map.on("load", () => {
 
@@ -789,11 +787,6 @@ map.on("load", () => {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       })
-      map.addSource("local-gmb-vehicles", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      })
-
       map.addLayer({
         id: "local-gmb-stop-circles",
         type: "circle",
@@ -889,49 +882,6 @@ map.on("load", () => {
           // Keep the last successful layer if the live GMB feed is temporarily unavailable.
         }
       }
-      const refreshLocalGmbVehicles = async () => {
-        try {
-          const response = await fetch("/api/bus-eta", { cache: "no-store" })
-          if (!response.ok) return
-          const body = await response.json() as {
-            ok?: boolean
-            gmbEstimatedPositions?: GeoJSON.FeatureCollection
-          }
-          const collection = body.gmbEstimatedPositions
-          if (!body.ok || !collection || !Array.isArray(collection.features)) return
-          const source = map.getSource("local-gmb-vehicles") as GeoJSONSource | undefined
-          source?.setData(collection)
-
-          // The initial road-only fit can exclude an estimated minibus that sits
-          // just beyond the monitored road endpoints. Fit once more when the first
-          // usable vehicle point arrives so the point and local roads are both visible.
-          if (!gmbVehicleBoundsFitted && collection.features.length > 0) {
-            const bounds = new maplibregl.LngLatBounds()
-            for (const road of LOCAL_ROADS) {
-              for (const point of road.coordinates) bounds.extend(point)
-            }
-            for (const feature of collection.features) {
-              if (!feature.geometry || feature.geometry.type !== "Point") continue
-              const lng = feature.geometry.coordinates[0]
-              const lat = feature.geometry.coordinates[1]
-              if (Number.isFinite(lng) && Number.isFinite(lat)) {
-                bounds.extend([lng as number, lat as number])
-              }
-            }
-            if (!bounds.isEmpty()) {
-              map.fitBounds(bounds, {
-                padding: { top: 160, bottom: 40, left: 40, right: 40 },
-                maxZoom: 16.7,
-                duration: 0,
-              })
-              gmbVehicleBoundsFitted = true
-            }
-          }
-        } catch {
-          // Keep the last valid estimate while the official ETA feed is unavailable.
-        }
-      }
-
       map.on("click", "local-gmb-stop-circles", (event) => {
         const feature = event.features?.[0]
         const properties = feature?.properties as { name?: string; routes?: string; eta?: string } | undefined
@@ -1041,69 +991,6 @@ paint: {
         },
       })
 
-      // Draw validated estimated vehicles above road lines and stop markers in the local preview map.
-      map.addLayer({
-        id: "local-gmb-vehicle-circles",
-        type: "circle",
-        source: "local-gmb-vehicles",
-        paint: {
-          "circle-radius": 8,
-          "circle-color": "#22c55e",
-          "circle-stroke-color": "#064e3b",
-          "circle-stroke-width": 2,
-        },
-      })
-      map.addLayer({
-        id: "local-gmb-vehicle-labels",
-        type: "symbol",
-        source: "local-gmb-vehicles",
-        layout: {
-          "text-field": ["get", "label"],
-          "text-size": 12,
-          "text-offset": [0, -1.2],
-          "text-anchor": "bottom",
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-        },
-        paint: {
-          "text-color": "#065f46",
-          "text-halo-color": "#ffffff",
-          "text-halo-width": 2,
-        },
-      })
-      map.on("click", "local-gmb-vehicle-circles", (event) => {
-        const feature = event.features?.[0]
-        const properties = feature?.properties as {
-          label?: string
-          route?: string
-          observedAt?: string
-          positionType?: string
-        } | undefined
-        const geometry = feature?.geometry
-        if (!properties || !geometry || geometry.type !== "Point") return
-        const point = geometry.coordinates as [number, number]
-        const content = document.createElement("div")
-        const title = document.createElement("strong")
-        title.textContent = properties.label || `小巴 ${properties.route || ""}（估算位置）`
-        const note = document.createElement("div")
-        note.textContent = "位置由相鄰站點 ETA 推算，並非 GPS 即時定位。"
-        content.append(title, note)
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-          .setLngLat(point)
-          .setDOMContent(content)
-          .addTo(map)
-      })
-      map.on("mouseenter", "local-gmb-vehicle-circles", () => {
-        map.getCanvas().style.cursor = "pointer"
-      })
-      map.on("mouseleave", "local-gmb-vehicle-circles", () => {
-        map.getCanvas().style.cursor = ""
-      })
-      void refreshLocalGmbVehicles()
-      gmbVehicleRefreshTimer = window.setInterval(() => {
-        void refreshLocalGmbVehicles()
-      }, 45_000)
-
       const bounds =
         new maplibregl.LngLatBounds()
 
@@ -1138,7 +1025,6 @@ paint: {
 
     return () => {
   if (gmbRefreshTimer !== null) window.clearInterval(gmbRefreshTimer)
-  if (gmbVehicleRefreshTimer !== null) window.clearInterval(gmbVehicleRefreshTimer)
   resizeObserver.disconnect()
   map.remove()
   mapRef.current = null
@@ -1210,6 +1096,8 @@ paint: {
 
    boundaryMapRef.current =
   boundaryMap
+  let localGmbVehicleRefreshTimer: number | null = null
+  let boundaryGmbBoundsFitted = false
 
 boundaryMap.on("load", () => {
   boundaryMap.addSource(
@@ -1238,6 +1126,11 @@ boundaryMap.on("load", () => {
       },
     },
   )
+
+  boundaryMap.addSource("boundary-gmb-vehicles", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  })
 
   const boundary =
     LOCAL_ROADS.find(
@@ -1314,6 +1207,58 @@ boundaryMap.on("load", () => {
     "line-opacity": 0.98,
   },
 })
+
+  // Estimated vehicles belong on this local map (not only on the full-screen
+  // background map), so the user can see the route dots beside the monitored road.
+  boundaryMap.addLayer({
+    id: "boundary-gmb-vehicle-circles",
+    type: "circle",
+    source: "boundary-gmb-vehicles",
+    paint: {
+      "circle-radius": 7,
+      "circle-color": "#22c55e",
+      "circle-stroke-color": "#064e3b",
+      "circle-stroke-width": 2,
+    },
+  })
+  boundaryMap.addLayer({
+    id: "boundary-gmb-vehicle-labels",
+    type: "symbol",
+    source: "boundary-gmb-vehicles",
+    layout: {
+      "text-field": ["concat", "小巴 ", ["get", "route"]],
+      "text-size": 11,
+      "text-offset": [0, -1.15],
+      "text-anchor": "bottom",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#065f46",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 2,
+    },
+  })
+  boundaryMap.on("click", "boundary-gmb-vehicle-circles", (event) => {
+    const feature = event.features?.[0]
+    const properties = feature?.properties as {
+      label?: string
+      route?: string
+    } | undefined
+    const geometry = feature?.geometry
+    if (!properties || !geometry || geometry.type !== "Point") return
+    const point = geometry.coordinates as [number, number]
+    const content = document.createElement("div")
+    const title = document.createElement("strong")
+    title.textContent = properties.label || `小巴 ${properties.route || ""}（估算位置）`
+    const note = document.createElement("div")
+    note.textContent = "位置由官方 ETA 與相鄰站點時間推算，並非 GPS 即時定位。"
+    content.append(title, note)
+    new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+      .setLngLat(point)
+      .setDOMContent(content)
+      .addTo(boundaryMap)
+  })
 
   /*
    * Endpoint markers.
@@ -1395,6 +1340,53 @@ const end = coordinates[coordinates.length - 1]
       .addTo(boundaryMap)
   }
 
+  const refreshBoundaryGmbVehicles = async () => {
+    try {
+      const response = await fetch("/api/bus-eta", { cache: "no-store" })
+      if (!response.ok) return
+      const body = await response.json() as {
+        ok?: boolean
+        gmbEstimatedPositions?: GeoJSON.FeatureCollection
+      }
+      const collection = body.gmbEstimatedPositions
+      if (!body.ok || !collection || !Array.isArray(collection.features)) return
+
+      const source = boundaryMap.getSource("boundary-gmb-vehicles") as GeoJSONSource | undefined
+      source?.setData(collection)
+
+      // Fit the inset map once to the two monitored roads and the first set of
+      // valid estimated dots, instead of leaving the dots beyond its narrow road bounds.
+      if (!boundaryGmbBoundsFitted && collection.features.length > 0) {
+        const localBounds = new maplibregl.LngLatBounds()
+        for (const road of LOCAL_ROADS) {
+          for (const point of road.coordinates) localBounds.extend(point)
+        }
+        for (const feature of collection.features) {
+          if (!feature.geometry || feature.geometry.type !== "Point") continue
+          const [lng, lat] = feature.geometry.coordinates
+          if (Number.isFinite(lng) && Number.isFinite(lat)) {
+            localBounds.extend([lng as number, lat as number])
+          }
+        }
+        if (!localBounds.isEmpty()) {
+          boundaryMap.fitBounds(localBounds, {
+            padding: { top: 30, bottom: 30, left: 34, right: 34 },
+            maxZoom: 16.2,
+            duration: 250,
+          })
+          boundaryGmbBoundsFitted = true
+        }
+      }
+    } catch {
+      // Keep the last valid set of dots while the ETA endpoint is temporarily unavailable.
+    }
+  }
+
+  void refreshBoundaryGmbVehicles()
+  localGmbVehicleRefreshTimer = window.setInterval(() => {
+    void refreshBoundaryGmbVehicles()
+  }, 45_000)
+
   if (
     !bounds.isEmpty()
   ) {
@@ -1402,9 +1394,7 @@ const end = coordinates[coordinates.length - 1]
       bounds,
       {
         padding: 45,
-
         maxZoom: 17.5,
-
         duration: 0,
       },
     )
@@ -1412,13 +1402,12 @@ const end = coordinates[coordinates.length - 1]
 })
 
     return () => {
+      if (localGmbVehicleRefreshTimer !== null) {
+        window.clearInterval(localGmbVehicleRefreshTimer)
+      }
       resizeObserver.disconnect()
-
       boundaryMap.remove()
-
-     
-      boundaryMapRef.current =
-        null
+      boundaryMapRef.current = null
     }
   }, [])
 
