@@ -1949,10 +1949,11 @@ useEffect(() => {
           []
         // Keep these two requested CCTV markers visible even when they are
         // not among the eight nearest cameras returned for the local map.
-        const targetCctvIds = new Set([
-          "local-cctv-222",
-          "local-cctv-241",
-        ])
+        const targetCctvIds = new Set(["222", "241"])
+        const normalizeCctvId = (value: unknown) =>
+          String(value ?? "").trim().replace(/^local-cctv-/, "")
+        const isTargetCctvId = (value: unknown) =>
+          targetCctvIds.has(normalizeCctvId(value))
 
         features.forEach(
           (
@@ -2015,6 +2016,14 @@ useEffect(() => {
                 latitude,
               ]
 
+            const id =
+              String(
+                properties.KEY ??
+                  properties.id ??
+                  `local-cctv-${index}`,
+              ).trim()
+            const isTargetCctv = isTargetCctvId(id)
+
             const distance =
               nearestRoadDistance(
                 point,
@@ -2024,19 +2033,15 @@ useEffect(() => {
                 ),
               )
 
+            // Always retain the two explicitly requested cameras, even if
+            // the API's KEY is "222"/"241" or their distance exceeds the
+            // normal 80m corridor used for other CCTV markers.
             if (
-              distance >
-              CCTV_RADIUS_METRES
+              distance > CCTV_RADIUS_METRES &&
+              !isTargetCctv
             ) {
               return
             }
-
-            const id =
-              String(
-                properties.KEY ??
-                  properties.id ??
-                  `local-cctv-${index}`,
-              ).trim()
 
             const name =
               String(
@@ -2063,6 +2068,10 @@ useEffect(() => {
                   Math.round(
                     distance,
                   ),
+                isTargetCctv,
+                markerLabel: isTargetCctv
+                  ? `■ local-cctv-${normalizeCctvId(id)}`
+                  : "",
               },
               geometry: {
                 type: "Point",
@@ -2091,7 +2100,8 @@ useEffect(() => {
 
         const nearestMatched = matched.slice(0, 8)
         const priorityMatched = matched.filter((feature) =>
-          targetCctvIds.has(String(feature.properties?.id ?? "")),
+          Boolean(feature.properties?.isTargetCctv) ||
+          isTargetCctvId(feature.properties?.id),
         )
         const visibleMatched = [
           ...nearestMatched,
@@ -2125,48 +2135,44 @@ useEffect(() => {
             | undefined
 
         if (existing) {
-          existing.setData(
-            collection,
+          existing.setData(collection)
+        } else {
+          currentMap.addSource(
+            "local-cctv",
+            {
+              type: "geojson",
+              data: collection,
+            },
           )
-          return
         }
 
-        currentMap.addSource(
-          "local-cctv",
-          {
-            type: "geojson",
-            data: collection,
-          },
-        )
+        // Black square + explicit ID remark for the two requested CCTV points.
+        // Install the label layer even when the GeoJSON source already exists.
+        if (!currentMap.getLayer("local-cctv-target-labels")) {
+          currentMap.addLayer({
+            id: "local-cctv-target-labels",
+            type: "symbol",
+            source: "local-cctv",
+            filter: ["==", ["get", "isTargetCctv"], true],
+            layout: {
+              "text-field": ["get", "markerLabel"],
+              "text-size": 10,
+              "text-offset": [0, 1.3],
+              "text-anchor": "top",
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+            },
+            paint: {
+              "text-color": "#111111",
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 2,
+            },
+          })
+        }
 
-        // Small black square + ID remark for the two CCTV locations
-        // requested by the user. Existing cyan CCTV dots remain unchanged.
-        currentMap.addLayer({
-          id: "local-cctv-target-labels",
-          type: "symbol",
-          source: "local-cctv",
-          filter: [
-            "in",
-            ["get", "id"],
-            ["literal", ["local-cctv-222", "local-cctv-241"]],
-          ],
-          layout: {
-            "text-field": ["concat", "■ ", ["get", "id"]],
-            "text-size": 10,
-            "text-offset": [0, 1.3],
-            "text-anchor": "top",
-            "text-allow-overlap": true,
-            "text-ignore-placement": true,
-          },
-          paint: {
-            "text-color": "#111111",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 2,
-          },
-        })
-
-        currentMap.addLayer({
-          id: "local-cctv-points",
+        if (!currentMap.getLayer("local-cctv-points")) {
+          currentMap.addLayer({
+            id: "local-cctv-points",
           type: "circle",
           source:
             "local-cctv",
@@ -2179,7 +2185,8 @@ useEffect(() => {
             "circle-stroke-width": 2,
             "circle-opacity": 0.95,
           },
-        })
+          })
+        }
 
         currentMap.on(
           "mouseenter",
