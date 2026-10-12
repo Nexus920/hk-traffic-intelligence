@@ -1192,7 +1192,7 @@ boundaryMap.on("load", () => {
         properties: { label: "九龍仔界限街164號" },
         geometry: {
           type: "Point" as const,
-          coordinates: [114.1809, 22.32707],
+          coordinates: [114.18115, 22.32711],
         },
       }],
     },
