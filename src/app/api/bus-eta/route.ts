@@ -198,7 +198,7 @@ let ctbRouteCoordinatesCache: { expires: number; data: CtbRouteStopCoordinate[] 
 let ctbEstimatedPositionsCache: { expires: number; data: GeoJSON.FeatureCollection } | null = null
 // Preserve CTB upstream-stage counts in the API response so an empty collection
 // can be traced to the exact data stage without provider-side logs.
-let ctbApiDiagnostics = {
+const ctbApiDiagnostics = {
   routeStopQueries: 0,
   routeStopRows: 0,
   routeStopErrors: 0,
