@@ -2547,9 +2547,9 @@ useEffect(() => {
                         aria-checked={teamsAlarmSwitch}
                         aria-label="Microsoft Teams decorative switch"
                         onClick={() => setTeamsAlarmSwitch((value) => !value)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${whatsAppAlarmSwitch ? "border-emerald-300/70 bg-emerald-500/80" : "border-white/30 bg-white/15"}`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${teamsAlarmSwitch ? "border-emerald-300/70 bg-emerald-500/80" : "border-white/30 bg-white/15"}`}
                       >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${whatsAppAlarmSwitch ? "translate-x-5" : "translate-x-1"}`} />
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${teamsAlarmSwitch ? "translate-x-5" : "translate-x-1"}`} />
                       </button>
                       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 shrink-0">
                         <path d="M13.2 3.2 22 1v8.2l-8.8 1.8V3.2Z" fill="#7B83EB" />
