@@ -22,7 +22,7 @@ const hud = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "香港智慧城市交通情報網 by Keith Li",
+  title: "智慧物業科技交通監測",
   description:
     "Live strategic-road speeds, harbour crossings, land control points, and weather warnings over Hong Kong.",
 }
