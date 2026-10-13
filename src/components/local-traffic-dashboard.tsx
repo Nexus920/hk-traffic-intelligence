@@ -375,6 +375,7 @@ function escapeHtml(value: string) {
 
 export function LocalTrafficDashboard() {
 
+  const [teamsAlarmSwitch, setTeamsAlarmSwitch] = useState(false)
   const [whatsAppAlarmSwitch, setWhatsAppAlarmSwitch] = useState(false)
 const mapElement =
   useRef<HTMLDivElement | null>(null)
@@ -2543,9 +2544,9 @@ useEffect(() => {
                       <button
                         type="button"
                         role="switch"
-                        aria-checked={whatsAppAlarmSwitch}
+                        aria-checked={teamsAlarmSwitch}
                         aria-label="Microsoft Teams decorative switch"
-                        onClick={() => setWhatsAppAlarmSwitch((value) => !value)}
+                        onClick={() => setTeamsAlarmSwitch((value) => !value)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${whatsAppAlarmSwitch ? "border-emerald-300/70 bg-emerald-500/80" : "border-white/30 bg-white/15"}`}
                       >
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${whatsAppAlarmSwitch ? "translate-x-5" : "translate-x-1"}`} />
