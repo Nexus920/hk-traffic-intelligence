@@ -2539,18 +2539,38 @@ useEffect(() => {
                   </button>
 
                   <div className="flex flex-col items-center gap-1">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={whatsAppAlarmSwitch}
-                      aria-label="What'sAPP Alarm decorative switch"
-                      onClick={() => setWhatsAppAlarmSwitch((value) => !value)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${whatsAppAlarmSwitch ? "border-emerald-300/70 bg-emerald-500/80" : "border-white/30 bg-white/15"}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${whatsAppAlarmSwitch ? "translate-x-5" : "translate-x-1"}`}
-                      />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={whatsAppAlarmSwitch}
+                        aria-label="What'sAPP Alarm decorative switch"
+                        onClick={() => setWhatsAppAlarmSwitch((value) => !value)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${whatsAppAlarmSwitch ? "border-emerald-300/70 bg-emerald-500/80" : "border-white/30 bg-white/15"}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${whatsAppAlarmSwitch ? "translate-x-5" : "translate-x-1"}`}
+                        />
+                      </button>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4 shrink-0"
+                        fill="none"
+                      >
+                        <circle cx="12" cy="12" r="10" fill="#25D366" />
+                        <path
+                          d="M7.1 18.1l.7-2.5a7 7 0 1 1 2.5 2.5l-3.2.0Z"
+                          stroke="white"
+                          strokeWidth="1.35"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M9.1 8.7c.2-.4.4-.4.7-.4h.4c.2 0 .3.1.4.4l.7 1.5c.1.2 0 .4-.1.5l-.5.6c-.1.1-.1.3 0 .4.5.9 1.2 1.5 2.1 1.9.2.1.3.1.5-.1l.7-.8c.1-.2.3-.2.5-.1l1.4.7c.2.1.3.2.2.5-.1.6-.4 1.1-.9 1.3-.6.3-1.3.3-2.1 0-1-.4-2.1-1.1-2.9-1.9-.8-.8-1.4-1.7-1.5-2.4-.1-.8.1-1.4.5-2.1Z"
+                          fill="white"
+                        />
+                      </svg>
+                    </div>
                     <span className="whitespace-nowrap text-[10px] font-medium text-white">
                       What'sAPP Alarm
                     </span>
